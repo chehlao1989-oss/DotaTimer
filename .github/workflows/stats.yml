@@ -45,11 +45,12 @@ jobs:
       - name: Собрать матчи (Steam)
         env:
           STEAM_API_KEY: ${{ secrets.STEAM_API_KEY }}
-        run: python tools/collect_raw.py matches --out raw --state state --calls 3000 --max-minutes 250
+        run: python tools/collect_raw.py matches --out raw --state state --calls 3000 --max-minutes 290
 
       - name: Собрать ранги (OpenDota)
         continue-on-error: true  # без рангов матчи всё равно нужны: сохраняем их в любом случае
-        run: python tools/collect_raw.py ranks --matches "$(ls raw/matches-*.parquet)" --out raw --calls 2400 --max-minutes 60
+        # 700 запросов: у OpenDota 3000 в сутки на 4 запуска, остальное — запас (docs/DATA_SOURCES.md)
+        run: python tools/collect_raw.py ranks --matches "$(ls raw/matches-*.parquet)" --out raw --calls 700 --max-minutes 20
 
       - name: Добавить файлы в релиз data-raw
         if: ${{ !cancelled() && hashFiles('raw/matches-*.parquet') != '' }}

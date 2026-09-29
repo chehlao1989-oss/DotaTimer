@@ -42,7 +42,8 @@ ANCHOR_TRIES = 10  # сколько настоящих матчей пробов
 PAUSE_START_SEC, PAUSE_MIN_SEC, PAUSE_MAX_SEC = 8.0, 7.0, 15.0
 PAUSE_UP_SEC, PAUSE_DOWN_SEC, CALM_CALLS = 1.0, 0.5, 50
 RATE_LIMIT_PAUSE_SEC, ERROR_PAUSE_SEC, MAX_ERRORS_IN_ROW = 30, 10, 20
-OPENDOTA_PAUSE_SEC = 1.1  # бесплатный лимит OpenDota — 60 запросов в минуту
+OPENDOTA_PAUSE_SEC = 1.1  # бесплатный лимит OpenDota — 60 запросов в минуту и 3000 в сутки (docs/DATA_SOURCES.md)
+OPENDOTA_DAY_RESERVE = 100  # столько суточных запросов OpenDota оставляем про запас (программе автора и следующему шагу)
 
 MATCH_SCHEMA = pa.schema([
     ("match_id", pa.int64()), ("start_time", pa.int32()), ("duration", pa.int16()), ("game_mode", pa.int8()),
@@ -55,9 +56,14 @@ RANK_SCHEMA = pa.schema([("match_id", pa.int64()), ("avg_rank_tier", pa.int8()),
 
 
 def http_json(url: str, timeout: int = 60):
+    return http_json_headers(url, timeout)[0]
+
+
+def http_json_headers(url: str, timeout: int = 60):
+    """Ответ и заголовки (у OpenDota в заголовках остаток лимита: X-Rate-Limit-Remaining-Day)."""
     request = urllib.request.Request(url, headers={"User-Agent": "DotaTimer-stats/2.0"})
     with urllib.request.urlopen(request, timeout=timeout) as response:
-        return json.loads(response.read())
+        return json.loads(response.read()), response.headers
 
 
 def patch_for(start_time: int, patches: list) -> str:
@@ -200,28 +206,41 @@ def id_range(matches_file: Path) -> tuple[int, int]:
 
 
 def collect_ranks(calls: int, max_minutes: float, out: Path, tag: str, matches_file: Path) -> Path:
-    """Ранги из /publicMatches по диапазону номеров собранных матчей, сверху вниз."""
+    """Ранги из /publicMatches по диапазону номеров собранных матчей.
+
+    У OpenDota 3000 бесплатных запросов в сутки, а на покрытие всего диапазона их нужно больше. Поэтому calls
+    запросов равномерно распределяются по диапазону (каждый даёт ~100 соседних матчей с рангом) — это выборка
+    рангов по всему периоду, а не только по его концу. Если остаток суточного лимита в заголовке ответа
+    опускается до OPENDOTA_DAY_RESERVE — останавливаемся.
+    """
     low, high = id_range(matches_file)
-    print(f"диапазон номеров матчей: {low}–{high} ({high - low} номеров)")
-    ranks, cursor = {}, high + 1
+    step = max(1, (high - low) // max(calls, 1))
+    print(f"диапазон номеров матчей: {low}–{high} ({high - low} номеров), шаг {step}")
+    ranks = {}
     deadline = time.monotonic() + max_minutes * 60
     for i in range(calls):
+        cursor = high + 1 - i * step
         if time.monotonic() > deadline or cursor <= low:
             break
         try:
-            page = http_json(f"{OPENDOTA}/publicMatches?less_than_match_id={cursor}")
+            page, headers = http_json_headers(f"{OPENDOTA}/publicMatches?less_than_match_id={cursor}")
         except (urllib.error.URLError, OSError, ValueError) as error:
-            print(f"запрос {i}: ошибка {type(error).__name__} {getattr(error, 'code', '')}", flush=True)
+            code = getattr(error, "code", "")
+            print(f"запрос {i}: ошибка {type(error).__name__} {code}", flush=True)
+            if code == 429:
+                print("OpenDota: лимит исчерпан, заканчиваю сбор рангов", flush=True)
+                break
             time.sleep(ERROR_PAUSE_SEC)
             continue
-        if not page:
-            break
-        for m in page:
-            if m.get("avg_rank_tier") is not None:
+        for m in page or []:
+            if m.get("avg_rank_tier") is not None and low <= m["match_id"] <= high:
                 ranks[m["match_id"]] = (m["avg_rank_tier"], m.get("num_rank_tier") or 0)
-        cursor = min(m["match_id"] for m in page)
-        if i % 200 == 0:
-            print(f"запрос {i}/{calls}, матчей с рангом {len(ranks)}, осталось номеров {cursor - low}", flush=True)
+        left = headers.get("X-Rate-Limit-Remaining-Day")
+        if i % 100 == 0:
+            print(f"запрос {i}/{calls}, матчей с рангом {len(ranks)}, осталось на сутки {left}", flush=True)
+        if left is not None and left.isdigit() and int(left) <= OPENDOTA_DAY_RESERVE:
+            print(f"OpenDota: осталось {left} запросов на сутки, заканчиваю сбор рангов", flush=True)
+            break
         time.sleep(OPENDOTA_PAUSE_SEC)
     rows = [{"match_id": k, "avg_rank_tier": v[0], "num_rank_tier": v[1]} for k, v in ranks.items()]
     path = out / f"ranks-{tag}.parquet"
