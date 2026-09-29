@@ -1,0 +1,461 @@
+{
+  "note": "Слой 1 (п. 6.6 ТЗ). rules — утверждённый автором список «механика врага → механика ответа» (29.09.2026), единственное, что задано вручную. tags — шаблоны поиска по официальным описаниям Valve (dotaconstants): desc — регулярные выражения по тексту описаний (в нижнем регистре), attrib — ключи характеристик предмета, exclude — выражения, при которых метка не ставится. role_tags — дополнительные метки врага по официальным ролям героев Valve (из dotaconstants heroes.json).",
+  "rules": [
+    {
+      "id": "heal",
+      "title_ru": "Лечение и реген",
+      "enemy": "heal",
+      "answers": [
+        "heal_reduction"
+      ]
+    },
+    {
+      "id": "evasion",
+      "title_ru": "Уклонение",
+      "enemy": "evasion",
+      "answers": [
+        "true_strike"
+      ]
+    },
+    {
+      "id": "invisibility",
+      "title_ru": "Невидимость",
+      "enemy": "invisibility",
+      "answers": [
+        "true_sight"
+      ]
+    },
+    {
+      "id": "illusions",
+      "title_ru": "Иллюзии",
+      "enemy": "illusions",
+      "answers": [
+        "multi_target",
+        "illusion_kill"
+      ]
+    },
+    {
+      "id": "summons",
+      "title_ru": "Призванные существа",
+      "enemy": "summons",
+      "answers": [
+        "multi_target"
+      ]
+    },
+    {
+      "id": "passives",
+      "title_ru": "Сильные пассивки",
+      "enemy": "passives",
+      "answers": [
+        "break"
+      ]
+    },
+    {
+      "id": "magic_immunity",
+      "title_ru": "Неуязвимость к магии",
+      "enemy": "magic_immunity",
+      "answers": [
+        "bkb_pierce"
+      ]
+    },
+    {
+      "id": "mobility",
+      "title_ru": "Мобильность",
+      "enemy": "mobility",
+      "answers": [
+        "silence",
+        "root",
+        "hex"
+      ]
+    },
+    {
+      "id": "magic_damage",
+      "title_ru": "Магический урон",
+      "enemy": "magic_damage",
+      "answers": [
+        "magic_defense"
+      ]
+    },
+    {
+      "id": "physical_damage",
+      "title_ru": "Физический урон",
+      "enemy": "physical_damage",
+      "answers": [
+        "physical_defense"
+      ]
+    },
+    {
+      "id": "saves",
+      "title_ru": "Спасающие эффекты",
+      "enemy": "saves",
+      "answers": [
+        "dispel_enemy"
+      ]
+    },
+    {
+      "id": "mana",
+      "title_ru": "Зависит от маны",
+      "enemy": "mana_dependent",
+      "answers": [
+        "mana_burn"
+      ]
+    },
+    {
+      "id": "spell_block",
+      "title_ru": "Linken's Sphere",
+      "enemy": "spell_block",
+      "answers": [
+        "cheap_target"
+      ]
+    },
+    {
+      "id": "disables",
+      "title_ru": "Сильный контроль",
+      "enemy": "hard_disable",
+      "answers": [
+        "self_dispel"
+      ]
+    },
+    {
+      "id": "armor",
+      "title_ru": "Много брони",
+      "enemy": "armor",
+      "answers": [
+        "armor_reduction"
+      ]
+    }
+  ],
+  "enemy_tags": {
+    "heal": {
+      "desc": [
+        "health regen",
+        "\bheals?\b",
+        "restor\\w* \\d+ health",
+        "lifesteal",
+        "life steal",
+        "missing health"
+      ],
+      "attrib": [
+        "lifesteal_percent",
+        "hp_regen",
+        "missing_health_regen"
+      ],
+      "exclude": [
+        "reduc\\w* health restoration",
+        "health restoration by"
+      ]
+    },
+    "evasion": {
+      "desc": [
+        "evasion",
+        "evade"
+      ],
+      "attrib": [
+        "bonus_evasion"
+      ],
+      "exclude": [
+        "pierce\\w* (through )?evasion",
+        "ignor\\w* evasion",
+        "true strike"
+      ]
+    },
+    "invisibility": {
+      "desc": [
+        "invisib",
+        "fades? into the shadows"
+      ],
+      "attrib": [],
+      "exclude": [
+        "reveal",
+        "true sight",
+        "see invisible"
+      ]
+    },
+    "illusions": {
+      "desc": [
+        "creat\\w* .{0,40}(illusion|image)",
+        "illusions? of (him|her|it)self",
+        "fractur\\w* .{0,30}illusion",
+        "conjur\\w* .{0,20}(illusion|image)"
+      ],
+      "attrib": [],
+      "exclude": [
+        "destroys? illusions",
+        "kills? illusions",
+        "charged image",
+        "remnant"
+      ]
+    },
+    "summons": {
+      "desc": [
+        "summons? .{0,30}(unit|creep|spider|wolf|wolves|treant|eidolon|familiar|bear|golem|ward|minion|skeleton|zombie|boar|hawk|serpent|imp|spirit bear|forge spirit)",
+        "spawns? .{0,30}(unit|creep|spider|wolf|wolves|treant|eidolon|familiar|bear|golem|skeleton|zombie)"
+      ],
+      "attrib": [],
+      "exclude": []
+    },
+    "passives": {
+      "behavior": "Passive",
+      "min_count": 2,
+      "desc": [],
+      "attrib": [],
+      "exclude": []
+    },
+    "magic_immunity": {
+      "desc": [
+        "debuff immun",
+        "spell immun",
+        "magic immun",
+        "any negative effect from enemy spells has no effect"
+      ],
+      "attrib": [],
+      "exclude": [
+        "pierces? (debuff|spell) immunity"
+      ]
+    },
+    "mobility": {
+      "desc": [
+        "\\bblink",
+        "teleport\\w* (to|a short)",
+        "\\bleaps?\\b",
+        "\\bdash",
+        "\\bjumps? (to|toward|forward)",
+        "rushes toward",
+        "rolls? (forward|toward)",
+        "surges? forward"
+      ],
+      "attrib": [],
+      "exclude": [
+        "town portal"
+      ]
+    },
+    "magic_damage": {
+      "desc": [
+        "magical damage"
+      ],
+      "min_count": 2,
+      "attrib": [],
+      "exclude": []
+    },
+    "physical_damage": {
+      "desc": [
+        "critical",
+        "\\bcrit",
+        "bash",
+        "attack damage"
+      ],
+      "min_count": 2,
+      "attrib": [
+        "crit_multiplier",
+        "bash_chance_melee"
+      ],
+      "exclude": []
+    },
+    "saves": {
+      "desc": [
+        "(an|target|friendly) all(y|ied) unit",
+        "friendly unit",
+        "allied units",
+        "invulnerab",
+        "barrier",
+        "shield",
+        "cannot die",
+        "prevent\\w* .{0,20}(death|dying)",
+        "dispel\\w* .{0,20}(ally|allied|friendly)"
+      ],
+      "min_count": 2,
+      "attrib": [],
+      "exclude": []
+    },
+    "mana_dependent": {
+      "desc": [
+        "mana to absorb",
+        "damage .{0,30}absorbed by mana",
+        "based on .{0,20}mana",
+        "consumes? .{0,20}mana",
+        "in exchange for .{0,20}mana",
+        "depletes? .{0,10}mana"
+      ],
+      "attrib": [],
+      "exclude": []
+    },
+    "spell_block": {
+      "desc": [
+        "blocks? .{0,20}targeted spell",
+        "spell block"
+      ],
+      "attrib": [],
+      "exclude": []
+    },
+    "hard_disable": {
+      "desc": [
+        "\\bstun",
+        "\\bhex",
+        "\\bsleep",
+        "taunt",
+        "\\bduel",
+        "chronosphere",
+        "black hole"
+      ],
+      "min_count": 2,
+      "attrib": [],
+      "exclude": []
+    },
+    "armor": {
+      "desc": [
+        "(bonus|gains?|grants?|increas\\w*) .{0,20}armor"
+      ],
+      "attrib": [
+        "bonus_armor"
+      ],
+      "min_count": 1,
+      "exclude": [
+        "reduc\\w* .{0,20}armor",
+        "-\\s?\\d+ armor",
+        "armor by -"
+      ]
+    }
+  },
+  "answer_tags": {
+    "heal_reduction": {
+      "desc": [
+        "reduc\\w* health restoration",
+        "health restoration by",
+        "reduc\\w* .{0,20}heal"
+      ]
+    },
+    "true_strike": {
+      "desc": [
+        "pierce\\w* (through )?evasion",
+        "true strike",
+        "cannot miss",
+        "ignor\\w* evasion"
+      ]
+    },
+    "true_sight": {
+      "desc": [
+        "true sight",
+        "reveals? .{0,20}invisible",
+        "see invisible"
+      ],
+      "exclude": [
+        "turns the caster .{0,80}invisible"
+      ]
+    },
+    "multi_target": {
+      "desc": [
+        "cleave",
+        "in a cone",
+        "bolt of electricity",
+        "lightning",
+        "\\d+ additional enem",
+        "emits .{0,20}wave",
+        "scorches enemies",
+        "damage per second to (all )?(nearby )?enem"
+      ]
+    },
+    "illusion_kill": {
+      "desc": [
+        "destroys? illusions",
+        "kills? illusions"
+      ]
+    },
+    "break": {
+      "desc": [
+        "disable \\w* ?passive",
+        "passives? (are|is) disabled"
+      ]
+    },
+    "bkb_pierce": {
+      "desc": [
+        "pierces? (debuff|spell) immunity"
+      ]
+    },
+    "silence": {
+      "desc": [
+        "silence"
+      ],
+      "exclude": [
+        "silences you"
+      ]
+    },
+    "root": {
+      "desc": [
+        "\\broots?\\b",
+        "ensnare",
+        "entangle"
+      ]
+    },
+    "hex": {
+      "desc": [
+        "critter",
+        "\\bhex"
+      ]
+    },
+    "magic_defense": {
+      "desc": [
+        "magic (damage )?barrier",
+        "magic resistance",
+        "negative effect from enemy spells has no effect",
+        "(reduc\\w*|less|lower) .{0,20}spell damage"
+      ]
+    },
+    "physical_defense": {
+      "desc": [
+        "immune to physical",
+        "physical (damage )?barrier",
+        "disarm",
+        "block\\w* .{0,30}damage from (each|every) attack",
+        "returns? .{0,20}damage"
+      ]
+    },
+    "dispel_enemy": {
+      "desc": [
+        "dispels? the target",
+        "dispel\\w* .{0,20}enem",
+        "continuously dispels"
+      ]
+    },
+    "mana_burn": {
+      "desc": [
+        "burns? \\d+ mana",
+        "mana burn"
+      ]
+    },
+    "cheap_target": {
+      "desc": [
+        "target (enemy|unit)",
+        "the target",
+        "a target unit"
+      ],
+      "exclude": [
+        "tree"
+      ],
+      "max_cost": 3000,
+      "active_only": true
+    },
+    "self_dispel": {
+      "desc": [
+        "basic dispel",
+        "strong dispel",
+        "status resistance",
+        "negative effect from enemy spells has no effect"
+      ]
+    },
+    "armor_reduction": {
+      "desc": [
+        "reduc\\w* .{0,30}armor",
+        "armor by -",
+        "decreases .{0,40}armor"
+      ],
+      "exclude": [
+        "your armor"
+      ]
+    }
+  },
+  "role_tags": {
+    "Nuker": "magic_damage",
+    "Escape": "mobility",
+    "Disabler": "hard_disable"
+  }
+}

@@ -1,0 +1,278 @@
+{
+  "note": "Таблица контров (п. 6.4 ТЗ). Цифры в why_ru сверены с официальными данными предметов dota2.com (itemdata) и патчноутами 7.38–7.41f, 29.09.2026. Списки героев в triggers.heroes — выбор агента, heroes_reviewed=false до проверки автором. Роли контр-предметов: core, support, any.",
+  "checked_patch": "7.41f",
+  "source": "https://www.dota2.com/datafeed/itemdata?language=english&item_id=<id> ; https://www.dota2.com/datafeed/patchnotes?version=7.41f&language=english",
+  "rules": [
+    {
+      "id": "heal",
+      "title_ru": "Сильное лечение и регенерация",
+      "triggers": {
+        "items": ["heart", "satanic", "holy_locket", "guardian_greaves", "mekansm"],
+        "heroes": ["alchemist", "huskar", "necrolyte", "life_stealer", "slark", "abaddon", "omniknight", "oracle"]
+      },
+      "counters": [
+        {"item": "spirit_vessel", "roles": ["support"], "why_ru": "на 8 сек режет лечение и реген на 70% и жжёт 4% здоровья в секунду"},
+        {"item": "skadi", "roles": ["core"], "why_ru": "атаки режут лечение на 50% и замедляют"},
+        {"item": "orb_of_corrosion", "roles": ["core"], "why_ru": "дёшево: атаки режут лечение на 18%"},
+        {"item": "crellas_crozier", "roles": ["any"], "why_ru": "аура режет лечение врагов рядом на 30%"}
+      ],
+      "priority": 2,
+      "checked_patch": "7.41f",
+      "verified": true,
+      "heroes_reviewed": false
+    },
+    {
+      "id": "evasion",
+      "title_ru": "Уклонение",
+      "triggers": {
+        "items": ["butterfly", "radiance", "heavens_halberd"],
+        "heroes": ["phantom_assassin", "windrunner", "brewmaster"]
+      },
+      "counters": [
+        {"item": "monkey_king_bar", "roles": ["core"], "why_ru": "80% атак игнорируют уклонение"},
+        {"item": "bloodthorn", "roles": ["core"], "why_ru": "40% атак игнорируют уклонение, под немотой все атаки попадают"},
+        {"item": "javelin", "roles": ["core"], "why_ru": "дёшево: 25% атак игнорируют уклонение"},
+        {"item": "ghost", "roles": ["support"], "why_ru": "4 сек неуязвимость к физическому урону"}
+      ],
+      "priority": 2,
+      "checked_patch": "7.41f",
+      "verified": true,
+      "heroes_reviewed": false
+    },
+    {
+      "id": "magic_immune",
+      "title_ru": "BKB и неуязвимость к магии",
+      "triggers": {
+        "items": ["black_king_bar"],
+        "heroes": ["juggernaut", "life_stealer"]
+      },
+      "counters": [
+        {"item": "abyssal_blade", "roles": ["core"], "why_ru": "оглушение 1.6 сек сквозь BKB"},
+        {"item": "shivas_guard", "roles": ["any"], "why_ru": "аура −40 скорости атаки работает сквозь BKB"},
+        {"item": "ghost", "roles": ["support"], "why_ru": "4 сек неуязвимость к физическому урону"}
+      ],
+      "priority": 3,
+      "checked_patch": "7.41f",
+      "verified": true,
+      "heroes_reviewed": false
+    },
+    {
+      "id": "invisibility",
+      "title_ru": "Невидимость",
+      "triggers": {
+        "items": ["invis_sword", "silver_edge", "shadow_amulet"],
+        "heroes": ["riki", "clinkz", "bounty_hunter", "nyx_assassin", "weaver"]
+      },
+      "counters": [
+        {"item": "dust", "roles": ["support"], "why_ru": "раскрывает невидимых в радиусе 1050 на 12 сек"},
+        {"item": "ward_sentry", "roles": ["support"], "why_ru": "видит невидимых в радиусе 1050, стоит 7 мин"},
+        {"item": "gem", "roles": ["any"], "why_ru": "постоянно видит невидимых в радиусе 900"},
+        {"item": "essence_distiller", "roles": ["any"], "why_ru": "враг виден 8 сек, даже в невидимости"}
+      ],
+      "priority": 2,
+      "checked_patch": "7.41f",
+      "verified": true,
+      "heroes_reviewed": false
+    },
+    {
+      "id": "illusions",
+      "title_ru": "Иллюзии и клоны",
+      "triggers": {
+        "items": ["manta"],
+        "heroes": ["phantom_lancer", "naga_siren", "terrorblade", "chaos_knight", "meepo", "arc_warden"]
+      },
+      "counters": [
+        {"item": "mjollnir", "roles": ["core"], "why_ru": "молнии бьют до 12 целей по 180 урона"},
+        {"item": "bfury", "roles": ["core"], "why_ru": "только для ближнего боя: сплеш 60% урона по героям"},
+        {"item": "radiance", "roles": ["core"], "why_ru": "жжёт 60 урона в секунду всем вокруг"},
+        {"item": "sheepstick", "roles": ["any"], "why_ru": "хекс мгновенно убивает иллюзию"}
+      ],
+      "priority": 2,
+      "checked_patch": "7.41f",
+      "verified": true,
+      "heroes_reviewed": false
+    },
+    {
+      "id": "linkens",
+      "title_ru": "Linken's Sphere",
+      "triggers": {
+        "items": ["sphere"],
+        "heroes": []
+      },
+      "counters": [
+        {"item": "rod_of_atos", "roles": ["support"], "why_ru": "дешёвое целевое заклинание снимает блок сферы"},
+        {"item": "orchid", "roles": ["core"], "why_ru": "целевое заклинание снимает блок сферы"},
+        {"item": "force_staff", "roles": ["any"], "why_ru": "форсой по врагу снимается блок сферы"}
+      ],
+      "priority": 2,
+      "checked_patch": "7.41f",
+      "verified": true,
+      "heroes_reviewed": true
+    },
+    {
+      "id": "initiation",
+      "title_ru": "Инициация с блинка",
+      "triggers": {
+        "items": ["blink", "overwhelming_blink", "arcane_blink", "swift_blink"],
+        "heroes": ["earthshaker", "enigma", "tidehunter", "magnataur", "axe", "faceless_void", "sand_king", "centaur", "mars"]
+      },
+      "counters": [
+        {"item": "black_king_bar", "roles": ["core"], "why_ru": "9 сек защиты от магии и контроля"},
+        {"item": "glimmer_cape", "roles": ["support"], "why_ru": "невидимость и барьер 375 от магии"},
+        {"item": "force_staff", "roles": ["support"], "why_ru": "вытолкнуть себя или союзника на 600"}
+      ],
+      "priority": 2,
+      "checked_patch": "7.41f",
+      "verified": true,
+      "heroes_reviewed": false
+    },
+    {
+      "id": "magic_burst",
+      "title_ru": "Магический урон",
+      "triggers": {
+        "items": ["ethereal_blade", "dagon"],
+        "heroes": ["lina", "lion", "zuus", "tinker", "skywrath_mage", "queenofpain", "invoker"]
+      },
+      "counters": [
+        {"item": "black_king_bar", "roles": ["core"], "why_ru": "9 сек защиты от магии"},
+        {"item": "mage_slayer", "roles": ["core"], "why_ru": "атакованный враг наносит на 40% меньше урона заклинаниями"},
+        {"item": "pipe", "roles": ["support"], "why_ru": "барьер 425 от магии всей команде рядом"},
+        {"item": "glimmer_cape", "roles": ["support"], "why_ru": "невидимость и барьер 375 от магии"}
+      ],
+      "priority": 2,
+      "checked_patch": "7.41f",
+      "verified": true,
+      "heroes_reviewed": false
+    },
+    {
+      "id": "physical_burst",
+      "title_ru": "Физический урон и криты",
+      "triggers": {
+        "items": ["greater_crit", "desolator"],
+        "heroes": ["phantom_assassin", "sven", "troll_warlord", "ursa", "juggernaut", "chaos_knight"]
+      },
+      "counters": [
+        {"item": "ghost", "roles": ["support"], "why_ru": "4 сек неуязвимость к физическому урону"},
+        {"item": "solar_crest", "roles": ["support"], "why_ru": "союзнику барьер 350 от физического урона и +5 брони"},
+        {"item": "heavens_halberd", "roles": ["any"], "why_ru": "обезоруживает на 3.5 сек"},
+        {"item": "shivas_guard", "roles": ["core"], "why_ru": "аура −40 скорости атаки врагам, работает сквозь BKB"}
+      ],
+      "priority": 2,
+      "checked_patch": "7.41f",
+      "verified": true,
+      "heroes_reviewed": false
+    },
+    {
+      "id": "mobility",
+      "title_ru": "Убегает и прыгает",
+      "triggers": {
+        "items": ["hurricane_pike", "cyclone"],
+        "heroes": ["weaver", "antimage", "queenofpain", "storm_spirit", "ember_spirit", "puck", "void_spirit", "slark"]
+      },
+      "counters": [
+        {"item": "orchid", "roles": ["core"], "why_ru": "немота 5 сек — не сможет прыгнуть"},
+        {"item": "rod_of_atos", "roles": ["support"], "why_ru": "корни 2 сек"},
+        {"item": "gungir", "roles": ["any"], "why_ru": "корни 2 сек по площади"},
+        {"item": "sheepstick", "roles": ["any"], "why_ru": "хекс 2.8 сек"}
+      ],
+      "priority": 1,
+      "checked_patch": "7.41f",
+      "verified": true,
+      "heroes_reviewed": false
+    },
+    {
+      "id": "strong_passives",
+      "title_ru": "Сильные пассивки",
+      "triggers": {
+        "items": [],
+        "heroes": ["bristleback", "spectre", "phantom_assassin", "faceless_void", "medusa", "huskar"]
+      },
+      "counters": [
+        {"item": "silver_edge", "roles": ["core"], "why_ru": "удар из невидимости отключает пассивки на 5 сек"}
+      ],
+      "priority": 1,
+      "checked_patch": "7.41f",
+      "verified": true,
+      "heroes_reviewed": false
+    },
+    {
+      "id": "saves",
+      "title_ru": "Спасающие эффекты",
+      "triggers": {
+        "items": ["glimmer_cape", "ghost", "solar_crest"],
+        "heroes": ["omniknight", "oracle", "dazzle", "abaddon"]
+      },
+      "counters": [
+        {"item": "nullifier", "roles": ["core"], "why_ru": "снимает положительные эффекты и 4 сек не даёт повесить новые"},
+        {"item": "disperser", "roles": ["core"], "why_ru": "развеивает положительные эффекты с цели"}
+      ],
+      "priority": 1,
+      "checked_patch": "7.41f",
+      "verified": true,
+      "heroes_reviewed": false
+    },
+    {
+      "id": "mana",
+      "title_ru": "Зависит от маны",
+      "triggers": {
+        "items": [],
+        "heroes": ["medusa", "storm_spirit"]
+      },
+      "counters": [
+        {"item": "diffusal_blade", "roles": ["core"], "why_ru": "жжёт 40 маны за удар"}
+      ],
+      "priority": 1,
+      "checked_patch": "7.41f",
+      "verified": true,
+      "heroes_reviewed": false
+    },
+    {
+      "id": "summons",
+      "title_ru": "Призванные существа",
+      "triggers": {
+        "items": [],
+        "heroes": ["furion", "broodmother", "lycan", "beastmaster", "visage", "chen", "lone_druid"]
+      },
+      "counters": [
+        {"item": "mjollnir", "roles": ["core"], "why_ru": "молнии бьют до 12 целей по 180 урона"},
+        {"item": "bfury", "roles": ["core"], "why_ru": "только для ближнего боя: сплеш по всем вокруг"},
+        {"item": "shivas_guard", "roles": ["any"], "why_ru": "взрыв на 225 урона по площади"}
+      ],
+      "priority": 1,
+      "checked_patch": "7.41f",
+      "verified": true,
+      "heroes_reviewed": false
+    }
+  ],
+  "heroes": {
+    "medusa": {"scaling": 3},
+    "spectre": {"scaling": 3},
+    "faceless_void": {"scaling": 3},
+    "antimage": {"scaling": 3},
+    "terrorblade": {"scaling": 3},
+    "morphling": {"scaling": 3},
+    "naga_siren": {"scaling": 2},
+    "phantom_lancer": {"scaling": 2},
+    "alchemist": {"scaling": 2},
+    "arc_warden": {"scaling": 2},
+    "troll_warlord": {"scaling": 2},
+    "slark": {"scaling": 2},
+    "luna": {"scaling": 2},
+    "sven": {"scaling": 2},
+    "juggernaut": {"scaling": 2},
+    "phantom_assassin": {"scaling": 2},
+    "life_stealer": {"scaling": 2},
+    "drow_ranger": {"scaling": 2},
+    "weaver": {"scaling": 2},
+    "muerta": {"scaling": 2},
+    "meepo": {"scaling": 2},
+    "tinker": {"scaling": 2},
+    "gyrocopter": {"scaling": 1},
+    "chaos_knight": {"scaling": 1},
+    "skeleton_king": {"scaling": 1},
+    "ursa": {"scaling": 1},
+    "templar_assassin": {"scaling": 1},
+    "storm_spirit": {"scaling": 1},
+    "ember_spirit": {"scaling": 1}
+  }
+}

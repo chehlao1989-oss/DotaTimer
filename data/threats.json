@@ -1,0 +1,16 @@
+{
+  "note": "Настройки оценки угроз и подсказок по предметам (п. 6.3–6.4 ТЗ). Веса подбираются по опыту, это не игровые данные.",
+  "weights": {
+    "winrate": 1.0,
+    "core": 3.0,
+    "scaling": 1.5,
+    "matchup": 0.5
+  },
+  "support_multiplier": 0.4,
+  "matchup_min_games": 30,
+  "stats_min_picks": 200,
+  "default_threat_count": 2,
+  "counters_per_hint": 2,
+  "min_component_cost": 1000,
+  "reason_winrate_min": 52.0
+}

@@ -1,0 +1,189 @@
+{
+  "patch": "7.41f",
+  "checked_at": "2026-09-28",
+  "note": "Время в секундах по игровым часам. warn_before: за сколько секунд предупреждать (значения по умолчанию, пользователь меняет в настройках).",
+  "events": {
+    "power_rune": {
+      "kind": "periodic",
+      "first": 360,
+      "interval": 120,
+      "warn_before": [
+        10
+      ],
+      "first_warn_before": [
+        30,
+        10
+      ],
+      "source": "https://liquipedia.net/dota2/Runes",
+      "checked_patch": "7.41f",
+      "verified": true
+    },
+    "bounty_rune": {
+      "kind": "periodic",
+      "first": 0,
+      "interval": 240,
+      "warn_before": [
+        10
+      ],
+      "source": "https://www.dota2.com/patches/7.38 ; https://liquipedia.net/dota2/Runes",
+      "checked_patch": "7.41f",
+      "verified": true
+    },
+    "water_rune": {
+      "kind": "at_times",
+      "times": [
+        120,
+        240
+      ],
+      "warn_before": [
+        10
+      ],
+      "source": "https://liquipedia.net/dota2/Runes",
+      "checked_patch": "7.41f",
+      "verified": true
+    },
+    "shrine_of_wisdom": {
+      "kind": "periodic",
+      "first": 420,
+      "interval": 420,
+      "warn_before": [
+        15
+      ],
+      "source": "https://www.dota2.com/patches/7.38 ; https://liquipedia.net/dota2/Shrine_of_Wisdom",
+      "checked_patch": "7.41f",
+      "verified": true
+    },
+    "lotus": {
+      "kind": "periodic",
+      "first": 180,
+      "interval": 180,
+      "warn_before": [
+        10
+      ],
+      "source": "https://liquipedia.net/dota2/Lotus_Pool ; https://www.dota2.com/patches/7.33",
+      "checked_patch": "7.41f",
+      "verified": false,
+      "unverified_note": "интервал 3 мин подтверждён, первое появление на 3:00 выведено, а не найдено в источнике"
+    },
+    "tormentor_spawn": {
+      "kind": "at_times",
+      "times": [
+        1200
+      ],
+      "warn_before": [
+        0
+      ],
+      "day_side": "radiant_bottom_right",
+      "night_side": "dire_top_left",
+      "source": "https://www.dota2.com/patches/7.39 ; https://www.dota2.com/patches/7.41 ; https://liquipedia.net/dota2/Tormentor ; подтверждено автором по игре",
+      "checked_patch": "7.41f",
+      "verified": true
+    },
+    "tormentor_respawn": {
+      "kind": "after_trigger",
+      "trigger": "tormentor_killed",
+      "delays": [
+        600
+      ],
+      "warn_before": [
+        0
+      ],
+      "source": "https://liquipedia.net/dota2/Tormentor",
+      "checked_patch": "7.41f",
+      "verified": true
+    },
+    "day_night": {
+      "kind": "periodic",
+      "first": 300,
+      "interval": 300,
+      "warn_before": [
+        15
+      ],
+      "day_at_zero": true,
+      "source": "https://liquipedia.net/dota2/Time_of_Day",
+      "checked_patch": "7.41f",
+      "verified": true
+    },
+    "siege_creeps": {
+      "kind": "periodic",
+      "first": 300,
+      "interval": 300,
+      "warn_before": [
+        10
+      ],
+      "source": "https://liquipedia.net/dota2/Siege_Creep ; https://www.dota2.com/patches/7.41",
+      "checked_patch": "7.41f",
+      "verified": true
+    },
+    "neutral_tier": {
+      "kind": "at_times",
+      "times": [
+        900,
+        1500,
+        2100,
+        3600
+      ],
+      "warn_before": [
+        0
+      ],
+      "tier_1_at": 0,
+      "source": "https://www.dota2.com/patches/7.38 ; https://www.dota2.com/patches/7.41",
+      "checked_patch": "7.41f",
+      "verified": true
+    }
+  },
+  "turbo": {
+    "power_rune": {
+      "verified": true,
+      "source": "подтверждено автором по игре, 28.09.2026 (в Liquipedia отдельных значений для Turbo нет)"
+    },
+    "bounty_rune": {
+      "verified": false,
+      "unverified_note": "в Turbo подтверждено только двойное золото, время взято обычное"
+    },
+    "water_rune": {
+      "verified": true,
+      "source": "подтверждено автором по игре, 28.09.2026 (в Liquipedia отдельных значений для Turbo нет)"
+    },
+    "shrine_of_wisdom": {
+      "verified": true,
+      "source": "подтверждено автором по игре, 28.09.2026: в Турбо как в обычной игре, 7:00 и дальше каждые 7 мин (Liquipedia с интервалом 3:30 ошибается)"
+    },
+    "lotus": {
+      "first": 90,
+      "interval": 90,
+      "source": "https://liquipedia.net/dota2/Game_Modes"
+    },
+    "tormentor_spawn": {
+      "times": [
+        600
+      ],
+      "source": "https://liquipedia.net/dota2/Tormentor",
+      "verified": false,
+      "unverified_note": "10:00 взято из выдержки поиска по Liquipedia, прямого источника нет; проверить в игре"
+    },
+    "tormentor_respawn": {
+      "delays": [
+        300
+      ],
+      "source": "https://liquipedia.net/dota2/Tormentor",
+      "verified": false,
+      "unverified_note": "5 мин взято из выдержки поиска по Liquipedia, прямого источника нет; проверить в игре"
+    },
+    "siege_creeps": {
+      "verified": false,
+      "unverified_note": "для Turbo данных нет, взяты обычные"
+    },
+    "neutral_tier": {
+      "times": [
+        450,
+        750,
+        1050,
+        1800
+      ],
+      "source": "https://www.dota2.com/patches/7.38 ; https://liquipedia.net/dota2/Game_Modes",
+      "verified": false,
+      "unverified_note": "времена получены делением обычных на 2 (по правилу из патча 7.38), прямого источника нет; проверить в игре"
+    }
+  }
+}

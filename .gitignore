@@ -1,0 +1,34 @@
+# Виртуальное окружение
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# PyCharm
+.idea/
+
+# Сборка
+build/
+dist/
+*.spec.bak
+
+# Записи матчей, кеш, логи, личные настройки (на всякий случай, обычно они в %APPDATA%)
+*.jsonl
+*.log
+cache/
+recordings/
+settings.json
+
+# Урезанные записи для тестов коммитим
+!tests/fixtures/*.jsonl
+
+# Голос не распространяется (нет прав на распространение голосов Microsoft Edge):
+# фразы генерируются у пользователя при первом запуске
+assets/voice/
+assets/voice_samples/
+
+# Статистика публикуется как ассет релиза, не в истории
+stats.json

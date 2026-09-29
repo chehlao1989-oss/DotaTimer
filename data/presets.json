@@ -1,0 +1,42 @@
+{
+  "note": "Пресеты уведомлений и настройки менеджера (п. 5.4 ТЗ). priorities: 3 = высший (первая активка, угрозы), 2 = терзатель и остальные активки, 1 = всё остальное.",
+  "default_preset": "standard",
+  "presets": {
+    "minimum": [
+      "power_rune",
+      "tormentor_spawn",
+      "tormentor_respawn"
+    ],
+    "standard": [
+      "power_rune",
+      "tormentor_spawn",
+      "tormentor_respawn",
+      "bounty_rune",
+      "water_rune",
+      "shrine_of_wisdom",
+      "day_night"
+    ],
+    "all": [
+      "power_rune",
+      "tormentor_spawn",
+      "tormentor_respawn",
+      "bounty_rune",
+      "water_rune",
+      "shrine_of_wisdom",
+      "day_night",
+      "lotus",
+      "siege_creeps",
+      "neutral_tier"
+    ]
+  },
+  "priorities": {
+    "power_rune_first": 3,
+    "power_rune": 2,
+    "tormentor_spawn": 2,
+    "tormentor_respawn": 2,
+    "default": 1
+  },
+  "merge_window_sec": 5,
+  "voice_min_interval_sec": 8,
+  "silence_sec": 60
+}
