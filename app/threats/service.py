@@ -90,8 +90,7 @@ class ThreatsService(QObject):
         raw_config = json.loads(THREATS_CONFIG.read_text(encoding="utf-8"))
         costs = {k: i.cost for k, i in data.items.items()}
         self.recommender = Recommender(tagger, self.stats, buyable, costs,
-                                       recommend_config(raw_config, self.config.stats_min_games,
-                                                        self.config.stats_min_base_games))
+                                       recommend_config(raw_config))
         if self.vision is None and (self.cache.root / "images" / "heroes").is_dir():
             self.vision = VisionService(data, self.cache)
             self.vision.topbar_ready.connect(self._on_topbar)

@@ -74,6 +74,29 @@ class Stats:
         """Все игры героя (для доли покупок предмета)."""
         return self._cell("hero", bucket, hero_id)
 
+    def pair(self, bucket: str, hero_id: int, enemy_id: int) -> tuple[int, int]:
+        """Игры героя против врага: знаменатель частоты покупки и матчап."""
+        return self._cell("pair", bucket, hero_id, enemy_id)
+
+    def trait_games(self, bucket: str, hero_id: int, trait: str) -> tuple[int, int]:
+        return self._cell("trait_games", bucket, hero_id, trait)
+
+    def item_games(self, bucket: str, hero_id: int, enemy_item: str) -> tuple[int, int]:
+        return self._cell("item_games", bucket, hero_id, enemy_item)
+
+    def length(self, bucket: str, hero_id: int, kind: str) -> tuple[int, int]:
+        """Игры короче 30 мин (kind="short") или длиннее 40 мин (kind="long")."""
+        return self._cell("length", bucket, hero_id, kind)
+
+    def farm_rank(self, bucket: str, hero_id: int) -> float | None:
+        """Среднее место по нетворсу в своей команде: 1 — всегда самый богатый, 5 — всегда самый бедный."""
+        games, total = self._cell("farm", bucket, hero_id)
+        return total / games if games else None
+
+    @property
+    def version(self) -> int:
+        return self.raw.get("version", 1)
+
     def base(self, bucket: str, hero_id: int, item: str) -> tuple[int, int]:
         return self._cell("base", bucket, hero_id, item)
 
