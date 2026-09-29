@@ -1,15 +1,15 @@
-# Ежедневный сбор статистики предметов по сыгранным публичным матчам (слой 2, п. 6.6 ТЗ).
-# Результат — файлы релиза «data»: stats.json (для программы) и state.json.gz (копилка за патч).
-# В историю репозитория данные не попадают.
+# Ежедневный сбор сырых матчей и рангов (docs/RECOMMENDER_SPEC.md, раздел 2).
+# Результат — файлы релиза «data-raw»: matches-<дата-время>.parquet и ranks-<дата-время>.parquet.
+# Каждый запуск добавляет свои файлы, старые не перезаписываются. В историю репозитория данные не попадают.
 name: Статистика матчей
 
 on:
   schedule:
-    - cron: "0 23 * * *"  # каждый день в 23:00 UTC = 02:00 по Москве, к ~06:00 всё готово
+    - cron: "0 23 * * *"  # каждый день в 23:00 UTC = 02:00 по Москве
   workflow_dispatch: {}   # кнопка «Run workflow» для ручного запуска
 
 permissions:
-  contents: write  # чтобы обновлять файлы релиза
+  contents: write  # чтобы добавлять файлы в релиз
 
 concurrency:
   group: stats
@@ -18,7 +18,7 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 300
+    timeout-minutes: 330
     steps:
       - uses: actions/checkout@v4
 
@@ -26,21 +26,22 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Скачать копилку за патч
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release download data --pattern state.json.gz --dir prev || echo "копилки ещё нет, начинаем с нуля"
+      - name: Библиотеки сборщика
+        run: pip install -r requirements-collector.txt
 
-      - name: Собрать матчи
+      - name: Собрать матчи (Steam)
         env:
           STEAM_API_KEY: ${{ secrets.STEAM_API_KEY }}
-        run: python tools/collect_stats.py --state prev/state.json.gz --out out --calls 2500 --max-minutes 240
+        run: python tools/collect_raw.py matches --out raw --calls 2500 --max-minutes 210
 
-      - name: Опубликовать stats.json
+      - name: Собрать ранги (OpenDota)
+        run: python tools/collect_raw.py ranks --matches "$(ls raw/matches-*.parquet)" --out raw --calls 2400 --max-minutes 60
+
+      - name: Добавить файлы в релиз data-raw
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view data >/dev/null 2>&1 || gh release create data --title "Данные статистики" \
-            --notes "Обновляется автоматически раз в сутки. stats.json скачивает программа. Источники: Steam Web API (сыгранные публичные матчи), OpenDota constants." \
+          gh release view data-raw >/dev/null 2>&1 || gh release create data-raw --title "Сырые матчи" \
+            --notes "Сырые сыгранные публичные матчи (Steam Web API) и их ранги (OpenDota). Один файл на запуск, по строке на игрока, без аккаунтов. Формат: docs/RECOMMENDER_SPEC.md, раздел 2." \
             --prerelease
-          gh release upload data out/stats.json out/state.json.gz --clobber
+          gh release upload data-raw raw/*.parquet
