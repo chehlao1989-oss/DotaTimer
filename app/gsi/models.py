@@ -37,6 +37,8 @@ class GameState:
     events: tuple[GameEvent, ...] = ()
     hero_alive: bool | None = None
     own_items: frozenset[str] = frozenset()  # предметы героя пользователя (слоты, рюкзак, тайник)
+    income_gold: int | None = None  # пассивное золото с начала игры (для определения Турбо)
+    gold: int | None = None  # текущее золото пользователя
 
     @property
     def in_match(self) -> bool:
@@ -89,6 +91,8 @@ def parse_packet(data: dict) -> GameState:
         events=tuple(events),
         hero_alive=(data.get("hero") or {}).get("alive"),
         own_items=parse_own_items(data.get("items")),
+        income_gold=player.get("gold_from_income"),
+        gold=player.get("gold"),
     )
 
 

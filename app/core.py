@@ -8,6 +8,7 @@ from app.i18n import ru
 from app.notify.manager import NotificationManager, load_presets
 from app.notify.voice import VoicePlayer
 from app.timers.engine import MatchTimers, TimerEngine
+from app.timers.mode import ModeDetector
 from app.timers.timings import EventSpec, load_timings
 from app.ui.overlay import Overlay
 
@@ -29,6 +30,9 @@ class TimerApp:
         self.specs: dict[str, EventSpec] = {}
         self.state_listeners = []  # кто ещё хочет получать каждый пакет (модуль угроз)
         self.extra_hotkeys = {}  # действие → функция (горячие клавиши модуля угроз)
+        self.mode_detector = ModeDetector()
+        self.on_mode_changed = None  # окно обновляет переключатель режима
+        self._mode_announced = False
         self.reload()
 
     def reload(self) -> None:
@@ -53,9 +57,29 @@ class TimerApp:
     def connected(self) -> bool:
         return self._last_packet_at is not None and time.monotonic() - self._last_packet_at < CONNECTED_TIMEOUT_SEC
 
+    def _check_mode(self, state) -> None:
+        """На 0:00 напомнить выбранный режим; с ~0:30 определить его сам по пассивному золоту."""
+        if state.match_id and state.match_id != self.timers.match_id:
+            self.mode_detector.reset()
+            self._mode_announced = False
+        if not state.in_match or state.clock_time is None:
+            return
+        if state.clock_time >= 0 and not self._mode_announced and self.mode_detector.detected is None:
+            self._mode_announced = True
+            self.overlay.show_message(ru.MODE_ANNOUNCE.format(mode=ru.MODE_NAMES[self.settings.mode]), False)
+        detected = self.mode_detector.update(state.clock_time, state.income_gold)
+        if detected and detected != self.settings.mode:
+            log.info("Режим определён автоматически: %s", detected)
+            self.settings.mode = detected
+            self.reload()
+            self.overlay.show_message(ru.MODE_AUTO_SWITCHED.format(mode=ru.MODE_NAMES[detected]), True)
+            if self.on_mode_changed:
+                self.on_mode_changed()
+
     def on_packet(self, data: dict) -> None:
         self._last_packet_at = time.monotonic()
         state = parse_packet(data)
+        self._check_mode(state)
         self.manager.push(self.timers.on_state(state))
         for listener in self.state_listeners:
             try:

@@ -58,6 +58,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
 
         self._build_tray()
+        self.core.on_mode_changed = self._sync_mode_radio
         self._status_timer = QTimer(self, interval=STATUS_REFRESH_MS, timeout=self.refresh_status)
         self._status_timer.start()
         self.refresh_status()
@@ -129,6 +130,12 @@ class MainWindow(QMainWindow):
             check.blockSignals(True)
             check.setChecked(event_id in enabled)
             check.blockSignals(False)
+
+    def _sync_mode_radio(self) -> None:
+        """Режим переключился сам (автоопределение) — обновить переключатель и сохранить."""
+        for button in self.mode_group.buttons():
+            button.setChecked(button.property("mode") == self.settings.mode)
+        self._save()
 
     def _on_mode(self, button) -> None:
         self.settings.mode = button.property("mode")
