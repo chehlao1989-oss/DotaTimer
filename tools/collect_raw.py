@@ -34,6 +34,7 @@ MODE_BUCKETS = {1: "normal", 22: "normal", 23: "turbo"}
 MIN_DURATION_SEC = {"normal": 15 * 60, "turbo": 10 * 60}  # спека 2.2
 # Точка старта: номера матчей растут примерно на 1.5 млн в сутки; берём с запасом, чтобы матчи были доиграны
 ANCHOR_BACK_IDS = 1_800_000
+ANCHOR_TRIES = 10  # сколько настоящих матчей пробовать как стартовый
 
 # Бережный темп для Steam (подобран по первым запускам: лимит «429» наступает при ~1 запросе в 2 сек)
 PAUSE_START_SEC, PAUSE_MIN_SEC, PAUSE_MAX_SEC = 3.0, 2.0, 15.0
@@ -67,10 +68,21 @@ def patch_for(start_time: int, patches: list) -> str:
     return name
 
 
-def anchor_match_id() -> int:
-    """Матч примерно суточной давности — общая точка старта для матчей и рангов."""
+def anchor_seq_num() -> int:
+    """Номер последовательности матча примерно суточной давности — точка старта сбора.
+
+    Номер «самый свежий минус N» может попасть в дыру (такого матча нет, OpenDota отвечает 404),
+    поэтому берём настоящие матчи чуть старше этого номера и пробуем по очереди.
+    """
     newest = max(m["match_id"] for m in http_json(f"{OPENDOTA}/publicMatches"))
-    return newest - ANCHOR_BACK_IDS
+    older = http_json(f"{OPENDOTA}/publicMatches?less_than_match_id={newest - ANCHOR_BACK_IDS}")
+    for match_id in sorted((m["match_id"] for m in older), reverse=True)[:ANCHOR_TRIES]:
+        try:
+            return http_json(f"{OPENDOTA}/matches/{match_id}")["match_seq_num"]
+        except (urllib.error.URLError, OSError, ValueError, KeyError) as error:
+            print(f"стартовый матч {match_id}: ошибка {type(error).__name__} {getattr(error, 'code', '')}", flush=True)
+            time.sleep(ERROR_PAUSE_SEC)
+    sys.exit("не удалось найти стартовый матч в OpenDota")
 
 
 def match_rows(match: dict, patches: list) -> list[dict]:
@@ -106,8 +118,7 @@ def write_parquet(rows: list[dict], schema: pa.Schema, path: Path) -> None:
 
 def collect_matches(key: str, calls: int, max_minutes: float, out: Path, tag: str) -> Path:
     patches = http_json(f"{OPENDOTA}/constants/patch")
-    anchor = anchor_match_id()
-    seq = http_json(f"{OPENDOTA}/matches/{anchor}")["match_seq_num"]
+    seq = anchor_seq_num()
     rows, kept, errors, calm, pause = [], 0, 0, 0, PAUSE_START_SEC
     deadline = time.monotonic() + max_minutes * 60
     for i in range(calls):
