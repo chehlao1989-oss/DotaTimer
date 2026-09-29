@@ -130,7 +130,9 @@ def prepare(con: duckdb.DuckDBPyConnection, matches_glob: str, ranks_glob: str |
 
     where — фильтр по матчам (например, по start_time для проверки на отложенных днях).
     """
-    con.execute(f"CREATE OR REPLACE VIEW m AS SELECT * FROM read_parquet('{matches_glob}') WHERE {where}")
+    # запуски сбора могут пересекаться по времени: один и тот же матч берём один раз
+    con.execute(f"CREATE OR REPLACE VIEW m AS SELECT * FROM read_parquet('{matches_glob}') WHERE {where} "
+                f"QUALIFY row_number() OVER (PARTITION BY match_id, hero_id ORDER BY start_time) = 1")
     if ranks_glob:
         con.execute(f"CREATE OR REPLACE VIEW r AS SELECT match_id, max(avg_rank_tier) AS rank_tier "
                     f"FROM read_parquet('{ranks_glob}') GROUP BY match_id")

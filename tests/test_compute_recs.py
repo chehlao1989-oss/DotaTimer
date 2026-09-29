@@ -67,6 +67,7 @@ def make_matches(path, n=6000, seed=7):
 def result(tmp_path_factory):
     folder = tmp_path_factory.mktemp("raw")
     make_matches(folder / "matches-test.parquet")
+    make_matches(folder / "matches-test-copy.parquet", n=100)  # повтор первых 100 матчей — не должен считаться дважды
     return compute(str(folder / "matches-*.parquet"), None, ITEMS, {}, {}, HEROES, load_config(), log=lambda *_: None)
 
 
