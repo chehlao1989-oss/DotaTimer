@@ -1,7 +1,7 @@
 # Постоянный сбор сырых матчей и рангов (docs/RECOMMENDER_SPEC.md, раздел 2; лимиты — docs/DATA_SOURCES.md).
-# Запуск каждые 6 часов; каждый запуск продолжает с матча, на котором остановился прошлый (next_seq.txt в релизе).
-# Результат — файлы релиза «data-raw»: matches-<дата-время>.parquet и ranks-<дата-время>.parquet.
-# Каждый запуск добавляет свои файлы, старые не перезаписываются. В историю репозитория данные не попадают.
+# Запуск каждые 6 часов; каждый запуск продолжает с последнего сохранённого матча (next_seq.txt в релизе).
+# Матчи выкладываются в релиз «data-raw» частями каждые 15 минут: matches-<тег>-pNN.parquet,
+# потом ranks-<тег>.parquet и run-<тег>.json (цифры запуска для отчёта). В историю репозитория данные не попадают.
 name: Статистика матчей
 
 on:
@@ -20,6 +20,8 @@ jobs:
   collect:
     runs-on: ubuntu-latest
     timeout-minutes: 350
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
 
@@ -30,35 +32,38 @@ jobs:
       - name: Библиотеки сборщика
         run: pip install -r requirements-collector.txt
 
-      - name: Откуда продолжить (прошлый запуск)
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Откуда продолжить (последний сохранённый матч)
         run: |
+          echo "TAG=$(date -u +%Y-%m-%d-%H%M)" >> "$GITHUB_ENV"
+          gh release view data-raw >/dev/null 2>&1 || gh release create data-raw --title "Сырые матчи" \
+            --notes "Сырые сыгранные публичные матчи (Steam Web API) и их ранги (OpenDota). Части по 15 минут, по строке на игрока, без аккаунтов. Формат: docs/RECOMMENDER_SPEC.md, раздел 2." \
+            --prerelease
           mkdir -p state
           gh release download data-raw -p next_seq.txt -D state || true
           if [ ! -f state/next_seq.txt ]; then
-            latest=$(gh release view data-raw --json assets -q '.assets[].name' 2>/dev/null | grep '^matches-' | sort | tail -1 || true)
+            latest=$(gh release view data-raw --json assets -q '.assets[].name' | grep '^matches-' | sort | tail -1 || true)
             if [ -n "$latest" ]; then gh release download data-raw -p "$latest" -D state; fi
           fi
-          ls state
+          ls -la state
 
       - name: Собрать матчи (Steam)
+        id: matches
         env:
           STEAM_API_KEY: ${{ secrets.STEAM_API_KEY }}
-        run: python tools/collect_raw.py matches --out raw --state state --calls 3000 --max-minutes 290
+        run: python tools/collect_raw.py matches --out raw --state state --release data-raw --tag "$TAG" --max-minutes 290
 
       - name: Собрать ранги (OpenDota)
-        continue-on-error: true  # без рангов матчи всё равно нужны: сохраняем их в любом случае
-        # 700 запросов: у OpenDota 3000 в сутки на 4 запуска, остальное — запас (docs/DATA_SOURCES.md)
-        run: python tools/collect_raw.py ranks --matches "$(ls raw/matches-*.parquet)" --out raw --calls 700 --max-minutes 20
+        continue-on-error: true  # без рангов матчи всё равно нужны
+        # число запросов — по остатку лимита из заголовка ответа OpenDota (лимит по IP раннера)
+        run: python tools/collect_raw.py ranks --matches "raw/matches-*.parquet" --out raw --release data-raw --tag "$TAG" --max-minutes 20
 
-      - name: Добавить файлы в релиз data-raw
-        if: ${{ !cancelled() && hashFiles('raw/matches-*.parquet') != '' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Довыложить файлы, если выгрузка по ходу не прошла
+        if: ${{ !cancelled() && hashFiles('raw/*.parquet') != '' }}
         run: |
-          gh release view data-raw >/dev/null 2>&1 || gh release create data-raw --title "Сырые матчи" \
-            --notes "Сырые сыгранные публичные матчи (Steam Web API) и их ранги (OpenDota). Один файл на запуск, по строке на игрока, без аккаунтов. Формат: docs/RECOMMENDER_SPEC.md, раздел 2." \
-            --prerelease
-          gh release upload data-raw raw/*.parquet
-          gh release upload data-raw raw/next_seq.txt --clobber
+          gh release upload data-raw raw/*.parquet raw/run-*.json --clobber
+          if [ "${{ steps.matches.outcome }}" = "success" ]; then gh release upload data-raw raw/next_seq.txt --clobber; fi
+
+      - name: Отчёт о запуске
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: python tools/run_report.py --run "$GITHUB_RUN_NUMBER"

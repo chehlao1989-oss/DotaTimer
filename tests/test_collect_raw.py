@@ -49,3 +49,68 @@ def test_resume_from_previous_run(tmp_path):
     assert resume_seq_num(tmp_path) is None  # прошлого запуска нет — старт от якоря
     (tmp_path / "next_seq.txt").write_text("7577293702\n")
     assert resume_seq_num(tmp_path) == 7577293702
+
+
+def test_part_saver_moves_next_seq_only_after_upload(tmp_path):
+    """next_seq двигается только когда все части до него выложены; невыложенная часть уходит со следующей."""
+    from tools.collect_raw import PartSaver
+    ok = {"value": False}
+    uploaded = []
+
+    def upload(_release, paths):
+        if ok["value"]:
+            uploaded.extend(p.name for p in paths)
+        return ok["value"]
+
+    saver = PartSaver(tmp_path, "t", "data-raw", upload=upload)
+    rows = match_rows(match(), PATCHES)
+    assert not saver.save(rows, 100)  # выгрузка упала
+    assert saver.saved_seq is None and not (tmp_path / "next_seq.txt").exists()
+    ok["value"] = True
+    assert saver.save(rows, 200)
+    assert uploaded == ["matches-t-p00.parquet", "matches-t-p01.parquet", "next_seq.txt"]
+    assert (tmp_path / "next_seq.txt").read_text() == "200" and saver.saved_seq == 200
+
+
+def test_retry_after_header():
+    from tools.collect_raw import RETRY_AFTER_DEFAULT_SEC, retry_after
+
+    class Err:
+        def __init__(self, headers):
+            self.headers = headers
+
+    assert retry_after(Err({"Retry-After": "7"})) == 7.0
+    assert retry_after(Err({})) == RETRY_AFTER_DEFAULT_SEC
+    assert retry_after(ValueError()) == RETRY_AFTER_DEFAULT_SEC
+
+
+def test_ranks_stop_by_daily_limit_header(tmp_path, monkeypatch):
+    """Число запросов OpenDota — по заголовку остатка лимита; при остатке 100 сбор останавливается."""
+    import tools.collect_raw as cr
+    write_parquet([{**r, "match_id": 1000 + k} for k in range(1000) for r in match_rows(match(), PATCHES)[:1]],
+                  MATCH_SCHEMA, tmp_path / "matches-t-p00.parquet")
+    left = {"n": 103}
+    calls = []
+
+    def fake(url, timeout=60):
+        calls.append(url)
+        left["n"] -= 1
+        cursor = int(url.rsplit("=", 1)[1])
+        return [{"match_id": cursor - 1, "avg_rank_tier": 45, "num_rank_tier": 3}], {"X-Rate-Limit-Remaining-Day": str(left["n"])}
+
+    monkeypatch.setattr(cr, "http_json_headers", fake)
+    monkeypatch.setattr(cr.time, "sleep", lambda _s: None)
+    stats = cr.collect_ranks(20, tmp_path, "t", cr.match_files(str(tmp_path / "matches-*.parquet")))
+    assert stats["opendota_requests"] == 3 and stats["opendota_left"] == 100
+    assert stats["ranked_ours"] >= 1
+
+
+def test_run_report_lines():
+    from tools.run_report import report
+    run = {"tag": "t", "run_number": 6, "matches": 150000, "matches_per_hour": 31000, "steam_requests": 1900,
+           "minutes": 290, "final_pause_sec": 3.2, "steam_429": 80, "opendota_requests": 750, "opendota_left": 2100,
+           "ranked_ours": 90000, "ours": 150000, "matches_bytes": 2 * 1024 * 1024, "ranks_bytes": 0}
+    lines = report([run], [{"name": "matches-x.parquet", "size": 3 * 1024 * 1024}], None, legacy=64725)
+    assert len(lines) == 5
+    assert "150 000" in lines[0] and "214 725" in lines[0] and "№6" in lines[0]
+    assert "(60%)" in lines[3] and "2.0 МБ" in lines[4] and "3.0 МБ" in lines[4]
