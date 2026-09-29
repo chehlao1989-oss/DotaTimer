@@ -297,7 +297,8 @@ def unique(seq: list[str]) -> list[str]:
 def parse_counters(text: str, item_map: dict[str, str], hero_map: dict[str, str]) -> dict:
     """Разбор страницы: контр-предметы и контр-герои из раздела «Bad against...»."""
     bad = None
-    for title, body in split_sections(text, 2):
+    sections = split_sections(text, 2)
+    for title, body in sections:
         if title.lower().startswith("bad against"):
             bad = body
             break
@@ -305,6 +306,10 @@ def parse_counters(text: str, item_map: dict[str, str], hero_map: dict[str, str]
         "counter_items": [], "items_mentioned_in_text": [], "counter_heroes": [],
         "counter_heroes_other": [], "unmapped": [], "problems": [],
     }
+    if bad is None and "border=red" in sections[0][1]:
+        # Заголовок раздела потеряли при правке, но красные карточки героев стоят до «Good against»
+        bad = sections[0][1]
+        result["problems"].append("заголовок Bad against потерян, раздел взят по красным карточкам")
     if bad is None:
         result["problems"].append("нет раздела Bad against")
         return result
