@@ -71,7 +71,7 @@ def result(tmp_path_factory):
 
 
 def answers(result, level, ctx):
-    table = result[level]["all"]["normal"]["core"][str(HERO)]
+    table = result[level]["normal"]["all"]["core"][str(HERO)]
     return {row[0]: row for row in table[ctx]}
 
 
@@ -93,3 +93,33 @@ def test_hero_level_and_meta(result):
     assert "skadi" in rows
     assert result["meta"]["matches"] == 6000
     assert result["meta"]["ranked_share"] == 0
+
+
+def test_answer_rows_have_source_flag(result):
+    for row in answers(result, "item", str(HEART)).values():
+        assert len(row) == 7 and isinstance(row[6], str)  # правило механики или «exp» — по опыту игроков
+
+
+def test_class_fallback_and_threat(result):
+    cls, role = result["meta"]["hero_class"][str(HERO)]
+    assert role == "core" and cls == "all-core"  # в тестовых героях нет атрибута → «all»
+    assert str(HEART) in result["item_class"]["normal"]["all"]["core"][cls]
+    threat = result["threat"]["normal"]["all"][str(HERO)]
+    assert threat["roles"] == {"core": 1.0}  # у тестового героя всегда самый большой нетворс
+    assert str(ENEMY) in result["threat"]["normal"]["all"] and "vs" in result["threat"]["normal"]["all"][str(ENEMY)]
+
+
+def test_recency_weight_halves_every_half_life(tmp_path):
+    import duckdb
+    from tools.compute_recs import ItemMeta, prepare
+    cfg = load_config()
+    rows = [{"match_id": m, "start_time": 1780000000 - m * int(cfg.half_life_days * 86400), "duration": 1800,
+             "game_mode": 22, "lobby_type": 7, "radiant_win": True, "patch": "7.41", "is_radiant": slot < 5,
+             "hero_id": slot + 1, "items": [], "item_neutral": 0, "net_worth": 1000 - slot, "gold_per_min": 0,
+             "xp_per_min": 0, "kills": 0, "deaths": 0, "assists": 0, "last_hits": 0}
+            for m in range(3) for slot in range(10)]
+    pq.write_table(pa.Table.from_pylist(rows, schema=MATCH_SCHEMA), tmp_path / "matches-a.parquet")
+    con = duckdb.connect()
+    prepare(con, str(tmp_path / "matches-*.parquet"), None, ItemMeta(set(), set(), [], {}, {}, []), HEROES, cfg)
+    weights = [round(w, 3) for (w,) in con.execute("SELECT DISTINCT wt FROM pg ORDER BY wt DESC").fetchall()]
+    assert weights == [1.0, 0.5, 0.25]
