@@ -1,19 +1,19 @@
-"""Оценка угроз: кто из врагов может затащить игру на ранге и в режиме пользователя (п. 6.3 ТЗ).
+"""Оценка угроз: кто из врагов опаснее на ранге и в режиме пользователя (п. 6.3 ТЗ).
 
-Оценка = винрейт выше среднего + вес кора + масштабирование в лейт + матчап против героя
-пользователя. Саппорты получают понижающий множитель. Веса — в data/threats.json.
+Оценка = винрейт героя выше среднего + вес кора + матчап против героя пользователя.
+Саппорты получают понижающий множитель. Всё из статистики OpenDota и ролей Valve,
+ручных пометок нет. Веса — в data/threats.json.
 """
 import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from app.threats.counters import ROLE_CORE, ROLE_SUPPORT, CounterTable
 from app.threats.data import GameData, Hero
 
 DEFAULT_PATH = Path(__file__).resolve().parents[2] / "data" / "threats.json"
 
+ROLE_CORE, ROLE_SUPPORT = "core", "support"
 REASON_WINRATE = "winrate"
-REASON_SCALING = "scaling"
 REASON_MATCHUP = "matchup"
 REASON_CORE = "core"
 
@@ -25,20 +25,23 @@ class ThreatConfig:
     matchup_min_games: int
     stats_min_picks: int
     default_threat_count: int
-    counters_per_hint: int
     min_component_cost: int
     reason_winrate_min: float
+    suggestions_per_hint: int
+    stats_min_games: int
+    stats_min_base_games: int
 
 
 def load_threat_config(path: Path = DEFAULT_PATH) -> ThreatConfig:
     raw = json.loads(path.read_text(encoding="utf-8"))
     return ThreatConfig(raw["weights"], raw["support_multiplier"], raw["matchup_min_games"],
-                        raw["stats_min_picks"], raw["default_threat_count"], raw["counters_per_hint"],
-                        raw["min_component_cost"], raw["reason_winrate_min"])
+                        raw["stats_min_picks"], raw["default_threat_count"], raw["min_component_cost"],
+                        raw["reason_winrate_min"], raw["suggestions_per_hint"], raw["stats_min_games"],
+                        raw["stats_min_base_games"])
 
 
 def hero_role(hero: Hero) -> str:
-    """Роль героя по OpenDota: есть «Carry» — кор, иначе есть «Support» — саппорт, иначе кор."""
+    """Роль героя по Valve: есть «Carry» — кор, иначе есть «Support» — саппорт, иначе кор."""
     if "Carry" in hero.roles:
         return ROLE_CORE
     if "Support" in hero.roles:
@@ -82,12 +85,12 @@ def my_winrate_against(data: GameData, my_hero_id: int | None, enemy_id: int, mi
 class Threat:
     hero: Hero
     score: float
-    reason: str  # главная причина: winrate / scaling / matchup / core
+    reason: str  # главная причина: winrate / matchup / core
     winrate: float | None
 
 
-def score_enemies(enemies: list[Hero], data: GameData, counters: CounterTable, config: ThreatConfig,
-                  rank_tier: int | None, turbo: bool, my_hero_id: int | None) -> list[Threat]:
+def score_enemies(enemies: list[Hero], data: GameData, config: ThreatConfig, rank_tier: int | None,
+                  turbo: bool, my_hero_id: int | None) -> list[Threat]:
     """Враги по убыванию опасности."""
     bracket = rank_bracket(rank_tier)
     w = config.weights
@@ -98,18 +101,15 @@ def score_enemies(enemies: list[Hero], data: GameData, counters: CounterTable, c
         parts = {
             REASON_WINRATE: w["winrate"] * ((wr - 50) if wr is not None else 0),
             REASON_CORE: w["core"] if hero_role(hero) == ROLE_CORE else 0,
-            REASON_SCALING: w["scaling"] * counters.scaling(hero.name),
             REASON_MATCHUP: w["matchup"] * ((50 - mine) if mine is not None else 0),
         }
         score = sum(parts.values())
         if hero_role(hero) == ROLE_SUPPORT:
             score *= config.support_multiplier
-        # причина для карточки: самая весомая из понятных пользователю
-        explainable = {k: v for k, v in parts.items() if k != REASON_CORE}
-        reason = max(explainable, key=explainable.get)
-        if explainable[reason] <= 0:
-            reason = REASON_CORE
-        if reason == REASON_WINRATE and (wr is None or wr < config.reason_winrate_min):
-            reason = REASON_SCALING if parts[REASON_SCALING] > 0 else REASON_CORE
+        reason = REASON_CORE
+        if parts[REASON_MATCHUP] > max(parts[REASON_WINRATE], 0):
+            reason = REASON_MATCHUP
+        elif wr is not None and wr >= config.reason_winrate_min:
+            reason = REASON_WINRATE
         threats.append(Threat(hero, round(score, 2), reason, wr))
     return sorted(threats, key=lambda t: -t.score)

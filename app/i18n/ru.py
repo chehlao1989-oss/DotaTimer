@@ -55,7 +55,6 @@ RANK_UNKNOWN = "вашем ранге"
 CARD_TITLE = "Главные угрозы"
 CARD_REASON = {
     "winrate": "винрейт {wr:.0f}% на {rank}",
-    "scaling": "затаскивает в лейте",
     "matchup": "контрит вашего героя",
     "core": "главный фармящий у врага",
 }
@@ -63,7 +62,11 @@ CARD_LINE = "{hero} — {reason}"
 CARD_COUNTERS = "   → {items}"
 HINT_ITEM = "У {hero} появился {item}\n→ {counters}"
 HINT_BUILDING = "{hero} собирает {item} (есть {component})\n→ {counters}"
-HINT_NO_COUNTERS = "контр-предмета под вашу роль нет"
+HINT_NO_COUNTERS = "подходящего ответа на вашем герое не нашлось"
+SUGGEST_VS_HERO = "{item} ({delta:+.0f}% против {target})"
+SUGGEST_VS_TRAIT = "{item} ({delta:+.0f}% против «{rule}»)"
+SUGGEST_PLAIN = "{item}"
+SUGGEST_NO_STATS = " (статистики пока нет)"
 HINT_DEAD_REMINDER = "Кликни по врагам вверху — посмотрю их предметы"
 TOPBAR_PARTIAL = "Не всех врагов узнал по экрану. Ctrl+Alt+P — выбрать вручную"
 TOPBAR_FAILED = "Не удалось узнать врагов по экрану. Ctrl+Alt+P — выбрать вручную"
