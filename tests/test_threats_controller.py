@@ -10,7 +10,7 @@ from tests.test_threats import DATA, advisor, tagger
 def make():
     shown = []
     ctrl = ThreatsController(DATA, tagger(), advisor(), load_threat_config(), ThreatSettings(),
-                             lambda text, important, voice: shown.append((text, voice)), lambda: False)
+                             lambda text, important, voice, *rest: shown.append((text, voice)), lambda: False)
     return ctrl, shown
 
 

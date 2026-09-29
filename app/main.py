@@ -24,6 +24,7 @@ from app.threats.service import ThreatsService
 from app.timers.timings import MODE_TURBO
 from app.ui.main_window import MainWindow
 from app.ui.overlay import Overlay
+from app.ui.threat_strip import ThreatStrip
 from app.ui.startup_check import run_startup_checks
 from app.ui.theme import DARK_QSS, app_icon
 
@@ -85,8 +86,14 @@ def main() -> None:
     hotkeys.triggered.connect(core.on_hotkey)
     hotkeys.start(settings.hotkeys)
     threats = ThreatsService(settings.threats, core.say, lambda: settings.mode == MODE_TURBO)
+    strip = ThreatStrip(settings.strip, threats.cache.root / "images")
+    strip.layout_finished.connect(lambda: save_settings(settings))
+    threats.strip = strip
+    threats.card_duration = settings.strip.full_card_sec
+    if threats.controller is not None:
+        threats.controller.card_duration = settings.strip.full_card_sec
     core.state_listeners.append(threats.on_state)
-    core.extra_hotkeys = {"show_threats": threats.show_card, "seen_item": threats.seen_item,
+    core.extra_hotkeys = {"show_threats": threats.toggle_strip, "seen_item": threats.seen_item,
                           "pick_heroes": threats.pick_heroes}
     window = MainWindow(settings, core, hotkeys, threats)
 

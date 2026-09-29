@@ -51,7 +51,7 @@ OVERLAY_DEMO = [
 
 # --- Угрозы и предметы ---
 RANK_NAMES = {1: "Рекрут", 2: "Страж", 3: "Рыцарь", 4: "Герой", 5: "Легенда", 6: "Властелин", 7: "Божество", 8: "Титан"}
-RANK_UNKNOWN = "вашем ранге"
+RANK_UNKNOWN = "всех рангах"
 CARD_TITLE = "Главные угрозы"
 CARD_REASON = {
     "winrate": "винрейт {wr:.0f}% на {rank}",
@@ -90,7 +90,7 @@ STATS_STATUS = "патч {patch}, матчей: {normal} обычных, {turbo}
 STATS_MISSING = "ещё не скачана (нужен интернет) — советы только по механике"
 BUTTON_PICK_HEROES = "Выбрать врагов вручную (Ctrl+Alt+P)"
 BUTTON_SEEN_ITEM = "Вижу у врага предмет (Ctrl+Alt+I)"
-BUTTON_SHOW_CARD = "Показать угрозы ещё раз (Ctrl+Alt+H)"
+BUTTON_SHOW_CARD = "Скрыть / показать полоску угроз (Ctrl+Alt+H)"
 THREATS_HINT = (
     "Враги узнаются сами по верхней панели в начале катки. Предметы — когда вы кликаете "
     "по портрету врага вверху. Кнопки ниже — запасной вариант, если что-то не распозналось."
@@ -149,7 +149,7 @@ ABOUT_TEXT = (
 HOTKEY_TITLES = {
     "tormentor_killed": "Терзатель убит",
     "silence": "Тишина на 1 минуту",
-    "show_threats": "Показать угрозы ещё раз",
+    "show_threats": "Скрыть / показать полоску угроз",
     "seen_item": "Вижу у врага предмет",
     "pick_heroes": "Выбрать врагов вручную",
 }
@@ -186,6 +186,16 @@ CHECK_CHOOSE_DOTA = "Папка Dota 2 (dota 2 beta)"
 CHECK_WRONG_FOLDER = "В этой папке нет Dota 2. Нужна папка «dota 2 beta»."
 CHECK_CFG_WRITE_ERROR = "Не удалось записать файл настроек для Доты:\n{error}\n\nПопробуйте запустить программу от имени администратора."
 CHECK_RESTART_DOTA = "Программа настроила связь с Дотой. Перезапустите Доту, чтобы она начала присылать данные."
+
+# --- Полоска угроз ---
+STRIP_BOUGHT = "есть ✓"
+CARD_BOUGHT = "{item} ✓"
+STRIP_DELTA = "{delta:+.0f}%"
+DELTA_ZERO = "±0%"
+CARD_ITEM_DELTA = "{item} ({delta})"
+CARD_ITEM_VS = "{item} ({delta} против {target})"
+STRIP_LAYOUT = "Полоска угроз"
+BUTTON_STRIP_LAYOUT = "Настроить полоску угроз"
 
 # --- Режим ---
 MODE_NAMES = {"normal": "Обычный", "turbo": "Турбо"}

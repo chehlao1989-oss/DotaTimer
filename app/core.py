@@ -104,11 +104,14 @@ class TimerApp:
         self.timers.manual_trigger(name, self.last_clock)
         return True
 
-    def say(self, text: str, important: bool, voice_key: str | None) -> None:
-        """Сообщение вне расписания таймеров (угрозы): надпись всегда, голос — с учётом тишины и лимита."""
+    def say(self, text: str | None, important: bool, voice_key: str | None,
+            duration_sec: float | None = None) -> None:
+        """Сообщение вне расписания таймеров (угрозы): надпись всегда, голос — с учётом тишины и лимита.
+        text=None — только голос (например, сменился совет на полоске угроз)."""
         if self.muted:
             return
-        self.overlay.show_message(text, important)
+        if text:
+            self.overlay.show_message(text, important, duration_sec)
         top = max(self.presets.priorities.values())
         if voice_key and self.manager.try_voice(top if important else 1, time.monotonic()):
             self.voice.play(voice_key)

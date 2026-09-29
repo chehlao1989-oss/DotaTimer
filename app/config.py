@@ -28,8 +28,21 @@ class OverlaySettings:
 
 
 @dataclass
+class StripSettings:
+    """Полоска угроз: портреты угроз и иконки контр-предметов."""
+
+    x: int | None = None  # None = по умолчанию над миникартой справа
+    y: int | None = None
+    scale: float = 1.0
+    opacity: float = 0.95
+    visible: bool = True
+    full_card_sec: float = 20.0  # полная карточка в начале катки
+
+
+@dataclass
 class Settings:
     overlay: OverlaySettings = field(default_factory=OverlaySettings)
+    strip: StripSettings = field(default_factory=StripSettings)
     notify: NotifySettings = field(default_factory=NotifySettings)
     threats: ThreatSettings = field(default_factory=ThreatSettings)
     volume: float = 0.8
@@ -54,10 +67,11 @@ def load_settings(path: Path | None = None) -> Settings:
     path = path or settings_path()
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
-        settings = _from_dict(Settings, {k: v for k, v in raw.items() if k not in ("overlay", "notify", "threats")})
+        settings = _from_dict(Settings, {k: v for k, v in raw.items() if k not in ("overlay", "notify", "threats", "strip")})
         settings.overlay = _from_dict(OverlaySettings, raw.get("overlay"))
         settings.notify = _from_dict(NotifySettings, raw.get("notify"))
         settings.threats = _from_dict(ThreatSettings, raw.get("threats"))
+        settings.strip = _from_dict(StripSettings, raw.get("strip"))
         # новые действия получают клавиши по умолчанию
         saved = {k: v for k, v in (raw.get("hotkeys") or {}).items() if k in DEFAULT_BINDINGS}
         settings.hotkeys = {**DEFAULT_BINDINGS, **saved}  # убранные действия (например, Рошан) отбрасываются

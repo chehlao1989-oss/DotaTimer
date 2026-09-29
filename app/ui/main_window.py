@@ -247,6 +247,10 @@ class MainWindow(QMainWindow):
         layout_button = QPushButton(ru.BUTTON_LAYOUT)
         layout_button.clicked.connect(self._on_layout)
         layout.addWidget(layout_button)
+        strip_button = QPushButton(ru.BUTTON_STRIP_LAYOUT)
+        strip_button.clicked.connect(self._on_strip_layout)
+        strip_button.setEnabled(self.threats is not None)
+        layout.addWidget(strip_button)
         layout.addWidget(QLabel(ru.LAYOUT_HINT_WINDOW, objectName="hint"))
         demo_button = QPushButton(ru.BUTTON_DEMO)
         demo_button.clicked.connect(self.show_demo)
@@ -263,6 +267,10 @@ class MainWindow(QMainWindow):
         self.core.overlay.set_layout_mode(True)
         for text, important in ru.OVERLAY_DEMO[:2]:
             self.core.overlay.show_message(text, important)
+
+    def _on_strip_layout(self) -> None:
+        if self.threats is not None and self.threats.strip is not None:
+            self.threats.strip.set_layout_mode(True)
 
     def show_demo(self) -> None:
         demo = list(ru.OVERLAY_DEMO)

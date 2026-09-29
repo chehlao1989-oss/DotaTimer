@@ -60,6 +60,11 @@ class ThreatRecommendation:
     items: tuple[RecItem, ...]  # сначала купленные (галочка), потом советы
 
 
+def format_delta(delta: float, zero: str, template: str) -> str:
+    """+6% / −3% / ±0% (без «−0%»)."""
+    return zero if abs(delta) < 0.5 else template.format(delta=delta)
+
+
 def lower_bound_delta(cell: tuple[int, int], base: tuple[int, int], z: float) -> tuple[float, float]:
     """(прибавка, нижняя граница прибавки) в процентных пунктах."""
     n, w = cell

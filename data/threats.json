@@ -17,7 +17,7 @@
   "recommend": {
     "note": "Модуль рекомендаций (п. 6.4 ТЗ). Это настройки поведения, не игровые данные.",
     "min_buy_share": 0.03,
-    "z": 1.0,
+    "z": 1.64,
     "multi_threat_bonus": 1.0,
     "hysteresis": 1.5,
     "phase_base_cost": 2500,

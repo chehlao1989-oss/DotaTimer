@@ -3,8 +3,10 @@
 Сеть используется только в фоновом потоке и не во время катки (матчапы докачиваются, пока
 пользователь в меню). Без интернета всё работает из кеша.
 """
+import json
 import logging
 import threading
+from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal
 
@@ -14,12 +16,15 @@ from app.threats.advisor import Advisor
 from app.threats.controller import ThreatSettings, ThreatsController
 from app.threats.data import DataCache, DataUpdater, GameData
 from app.threats.mechanics import MechanicsTagger, load_mechanics_config
+from app.threats.recommend import TIER_HERO, Recommender, ThreatInput, format_delta, recommend_config
 from app.threats.scoring import load_threat_config
-from app.threats.stats import Stats, download_stats
+from app.threats.stats import BUCKET_NORMAL, BUCKET_TURBO, Stats, download_stats
 from app.threats.tracker import IGNORED_QUALITIES
 from app.vision.service import VisionService
 
 log = logging.getLogger(__name__)
+
+THREATS_CONFIG = Path(__file__).resolve().parents[2] / "data" / "threats.json"
 
 
 class ThreatsService(QObject):
@@ -40,6 +45,12 @@ class ThreatsService(QObject):
         self._match_id: str | None = None
         self._in_match = False
         self._rank_requested = False
+        self.strip = None  # полоска угроз (ThreatStrip), подключается из main
+        self.card_duration: float | None = None
+        self.recommender: Recommender | None = None
+        self._rec_key = None  # с какими данными пересчитывали рекомендации в последний раз
+        self._last_recs = {}
+        self._gold: int | None = None
         self.data_ready.connect(self._rebuild)
         self._rebuild()
         threading.Thread(target=self._update_data, name="threats-data", daemon=True).start()
@@ -64,6 +75,14 @@ class ThreatsService(QObject):
                           self.config.stats_min_games, self.config.stats_min_base_games)
         self.data = data
         self.controller = ThreatsController(data, tagger, advisor, self.config, self.settings, self.show, self.turbo)
+        self.controller.card_duration = self.card_duration
+        self.controller.card_items = self._card_items
+        self.controller.on_enemies_changed = lambda: self.refresh_recommendations(force=True)
+        raw_config = json.loads(THREATS_CONFIG.read_text(encoding="utf-8"))
+        costs = {k: i.cost for k, i in data.items.items()}
+        self.recommender = Recommender(tagger, self.stats, buyable, costs,
+                                       recommend_config(raw_config, self.config.stats_min_games,
+                                                        self.config.stats_min_base_games))
         if self.vision is None and (self.cache.root / "images" / "heroes").is_dir():
             self.vision = VisionService(data, self.cache)
             self.vision.topbar_ready.connect(self._on_topbar)
@@ -93,6 +112,11 @@ class ThreatsService(QObject):
         if state.match_id and state.match_id != self._match_id:
             self._match_id = state.match_id
             self.controller.new_match()
+            if self.recommender is not None:
+                self.recommender.reset()
+            if self.strip is not None:
+                self.strip.update_recommendations([], {})
+        self._gold = state.gold
         in_progress = state.game_state == STATE_IN_PROGRESS
         self._in_match = state.in_match
         if state.clock_time is not None:
@@ -105,6 +129,7 @@ class ThreatsService(QObject):
             self.vision.set_active(in_progress and not state.paused and self.settings.enabled)
             if need_topbar:
                 self.vision.request_topbar()
+        self.refresh_recommendations()
 
     def _request_rank(self, account_id: str) -> None:
         self._rank_requested = True
@@ -127,6 +152,63 @@ class ThreatsService(QObject):
     def _on_inventory(self, snapshot) -> None:
         if self.controller is not None:
             self.controller.on_inventory(snapshot, self.last_clock)
+            self.refresh_recommendations()
+
+    # --- рекомендации и полоска ---
+    def _threat_inputs(self) -> list[ThreatInput]:
+        inputs = []
+        for threat in self.controller.threats:
+            known = self.controller.tracker.enemies.get(threat.hero.name)
+            items = frozenset(known.items) if known else frozenset()
+            inputs.append(ThreatInput(threat.hero.name, threat.hero.id, items))
+        return inputs
+
+    def refresh_recommendations(self, force: bool = False) -> None:
+        """Пересчитать советы: при смене врагов/предметов и раз в 30 секунд игры (меняется фаза)."""
+        if self.controller is None or self.recommender is None or not self.controller.threats:
+            return
+        inputs = self._threat_inputs()
+        key = (tuple(inputs), frozenset(self.controller.own_items), (self.last_clock or 0) // 30, self.turbo())
+        if key == self._rec_key and not force:
+            return
+        self._rec_key = key
+        self.recommender.bucket = BUCKET_TURBO if self.turbo() else BUCKET_NORMAL
+        self.recommender.stats = self.stats
+        recs = self.recommender.recommend(self.controller.my_hero_id(), inputs, set(self.controller.own_items),
+                                          self.last_clock or 0, self._gold)
+        self._last_recs = {r.hero: r for r in recs}
+        if self.strip is not None:
+            titles = {t.hero.name: t.hero.localized for t in self.controller.threats}
+            self.strip.update_recommendations(recs if self.settings.enabled else [], titles)
+        if any(item.changed for rec in recs for item in rec.items):
+            self.show(None, True, "item_hint")
+
+    def _card_items(self, hero: str) -> str:
+        """Строка советов для полной карточки — те же, что на полоске."""
+        self.refresh_recommendations(force=True)
+        rec = self._last_recs.get(hero)
+        if rec is None:
+            return ""
+        parts = []
+        for item in rec.items:
+            name = self.controller.item_title(item.item)
+            if item.bought:
+                parts.append(ru.CARD_BOUGHT.format(item=name))
+            elif item.delta is not None:
+                delta = format_delta(item.delta, ru.DELTA_ZERO, ru.STRIP_DELTA)
+                if item.tier == TIER_HERO:  # прибавка именно против этого героя
+                    target = self.controller.hero_title(hero)
+                    parts.append(ru.CARD_ITEM_VS.format(item=name, delta=delta, target=target))
+                else:  # против его предмета или механики — без уточнения
+                    parts.append(ru.CARD_ITEM_DELTA.format(item=name, delta=delta))
+            else:
+                parts.append(name)
+        return ", ".join(parts)
+
+    def toggle_strip(self) -> None:
+        if self.strip is not None:
+            self.strip.toggle()
+
 
     # --- горячие клавиши и кнопки ---
     def show_card(self) -> None:
