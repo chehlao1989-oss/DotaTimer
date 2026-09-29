@@ -10,6 +10,7 @@ from pathlib import Path
 from app import paths
 from app.hotkeys import DEFAULT_BINDINGS
 from app.notify.manager import NotifySettings
+from app.threats.controller import ThreatSettings
 from app.timers.timings import MODE_NORMAL
 
 log = logging.getLogger(__name__)
@@ -30,6 +31,7 @@ class OverlaySettings:
 class Settings:
     overlay: OverlaySettings = field(default_factory=OverlaySettings)
     notify: NotifySettings = field(default_factory=NotifySettings)
+    threats: ThreatSettings = field(default_factory=ThreatSettings)
     volume: float = 0.8
     mode: str = MODE_NORMAL  # "normal" или "turbo", GSI режим не сообщает
     hotkeys: dict[str, str] = field(default_factory=lambda: dict(DEFAULT_BINDINGS))
@@ -52,9 +54,10 @@ def load_settings(path: Path | None = None) -> Settings:
     path = path or settings_path()
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
-        settings = _from_dict(Settings, {k: v for k, v in raw.items() if k not in ("overlay", "notify")})
+        settings = _from_dict(Settings, {k: v for k, v in raw.items() if k not in ("overlay", "notify", "threats")})
         settings.overlay = _from_dict(OverlaySettings, raw.get("overlay"))
         settings.notify = _from_dict(NotifySettings, raw.get("notify"))
+        settings.threats = _from_dict(ThreatSettings, raw.get("threats"))
         # новые действия получают клавиши по умолчанию
         saved = {k: v for k, v in (raw.get("hotkeys") or {}).items() if k in DEFAULT_BINDINGS}
         settings.hotkeys = {**DEFAULT_BINDINGS, **saved}  # убранные действия (например, Рошан) отбрасываются

@@ -15,6 +15,9 @@ log = logging.getLogger(__name__)
 DEFAULT_BINDINGS = {
     "tormentor_killed": "Ctrl+Alt+T",
     "silence": "Ctrl+Alt+M",
+    "show_threats": "Ctrl+Alt+H",
+    "seen_item": "Ctrl+Alt+I",
+    "pick_heroes": "Ctrl+Alt+P",
 }
 
 _MODIFIERS = {

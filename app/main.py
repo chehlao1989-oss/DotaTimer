@@ -20,6 +20,8 @@ from app.hotkeys import HotkeyManager
 from app.i18n import ru
 from app.notify import voice_gen
 from app.notify.voice import VoicePlayer
+from app.threats.service import ThreatsService
+from app.timers.timings import MODE_TURBO
 from app.ui.main_window import MainWindow
 from app.ui.overlay import Overlay
 from app.ui.startup_check import run_startup_checks
@@ -82,7 +84,11 @@ def main() -> None:
     hotkeys = HotkeyManager()
     hotkeys.triggered.connect(core.on_hotkey)
     hotkeys.start(settings.hotkeys)
-    window = MainWindow(settings, core, hotkeys)
+    threats = ThreatsService(settings.threats, core.say, lambda: settings.mode == MODE_TURBO)
+    core.state_listeners.append(threats.on_state)
+    core.extra_hotkeys = {"show_threats": threats.show_card, "seen_item": threats.seen_item,
+                          "pick_heroes": threats.pick_heroes}
+    window = MainWindow(settings, core, hotkeys, threats)
 
     run_startup_checks(window, settings)
     bridge.packet.connect(core.on_packet)
@@ -97,6 +103,7 @@ def main() -> None:
     code = app.exec()
     server.stop()
     hotkeys.stop()
+    threats.stop()
     save_settings(settings)
     log.info("Выход")
     sys.exit(code)

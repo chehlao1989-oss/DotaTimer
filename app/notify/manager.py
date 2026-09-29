@@ -152,6 +152,16 @@ class NotificationManager:
                 self._voice_queue.append(_VoiceItem(top_voice, self.priority(top_alert), top_alert.event_time))
         return TickResult(tuple(texts), self._next_voices(clock, now))
 
+    def try_voice(self, priority: int, now: float) -> bool:
+        """Можно ли сказать фразу вне расписания (подсказки угроз): тишина и лимит голоса соблюдаются."""
+        if self.is_silenced(now):
+            return False
+        top_priority = max(self.config.priorities.values())
+        if priority >= top_priority or self._last_voice_at is None or now - self._last_voice_at >= self.voice_interval:
+            self._last_voice_at = now
+            return True
+        return False
+
     def _next_voices(self, clock: int, now: float) -> tuple[str, ...]:
         grace = self.config.merge_window_sec
         # устаревшие фразы (событие уже прошло) выбрасываем

@@ -27,6 +27,8 @@ class TimerApp:
         self.last_clock: int | None = None
         self._last_packet_at: float | None = None
         self.specs: dict[str, EventSpec] = {}
+        self.state_listeners = []  # кто ещё хочет получать каждый пакет (модуль угроз)
+        self.extra_hotkeys = {}  # действие → функция (горячие клавиши модуля угроз)
         self.reload()
 
     def reload(self) -> None:
@@ -55,6 +57,11 @@ class TimerApp:
         self._last_packet_at = time.monotonic()
         state = parse_packet(data)
         self.manager.push(self.timers.on_state(state))
+        for listener in self.state_listeners:
+            try:
+                listener(state)
+            except Exception:
+                log.exception("Ошибка в обработчике состояния игры")
         if state.clock_time is None or not state.in_match or state.paused:
             return
         self.last_clock = state.clock_time
@@ -73,11 +80,23 @@ class TimerApp:
         self.timers.manual_trigger(name, self.last_clock)
         return True
 
+    def say(self, text: str, important: bool, voice_key: str | None) -> None:
+        """Сообщение вне расписания таймеров (угрозы): надпись всегда, голос — с учётом тишины и лимита."""
+        if self.muted:
+            return
+        self.overlay.show_message(text, important)
+        top = max(self.presets.priorities.values())
+        if voice_key and self.manager.try_voice(top if important else 1, time.monotonic()):
+            self.voice.play(voice_key)
+
     def silence(self) -> None:
         self.manager.silence(time.monotonic())
 
     def on_hotkey(self, action: str) -> None:
         """Горячая клавиша: запустить таймер или включить тишину, показать подтверждение."""
+        if action in self.extra_hotkeys:
+            self.extra_hotkeys[action]()
+            return
         if action == "silence":
             self.silence()
         elif not self.manual_trigger(action):

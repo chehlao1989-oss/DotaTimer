@@ -1,5 +1,6 @@
 """Главное окно (вкладки настроек) и иконка в трее."""
 import logging
+import time
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QKeySequence
@@ -27,8 +28,9 @@ SPIN_WIDTH = 90
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, settings: Settings, core: TimerApp, hotkeys: HotkeyManager):
+    def __init__(self, settings: Settings, core: TimerApp, hotkeys: HotkeyManager, threats=None):
         super().__init__()
+        self.threats = threats
         self.settings = settings
         self.core = core
         self.hotkeys = hotkeys
@@ -37,7 +39,7 @@ class MainWindow(QMainWindow):
         self._quitting = False
         self.setWindowTitle(ru.APP_TITLE)
         self.setWindowIcon(app_icon())
-        self.resize(560, 640)
+        self.resize(660, 640)
 
         central = QWidget()
         layout = QVBoxLayout(central)
@@ -47,6 +49,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.status_hint)
         tabs = QTabWidget()
         tabs.addTab(self._timers_tab(), ru.TAB_TIMERS)
+        tabs.addTab(self._threats_tab(), ru.TAB_THREATS)
         tabs.addTab(self._voice_screen_tab(), ru.TAB_VOICE_SCREEN)
         tabs.addTab(self._hotkeys_tab(), ru.TAB_HOTKEYS)
         tabs.addTab(self._general_tab(), ru.TAB_GENERAL)
@@ -159,6 +162,65 @@ class MainWindow(QMainWindow):
         self.settings.notify.every_power_rune_30 = on
         self.core.apply_settings()
         self._save()
+
+    # --- вкладка «Угрозы» ---
+    def _threats_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        ts = self.settings.threats
+        self.threats_enabled = QCheckBox(ru.CHECK_THREATS_ENABLED)
+        self.threats_enabled.setChecked(ts.enabled)
+        self.threats_enabled.toggled.connect(lambda on: (setattr(ts, "enabled", on), self._save()))
+        layout.addWidget(self.threats_enabled)
+
+        row = QHBoxLayout()
+        row.addWidget(QLabel(ru.LABEL_THREAT_COUNT))
+        count = QSpinBox(minimum=1, maximum=3)
+        count.setValue(ts.threat_count)
+        count.valueChanged.connect(lambda n: (setattr(ts, "threat_count", n), self._save()))
+        row.addWidget(count)
+        row.addStretch(1)
+        layout.addLayout(row)
+
+        row = QHBoxLayout()
+        row.addWidget(QLabel(ru.LABEL_RANK))
+        self.rank_box = QComboBox()
+        self.rank_box.addItem(ru.RANK_NONE, None)
+        for bracket, name in ru.RANK_NAMES.items():
+            self.rank_box.addItem(name, bracket * 10 + 1)
+        current = (ts.rank_tier // 10 * 10 + 1) if ts.rank_tier else None
+        self.rank_box.setCurrentIndex(max(0, self.rank_box.findData(current)))
+        self.rank_box.currentIndexChanged.connect(
+            lambda: (setattr(ts, "rank_tier", self.rank_box.currentData()), self._save()))
+        row.addWidget(self.rank_box)
+        row.addStretch(1)
+        layout.addLayout(row)
+
+        self.stats_label = QLabel(objectName="hint", wordWrap=True)
+        layout.addWidget(self.stats_label)
+        layout.addWidget(QLabel(ru.THREATS_HINT, objectName="hint", wordWrap=True))
+        for text, action in ((ru.BUTTON_PICK_HEROES, "pick_heroes"), (ru.BUTTON_SEEN_ITEM, "seen_item"),
+                             (ru.BUTTON_SHOW_CARD, "show_threats")):
+            button = QPushButton(text)
+            button.clicked.connect(lambda _=False, a=action: self.core.on_hotkey(a))
+            button.setEnabled(self.threats is not None)
+            layout.addWidget(button)
+        layout.addStretch(1)
+        self._refresh_stats_label()
+        return tab
+
+    def _refresh_stats_label(self) -> None:
+        if self.threats is None:
+            return
+        stats, mtime = self.threats.stats_status()
+        if stats.available and mtime:
+            matches = stats.raw.get("matches", {})
+            when = time.strftime("%d.%m %H:%M", time.localtime(mtime))
+            text = ru.STATS_STATUS.format(patch=stats.patch, normal=matches.get("normal", 0),
+                                          turbo=matches.get("turbo", 0), when=when)
+        else:
+            text = ru.STATS_MISSING
+        self.stats_label.setText(f"{ru.LABEL_STATS} {text}")
 
     # --- вкладка «Голос и экран» ---
     def _voice_screen_tab(self) -> QWidget:
@@ -301,6 +363,7 @@ class MainWindow(QMainWindow):
         self.activateWindow()
 
     def refresh_status(self) -> None:
+        self._refresh_stats_label()
         text = ru.STATUS_CONNECTED if self.core.connected else ru.STATUS_WAITING
         self.status_hint.setVisible(not self.core.connected)
         if self.core.muted:
