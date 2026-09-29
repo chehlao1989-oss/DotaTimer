@@ -59,6 +59,9 @@ class ThreatsController:
         self._topbar_tries = 0
         self._next_topbar_at: int | None = None
         self._was_alive: bool | None = None
+        self.card_duration: float | None = None  # сколько секунд держать полную карточку
+        self.card_items = None  # функция: герой-угроза → строка советов из модуля рекомендаций
+        self.on_enemies_changed = None  # служба пересчитывает рекомендации
 
     # --- названия ---
     def hero_title(self, key: str) -> str:
@@ -125,6 +128,8 @@ class ThreatsController:
         self.threats = score_enemies(heroes, self.data, self.config, self.settings.effective_rank, self.turbo(),
                                      self.my_hero_id())[:self.settings.threat_count]
         log.info("Враги: %s; угрозы: %s", enemies, [(t.hero.name, t.score, t.reason) for t in self.threats])
+        if self.on_enemies_changed:
+            self.on_enemies_changed()
         if show_card:
             self.show_card()
 
@@ -163,6 +168,11 @@ class ThreatsController:
         for threat in self.threats:
             reason = ru.CARD_REASON[threat.reason].format(wr=threat.winrate or 0, rank=rank)
             lines.append(ru.CARD_LINE.format(hero=threat.hero.localized, reason=reason))
+            if self.card_items is not None:
+                items = self.card_items(threat.hero.name)
+                if items:
+                    lines.append(ru.CARD_COUNTERS.format(items=items))
+                continue
             suggestions = self.suggestions_vs_hero(threat.hero.name)
             if suggestions:
                 lines.append(ru.CARD_COUNTERS.format(items=self.format_suggestions(suggestions, threat.hero.localized)))
@@ -171,7 +181,7 @@ class ThreatsController:
     def show_card(self) -> None:
         text = self.card_text()
         if text:
-            self.show(text, True, "threat")
+            self.show(text, True, "threat", self.card_duration)
 
     # --- инвентарь врагов ---
     def on_inventory(self, snapshot: InventorySnapshot, clock: int | None) -> None:

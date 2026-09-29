@@ -26,10 +26,16 @@ class TopbarResult:
     def confident(match: Match) -> bool:
         return match.key is not None and match.score >= MIN_SCORE and match.score - match.runner_up >= MIN_MARGIN
 
+    def _duplicates(self) -> set[str]:
+        """Герой не может стоять в панели дважды: такие ответы — ошибка (например, на экране не Дота)."""
+        keys = [m.key for m in self.radiant + self.dire if self.confident(m)]
+        return {k for k in keys if keys.count(k) > 1}
+
     def heroes(self, side: str) -> list[str | None]:
         """Имена героев стороны ("radiant"/"dire"); None там, где не уверены."""
         matches = self.radiant if side == "radiant" else self.dire
-        return [m.key if self.confident(m) else None for m in matches]
+        duplicates = self._duplicates()
+        return [m.key if self.confident(m) and m.key not in duplicates else None for m in matches]
 
     def side_of(self, hero: str) -> str | None:
         if hero in self.heroes("radiant"):
