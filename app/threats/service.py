@@ -127,6 +127,8 @@ class ThreatsService(QObject):
         self._gold = state.gold
         in_progress = state.game_state == STATE_IN_PROGRESS
         self._in_match = state.in_match
+        if not in_progress:
+            self.hide_overlays()  # экран итогов, выбор героев, главное меню — полоска не нужна
         if state.clock_time is not None:
             self.last_clock = state.clock_time
         if state.account_id and not self._rank_requested:
@@ -137,7 +139,8 @@ class ThreatsService(QObject):
             self.vision.set_active(in_progress and not state.paused and self.settings.enabled)
             if need_topbar:
                 self.vision.request_topbar()
-        self.refresh_recommendations()
+        if in_progress:
+            self.refresh_recommendations()
 
     def _request_rank(self, account_id: str) -> None:
         self._rank_requested = True
@@ -212,6 +215,12 @@ class ThreatsService(QObject):
             else:
                 parts.append(name)
         return ", ".join(parts)
+
+    def hide_overlays(self) -> None:
+        """Убрать полоску угроз (конец катки, Дота закрыта, данные не приходят)."""
+        if self.strip is not None and self.strip.isVisible():
+            self.strip.clear()
+        self._rec_key = None
 
     def toggle_strip(self) -> None:
         if self.strip is not None:

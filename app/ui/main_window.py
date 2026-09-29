@@ -379,6 +379,8 @@ class MainWindow(QMainWindow):
 
     def refresh_status(self) -> None:
         self._refresh_stats_label()
+        if not self.core.connected and self.threats is not None:
+            self.threats.hide_overlays()  # Дота закрыта или данные давно не приходят
         text = ru.STATUS_CONNECTED if self.core.connected else ru.STATUS_WAITING
         self.status_hint.setVisible(not self.core.connected)
         if self.core.muted:

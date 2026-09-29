@@ -93,6 +93,14 @@ class ThreatStrip(DraggableOverlay):
         if recs and self.settings.visible and not self.isVisible():
             self.show()
 
+    def clear(self) -> None:
+        """Катка закончилась или Дота закрыта — убрать полоску с экрана."""
+        self._recs, self._titles = [], {}
+        self._highlight.clear()
+        if not self._layout_mode:
+            self.hide()
+        self._render()
+
     def _unhighlight(self, key) -> None:
         self._highlight.discard(key)
         self._render()
