@@ -33,7 +33,9 @@ class ThreatsService(QObject):
     def __init__(self, settings: ThreatSettings, show, turbo):
         super().__init__()
         self.settings = settings
-        self.show = show
+        self.overlays_enabled = json.loads(THREATS_CONFIG.read_text(encoding="utf-8")).get("overlays_enabled", True)
+        self._show = show
+        self.show = self._show_if_enabled
         self.turbo = turbo
         self.cache = DataCache()
         self.config = load_threat_config()
@@ -54,6 +56,13 @@ class ThreatsService(QObject):
         self.data_ready.connect(self._rebuild)
         self._rebuild()
         threading.Thread(target=self._update_data, name="threats-data", daemon=True).start()
+
+    def _show_if_enabled(self, text, important, voice, *rest) -> None:
+        """Пока угрозы переделываются, на экран ничего не выводим — только в лог."""
+        if self.overlays_enabled:
+            self._show(text, important, voice, *rest)
+        elif text:
+            log.info("Угрозы (не показано): %s", text.replace("\n", " | "))
 
     # --- данные ---
     def _rebuild(self) -> None:
@@ -177,7 +186,7 @@ class ThreatsService(QObject):
         recs = self.recommender.recommend(self.controller.my_hero_id(), inputs, set(self.controller.own_items),
                                           self.last_clock or 0, self._gold)
         self._last_recs = {r.hero: r for r in recs}
-        if self.strip is not None:
+        if self.strip is not None and self.overlays_enabled:
             titles = {t.hero.name: t.hero.localized for t in self.controller.threats}
             self.strip.update_recommendations(recs if self.settings.enabled else [], titles)
         if any(item.changed for rec in recs for item in rec.items):
