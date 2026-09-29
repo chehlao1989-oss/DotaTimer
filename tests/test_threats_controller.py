@@ -21,9 +21,9 @@ def topbar(radiant, dire):
 def test_topbar_gives_enemies_and_card():
     ctrl, shown = make()
     assert ctrl.on_game_state(0, True, "npc_dota_hero_sven", "radiant", True) is True  # пора снять панель
-    heroes = ctrl.on_topbar(topbar(["sven"] * 5, ["alchemist", "medusa", "lion", "lion", "lion"]))
+    heroes = ctrl.on_topbar(topbar(["sven", "axe", "tiny", "lina", "zuus"], ["alchemist", "medusa", "lion", "pudge", "viper"]))
     assert len(heroes) == 10
-    assert ctrl.enemies == ["alchemist", "medusa", "lion", "lion", "lion"]
+    assert ctrl.enemies == ["alchemist", "medusa", "lion", "pudge", "viper"]
     text, voice = shown[-1]
     assert voice == "threat" and "Главные угрозы" in text and "Alchemist" in text
     assert "Eye of Skadi (+10% против Alchemist)" in text  # совет из статистики
@@ -32,7 +32,7 @@ def test_topbar_gives_enemies_and_card():
 def test_enemy_side_from_own_hero_when_team_unknown():
     ctrl, _ = make()
     ctrl.on_game_state(0, True, "npc_dota_hero_sven", None, True)
-    ctrl.on_topbar(topbar(["alchemist", "medusa", "lion", "lion", "lion"], ["sven"] * 5))
+    ctrl.on_topbar(topbar(["alchemist", "medusa", "lion", "pudge", "viper"], ["sven", "axe", "tiny", "lina", "zuus"]))
     assert ctrl.enemies[0] == "alchemist"
 
 

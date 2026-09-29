@@ -96,3 +96,12 @@ def test_unchanged_cells_are_not_matched_again(qapp, item_lib):
     finally:
         item_lib.match = original
     assert second == first and calls == []
+
+
+def test_topbar_duplicates_are_rejected():
+    from app.vision.matcher import Match
+    from app.vision.topbar import TopbarResult
+    result = TopbarResult(tuple(Match("ogre_magi", 0.63, 0.4) for _ in range(4)) + (Match("sven", 0.8, 0.3),),
+                          tuple(Match(h, 0.8, 0.3) for h in ("lina", "lion", "zuus", "axe", "tiny")))
+    assert result.heroes("radiant") == [None, None, None, None, "sven"]
+    assert result.heroes("dire") == ["lina", "lion", "zuus", "axe", "tiny"]
