@@ -1,0 +1,46 @@
+# Ежедневный сбор статистики предметов по сыгранным публичным матчам (слой 2, п. 6.6 ТЗ).
+# Результат — файлы релиза «data»: stats.json (для программы) и state.json.gz (копилка за патч).
+# В историю репозитория данные не попадают.
+name: Статистика матчей
+
+on:
+  schedule:
+    - cron: "30 3 * * *"  # каждый день в 03:30 UTC (06:30 по Москве)
+  workflow_dispatch: {}   # кнопка «Run workflow» для ручного запуска
+
+permissions:
+  contents: write  # чтобы обновлять файлы релиза
+
+concurrency:
+  group: stats
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Скачать копилку за патч
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download data --pattern state.json.gz --dir prev || echo "копилки ещё нет, начинаем с нуля"
+
+      - name: Собрать матчи
+        env:
+          STEAM_API_KEY: ${{ secrets.STEAM_API_KEY }}
+        run: python tools/collect_stats.py --state prev/state.json.gz --out out --calls 2500
+
+      - name: Опубликовать stats.json
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view data >/dev/null 2>&1 || gh release create data --title "Данные статистики" \
+            --notes "Обновляется автоматически раз в сутки. stats.json скачивает программа. Источники: Steam Web API (сыгранные публичные матчи), OpenDota constants." \
+            --prerelease
+          gh release upload data out/stats.json out/state.json.gz --clobber

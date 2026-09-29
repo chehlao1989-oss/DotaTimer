@@ -88,7 +88,7 @@ class MechanicsTagger:
         """Метки врага у героя по его способностям."""
         hero = hero.removeprefix(HERO_PREFIX)
         if hero not in self._hero_traits:
-            names = (self.hero_abilities.get(HERO_PREFIX + hero) or {}).get("abilities") or []
+            names = _flatten((self.hero_abilities.get(HERO_PREFIX + hero) or {}).get("abilities") or [])
             abilities = [self.abilities.get(n) or {} for n in names if n and not n.startswith("generic_hidden")]
             texts = [(a.get("desc") or "").lower() for a in abilities]
             tags = set()
@@ -127,6 +127,17 @@ class MechanicsTagger:
     def candidate_items(self, rule: MechanicRule, buyable: set[str]) -> set[str]:
         """Предметы, механически подходящие под правило (только те, что можно купить)."""
         return {k for k in buyable if self.item_answers(k) & set(rule.answers)}
+
+
+def _flatten(names) -> list[str]:
+    """Имена способностей: в данных OpenDota некоторые вложены списком (варианты способности)."""
+    out = []
+    for name in names:
+        if isinstance(name, list):
+            out.extend(_flatten(name))
+        elif isinstance(name, str):
+            out.append(name)
+    return out
 
 
 def _as_list(value) -> list:
