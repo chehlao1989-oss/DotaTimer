@@ -13,5 +13,16 @@
   "reason_winrate_min": 52.0,
   "suggestions_per_hint": 2,
   "stats_min_games": 30,
-  "stats_min_base_games": 20
+  "stats_min_base_games": 20,
+  "recommend": {
+    "note": "Модуль рекомендаций (п. 6.4 ТЗ). Это настройки поведения, не игровые данные.",
+    "min_buy_share": 0.03,
+    "z": 1.0,
+    "multi_threat_bonus": 1.0,
+    "hysteresis": 1.5,
+    "phase_base_cost": 2500,
+    "phase_cost_per_min": 200,
+    "per_threat": 2,
+    "base_tier_scale": 0.1
+  }
 }

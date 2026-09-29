@@ -70,6 +70,10 @@ class Stats:
                 return 0, 0
         return (node[0], node[1]) if isinstance(node, list) else (0, 0)
 
+    def hero(self, bucket: str, hero_id: int) -> tuple[int, int]:
+        """Все игры героя (для доли покупок предмета)."""
+        return self._cell("hero", bucket, hero_id)
+
     def base(self, bucket: str, hero_id: int, item: str) -> tuple[int, int]:
         return self._cell("base", bucket, hero_id, item)
 
