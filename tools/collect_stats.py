@@ -45,7 +45,7 @@ CALM_CALLS = 40  # столько удачных запросов подряд �
 ERROR_PAUSE_SEC = 10
 RATE_LIMIT_PAUSE_SEC = 30
 MAX_ERRORS_IN_ROW = 20
-STATS_MIN_GAMES = 10  # в stats.json попадают ячейки хотя бы с таким числом игр
+STATS_MIN_GAMES = 20  # в stats.json попадают ячейки хотя бы с таким числом игр (меньше программа не использует)
 STATE_VERSION = 1
 
 
