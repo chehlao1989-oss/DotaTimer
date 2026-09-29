@@ -4,12 +4,16 @@
 герои, итоговые предметы, победа. Никаких аккаунтов и ников не сохраняет.
 Копит счётчики за текущий патч в state.json.gz и строит компактный stats.json для программы.
 
-Счётчики (игры, победы) для героя H и предмета I в итоговом инвентаре H:
-- base[H][I]            — в целом;
-- vs_hero[H][E][I]      — в играх против героя E;
-- vs_trait[H][T][I]     — против врага с механикой T (слой 1: метки героев);
-- vs_item[H][J][I]      — против врага, у которого в конце был предмет J с механикой.
-Считаются только предметы-ответы из правил слоя 1: так объём данных остаётся небольшим.
+Счётчики [игры, победы]:
+- hero[H]               — все игры героя H;
+- pair[H][E]            — игры H против героя E (знаменатель для частоты покупки и матчап);
+- trait_games[H][T]     — игры H против врага с механикой T;
+- item_games[H][J]      — игры H против врага, у которого в конце был предмет J с механикой;
+- base[H][I]            — игры H с предметом I в итоговом инвентаре;
+- vs_hero[H][E][I], vs_trait[H][T][I], vs_item[H][J][I] — то же, но в играх против E / T / J;
+- length[H]["short"|"long"] — игры короче 30 и длиннее 40 минут (сила в лейте);
+- farm[H]               — [игры, сумма мест по нетворсу в своей команде] (1 = самый богатый).
+Предметы I — только ответы из правил слоя 1: так объём данных остаётся небольшим.
 
 Запуск: STEAM_API_KEY=... python tools/collect_stats.py --state state.json.gz --out out --calls 3000
 """
@@ -46,7 +50,9 @@ ERROR_PAUSE_SEC = 10
 RATE_LIMIT_PAUSE_SEC = 30
 MAX_ERRORS_IN_ROW = 20
 STATS_MIN_GAMES = 20  # в stats.json попадают ячейки хотя бы с таким числом игр (меньше программа не использует)
-STATE_VERSION = 1
+STATE_VERSION = 2  # версия 2: пары, длительность, фарм — старая копилка несовместима
+SHORT_GAME_SEC = 30 * 60
+LONG_GAME_SEC = 40 * 60
 
 
 def http_json(url: str, timeout: int = 60):
@@ -90,7 +96,7 @@ class Maps:
 # --- счётчики ---
 def empty_state(patch: str) -> dict:
     return {"version": STATE_VERSION, "patch": patch, "matches": {}, "base": {}, "vs_hero": {}, "vs_trait": {},
-            "vs_item": {}, "hero": {}}
+            "vs_item": {}, "hero": {}, "pair": {}, "trait_games": {}, "item_games": {}, "length": {}, "farm": {}}
 
 
 def _bump(table: dict, keys: list, win: bool) -> None:
@@ -102,8 +108,28 @@ def _bump(table: dict, keys: list, win: bool) -> None:
     cell[1] += int(win)
 
 
+def _add(table: dict, keys: list, value: int) -> None:
+    """Счётчик [игры, сумма value] (для среднего места по нетворсу)."""
+    node = table
+    for key in keys[:-1]:
+        node = node.setdefault(str(key), {})
+    cell = node.setdefault(str(keys[-1]), [0, 0])
+    cell[0] += 1
+    cell[1] += value
+
+
+def farm_ranks(rows) -> list[int]:
+    """Место каждого игрока по нетворсу в своей команде: 1 — самый богатый."""
+    ranks = [0] * len(rows)
+    for radiant in (True, False):
+        team = sorted((i for i, row in enumerate(rows) if row[1] == radiant), key=lambda i: -rows[i][3])
+        for place, index in enumerate(team, start=1):
+            ranks[index] = place
+    return ranks
+
+
 def match_rows(match: dict):
-    """Проверка матча и игроки: [(hero_id, radiant, [item ids])]. None — матч не подходит."""
+    """Проверка матча и игроки: [(hero_id, radiant, [item ids], net_worth)]. None — матч не подходит."""
     bucket = MODE_BUCKETS.get(match.get("game_mode"))
     players = match.get("players") or []
     if bucket is None or len(players) != 10 or match.get("duration", 0) < MIN_DURATION_SEC:
@@ -113,7 +139,7 @@ def match_rows(match: dict):
     rows = []
     for p in players:
         items = [p.get(f"item_{k}", 0) for k in range(6)] + [p.get(f"backpack_{k}", 0) for k in range(3)]
-        rows.append((p["hero_id"], p.get("player_slot", 0) < 128, [i for i in items if i]))
+        rows.append((p["hero_id"], p.get("player_slot", 0) < 128, [i for i in items if i], p.get("net_worth", 0)))
     return bucket, rows
 
 
@@ -122,14 +148,26 @@ def aggregate(match: dict, state: dict, maps: Maps) -> bool:
     if rows is None:
         return False
     radiant_win = bool(match.get("radiant_win"))
+    duration = match.get("duration", 0)
+    length = "short" if duration < SHORT_GAME_SEC else ("long" if duration > LONG_GAME_SEC else None)
     state["matches"][bucket] = state["matches"].get(bucket, 0) + 1
-    for hero, radiant, item_ids in rows:
+    ranks = farm_ranks(rows)
+    for index, (hero, radiant, item_ids, _net_worth) in enumerate(rows):
         win = radiant == radiant_win
         mine = {maps.item_by_id.get(i) for i in item_ids} & maps.answers
-        enemies = [(h, [maps.item_by_id.get(i) for i in its]) for h, r, its in rows if r != radiant]
+        enemies = [(h, [maps.item_by_id.get(i) for i in its]) for h, r, its, _nw in rows if r != radiant]
         enemy_traits = {t for h, _ in enemies for t in maps.hero_traits.get(h, [])}
         enemy_items = {k for _, its in enemies for k in its if k in maps.enemy_items}
         _bump(state["hero"], [bucket, hero], win)
+        _add(state["farm"], [bucket, hero], ranks[index])
+        if length:
+            _bump(state["length"], [bucket, hero, length], win)
+        for enemy, _ in enemies:
+            _bump(state["pair"], [bucket, hero, enemy], win)
+        for trait in enemy_traits:
+            _bump(state["trait_games"], [bucket, hero, trait], win)
+        for enemy_item in enemy_items:
+            _bump(state["item_games"], [bucket, hero, enemy_item], win)
         for item in mine:
             _bump(state["base"], [bucket, hero, item], win)
             for enemy, _ in enemies:
@@ -162,7 +200,9 @@ def build_stats(state: dict, min_games: int = STATS_MIN_GAMES) -> dict:
         "matches": state["matches"],
         "min_games": min_games,
         "source": "Steam Web API (сыгранные публичные матчи), OpenDota constants (данные Valve)",
-        **{name: _prune(state[name], min_games) or {} for name in ("hero", "base", "vs_hero", "vs_trait", "vs_item")},
+        **{name: _prune(state[name], min_games) or {} for name in ("hero", "base", "vs_hero", "vs_trait", "vs_item",
+                                                                      "pair", "trait_games", "item_games", "length")},
+        "farm": state["farm"],
     }
 
 
