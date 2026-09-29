@@ -34,9 +34,16 @@ OPENDOTA = "https://api.opendota.com/api"
 MODE_BUCKETS = {1: "normal", 2: "normal", 3: "normal", 4: "normal", 5: "normal", 22: "normal", 23: "turbo"}
 MIN_DURATION_SEC = 900  # короче 15 минут — скорее всего ливы и ремейки
 DAY_SEC = 86400
-PAUSE_SEC = 1.5  # Steam ограничивает частоту (код 429), идём бережно
+# Steam ограничивает частоту (код 429). Пауза между запросами подстраивается сама:
+# после 429 растёт, после серии удачных запросов понемногу уменьшается.
+PAUSE_START_SEC = 3.0
+PAUSE_MIN_SEC = 2.0
+PAUSE_MAX_SEC = 15.0
+PAUSE_UP_SEC = 1.5
+PAUSE_DOWN_SEC = 0.25
+CALM_CALLS = 40  # столько удачных запросов подряд — можно чуть быстрее
 ERROR_PAUSE_SEC = 10
-RATE_LIMIT_PAUSE_SEC = 60
+RATE_LIMIT_PAUSE_SEC = 30
 MAX_ERRORS_IN_ROW = 20
 STATS_MIN_GAMES = 10  # в stats.json попадают ячейки хотя бы с таким числом игр
 STATE_VERSION = 1
@@ -170,9 +177,14 @@ def start_seq_yesterday() -> int:
     return http_json(f"{OPENDOTA}/matches/{match_id}")["match_seq_num"]
 
 
-def collect(key: str, state: dict, maps: Maps, calls: int, seq: int) -> int:
-    kept = errors = 0
+def collect(key: str, state: dict, maps: Maps, calls: int, seq: int, max_minutes: float) -> int:
+    kept = errors = calm = 0
+    pause = PAUSE_START_SEC
+    deadline = time.monotonic() + max_minutes * 60
     for i in range(calls):
+        if time.monotonic() > deadline:
+            print(f"время вышло ({max_minutes:.0f} мин), сохраняю собранное", flush=True)
+            break
         try:
             result = http_json(f"{STEAM_URL}?key={key}&start_at_match_seq_num={seq}&matches_requested=100")["result"]
         except (urllib.error.URLError, OSError, ValueError, KeyError) as error:
@@ -180,20 +192,26 @@ def collect(key: str, state: dict, maps: Maps, calls: int, seq: int) -> int:
             code = getattr(error, "code", "")
             print(f"запрос {i}: ошибка {type(error).__name__} {code}, пауза", flush=True)
             errors += 1
+            calm = 0
             if errors >= MAX_ERRORS_IN_ROW:
                 print("слишком много ошибок подряд, заканчиваю сбор")
                 break
+            if code == 429:
+                pause = min(PAUSE_MAX_SEC, pause + PAUSE_UP_SEC)
             time.sleep(RATE_LIMIT_PAUSE_SEC if code == 429 else ERROR_PAUSE_SEC)
             continue
         errors = 0
+        calm += 1
+        if calm >= CALM_CALLS:
+            pause, calm = max(PAUSE_MIN_SEC, pause - PAUSE_DOWN_SEC), 0
         matches = result.get("matches") or []
         if not matches:
             break
         seq = matches[-1]["match_seq_num"] + 1
         kept += sum(aggregate(m, state, maps) for m in matches)
         if i % 100 == 0:
-            print(f"запрос {i}/{calls}, матчей учтено {kept}", flush=True)
-        time.sleep(PAUSE_SEC)
+            print(f"запрос {i}/{calls}, матчей учтено {kept}, пауза {pause:.1f} сек", flush=True)
+        time.sleep(pause)
     return kept
 
 
@@ -212,6 +230,7 @@ def main() -> None:
     parser.add_argument("--state", default="state.json.gz")
     parser.add_argument("--out", default="out")
     parser.add_argument("--calls", type=int, default=2500, help="запросов к Steam (по 100 матчей)")
+    parser.add_argument("--max-minutes", type=float, default=240, help="после этого сбор заканчивается и сохраняется")
     args = parser.parse_args()
 
     key = os.environ.get("STEAM_API_KEY", "").strip()
@@ -224,7 +243,7 @@ def main() -> None:
     state = load_state(Path(args.state), patch)
     print(f"патч {patch}; предметов-ответов {len(maps.answers)}; матчей в копилке {state['matches']}")
 
-    kept = collect(key, state, maps, args.calls, start_seq_yesterday())
+    kept = collect(key, state, maps, args.calls, start_seq_yesterday(), args.max_minutes)
     print(f"за запуск учтено матчей: {kept}; всего: {state['matches']}")
 
     out = Path(args.out)

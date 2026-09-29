@@ -34,7 +34,7 @@ jobs:
       - name: Собрать матчи
         env:
           STEAM_API_KEY: ${{ secrets.STEAM_API_KEY }}
-        run: python tools/collect_stats.py --state prev/state.json.gz --out out --calls 2500
+        run: python tools/collect_stats.py --state prev/state.json.gz --out out --calls 2500 --max-minutes 240
 
       - name: Опубликовать stats.json
         env:
