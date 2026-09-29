@@ -130,7 +130,7 @@ def prepare(con: duckdb.DuckDBPyConnection, matches_glob: str, ranks_glob: str |
 
     where — фильтр по матчам (например, по start_time для проверки на отложенных днях).
     """
-    # запуски сбора могут пересекаться по времени: один и тот же матч берём один раз
+    # запуски сбора могут пересекаться: один и тот же матч берём один раз (DECISIONS №4)
     con.execute(f"CREATE OR REPLACE VIEW m AS SELECT * FROM read_parquet('{matches_glob}') WHERE {where} "
                 f"QUALIFY row_number() OVER (PARTITION BY match_id, hero_id ORDER BY start_time) = 1")
     if ranks_glob:
@@ -153,6 +153,7 @@ def prepare(con: duckdb.DuckDBPyConnection, matches_glob: str, ranks_glob: str |
         )
         SELECT match_id, start_time, hero_id AS hero, is_radiant, bucket, patch,
                CASE {groups} ELSE NULL END AS rank_group,
+               -- роль по месту по нетворсу, не по тегам Valve (DECISIONS №9)
                CASE WHEN nw_place <= 2 THEN 'core' WHEN nw_place = 3 THEN 'offlane' ELSE 'support' END AS role,
                CASE WHEN bucket = 'normal' THEN
                     CASE WHEN duration < {edges_n[0]}*60 THEN 0 WHEN duration < {edges_n[1]}*60 THEN 1

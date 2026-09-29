@@ -1,13 +1,23 @@
-"""Отчёт о запуске сбора в 5 строк (по файлам run-*.json в релизе data-raw). Все цифры — замеры из журнала запуска.
+"""Сводка по сбору, чтобы не читать журналы и файлы целиком (docs/PROCESS.md, раздел 6).
 
-Запуск: python tools/run_report.py [--run 12]  (без --run — последний запуск)
-В GitHub Actions пишет отчёт и в сводку запуска ($GITHUB_STEP_SUMMARY).
+Режимы:
+  (по умолчанию) отчёт о законченном запуске в 5 строк — по файлам run-*.json в релизе data-raw;
+  --live   идущий запуск: сколько частей выложено, матчей в них и матчей в час по времени выгрузки частей;
+  --log F  сводка по скачанному журналу запуска (строки «N мин: … матчей/час …» и «итог: …»).
+Все цифры — замеры; источник указан в каждой строке.
+В GitHub Actions отчёт пишется и в сводку запуска ($GITHUB_STEP_SUMMARY).
+
+Запуск: python tools/report.py [--run 12] [--live] [--log путь_к_журналу.txt]
 """
 import argparse
+import io
 import json
 import os
+import re
+import statistics
 import sys
 import urllib.request
+from datetime import datetime
 from pathlib import Path
 
 REPO = "chehlao1989-oss/DotaTimer"
@@ -78,6 +88,51 @@ def report(runs: list[dict], assets: list[dict], run_number: str | None = None, 
     ]
 
 
+def live(assets: list[dict], runs: list[dict]) -> list[str]:
+    """Идущий запуск: части matches-<тег>-pNN без run-файла. Скорость — по времени выгрузки первой и последней части."""
+    import pyarrow.parquet as pq
+    tags = {r["tag"] for r in runs}
+    parts = sorted((a for a in assets if re.match(r"matches-.*-p\d+\.parquet$", a["name"]) and a["name"][8:23] not in tags),
+                   key=lambda a: a["name"])
+    if not parts:
+        return ["идущего запуска с частями нет (или он уже закончился — см. отчёт без --live)"]
+    tag = parts[-1]["name"][8:23]
+    parts = [a for a in parts if a["name"][8:23] == tag]
+    matches = 0
+    for a in parts:
+        with urllib.request.urlopen(a["browser_download_url"], timeout=300) as response:
+            table = pq.read_table(io.BytesIO(response.read()), columns=["match_id"])
+        matches += len(set(table.column("match_id").to_pylist()))
+    started = datetime.strptime(tag, "%Y-%m-%d-%H%M")
+    last = datetime.strptime(parts[-1]["updated_at"], "%Y-%m-%dT%H:%M:%SZ")
+    hours = max((last - started).total_seconds() / 3600, 1e-6)
+    return [f"идёт запуск {tag} UTC: выложено частей {len(parts)}, матчей {_n(matches)} "
+            f"за {hours * 60:.0f} мин до последней выгрузки ≈ {_n(round(matches / hours))} матчей/час "
+            f"(замер: части в релизе и время их выгрузки)"]
+
+
+LOG_LINE = re.compile(r"(\d+) мин: ([\d.]+) запросов/мин, (\d+) матчей/час, 429 за отрезок (\d+) \(всего (\d+)\), "
+                      r"пауза ([\d.]+) сек")
+
+
+def summarize_log(text: str) -> list[str]:
+    """Сводка по журналу сборщика: скорость по 10-минутным отрезкам, 429, паузы, итоговые строки."""
+    rows = [tuple(float(x) for x in m.groups()) for m in LOG_LINE.finditer(text)]
+    out = []
+    if rows:
+        per_hour = [r[2] for r in rows]
+        pauses = [r[5] for r in rows]
+        out.append(f"отрезков по 10 мин: {len(rows)}; матчей/час: мин {_n(round(min(per_hour)))}, "
+                   f"медиана {_n(round(statistics.median(per_hour)))}, макс {_n(round(max(per_hour)))} (замер: журнал)")
+        out.append(f"429 всего к последнему отрезку: {int(rows[-1][4])}; пауза: от {min(pauses)} до {max(pauses)} сек, "
+                   f"в конце {pauses[-1]} сек (замер: журнал)")
+    streaks = len(re.findall(r"ошибок подряд", text))
+    if streaks:
+        out.append(f"серий «20 ошибок подряд»: {streaks} (замер: журнал)")
+    out += [line.strip() for line in text.splitlines() if "итог:" in line]
+    return out or ["в журнале нет строк сборщика"]
+
+
 def _n(value) -> str:
     return f"{value:,}".replace(",", " ")
 
@@ -85,12 +140,17 @@ def _n(value) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Отчёт о запуске сбора")
     parser.add_argument("--run", help="номер запуска GitHub (без него — последний)")
+    parser.add_argument("--live", action="store_true", help="идущий запуск: части в релизе")
+    parser.add_argument("--log", help="скачанный журнал запуска (текст)")
     args = parser.parse_args()
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
+    if args.log:
+        print("\n".join(summarize_log(Path(args.log).read_text(encoding="utf-8", errors="replace"))))
+        return
     assets = release_assets()
     runs = load_runs(assets)
-    lines = report(runs, assets, args.run, legacy_matches(assets, runs))
+    lines = live(assets, runs) if args.live else report(runs, assets, args.run, legacy_matches(assets, runs))
     print("\n".join(lines))
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:

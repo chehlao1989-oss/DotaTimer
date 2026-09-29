@@ -106,7 +106,7 @@ def test_ranks_stop_by_daily_limit_header(tmp_path, monkeypatch):
 
 
 def test_run_report_lines():
-    from tools.run_report import report
+    from tools.report import report
     run = {"tag": "t", "run_number": 6, "matches": 150000, "matches_per_hour": 31000, "steam_requests": 1900,
            "minutes": 290, "final_pause_sec": 3.2, "steam_429": 80, "opendota_requests": 750, "opendota_left": 2100,
            "ranked_ours": 90000, "ours": 150000, "matches_bytes": 2 * 1024 * 1024, "ranks_bytes": 0}

@@ -25,7 +25,7 @@ ICON_W, ICON_H = 46, 34
 CAPTION_PX = 13
 HIGHLIGHT_MS = 5000
 MARGIN = 20
-BOTTOM_OFFSET = 300  # над миникартой слева
+BOTTOM_OFFSET = 300  # DECISIONS №13; над миникартой слева
 COLOR_BOUGHT = QColor("#3fb950")
 COLOR_AFFORDABLE = QColor("#c9a45c")
 COLOR_HIGHLIGHT = QColor("#ffd33d")
@@ -151,7 +151,18 @@ class ThreatStrip(DraggableOverlay):
         self._panel.adjustSize()
         self.adjustSize()
         width, height = self.sizeHint().width(), self.sizeHint().height()
-        self.place(width, height, lambda s, w, h: (s.left() + MARGIN, s.bottom() - round(BOTTOM_OFFSET * f) - h))
+        self.place(width, height, self._default_pos)
+
+    def _default_pos(self, screen, w: int, h: int):
+        """Над миникартой слева: нижний край полоски на BOTTOM_OFFSET выше низа экрана."""
+        return screen.left() + MARGIN, screen.bottom() - round(BOTTOM_OFFSET * self.factor()) - h
+
+    def resizeEvent(self, event):
+        # Новые портреты и иконки показываются только после отрисовки, и размер полоски растёт уже после
+        # place(): без этого полоска уезжала вниз на миникарту (BUGLOG №13). Прижимаем заново по новому размеру.
+        super().resizeEvent(event)
+        if self.settings.x is None or self.settings.y is None:
+            self.place(self.width(), self.height(), self._default_pos)
 
     @staticmethod
     def _caption(item) -> str:

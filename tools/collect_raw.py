@@ -36,20 +36,21 @@ OPENDOTA = "https://api.opendota.com/api"
 MODE_BUCKETS = {1: "normal", 22: "normal", 23: "turbo"}
 MIN_DURATION_SEC = {"normal": 15 * 60, "turbo": 10 * 60}  # спека 2.2
 # Точка старта: номера матчей растут примерно на 1.5 млн в сутки; берём с запасом, чтобы матчи были доиграны
-ANCHOR_BACK_IDS = 1_800_000
-ANCHOR_TRIES = 10  # сколько настоящих матчей пробовать как стартовый
+ANCHOR_BACK_IDS = 1_800_000  # DECISIONS №7
+ANCHOR_TRIES = 10  # DECISIONS №7; сколько настоящих матчей пробовать как стартовый
 
 # Регулятор темпа Steam (схема автора, 29.09; docs/DATA_SOURCES.md). Цель — максимум матчей в час, а не минимум 429:
 # после 429 ждём Retry-After (если нет — 20 сек) и пауза ×1,5; после 20 успешных подряд пауза ×0,9; пауза 1–10 сек.
-PAUSE_START_SEC, PAUSE_MIN_SEC, PAUSE_MAX_SEC = 3.0, 1.0, 10.0
-PAUSE_UP_FACTOR, PAUSE_DOWN_FACTOR, CALM_CALLS = 1.5, 0.9, 20
-RETRY_AFTER_DEFAULT_SEC, ERROR_PAUSE_SEC, MAX_ERRORS_IN_ROW = 20.0, 10, 20
-LONG_WAIT_SEC = 300  # после MAX_ERRORS_IN_ROW ошибок подряд ждём и продолжаем (до конца отведённого времени)
+PAUSE_START_SEC, PAUSE_MIN_SEC, PAUSE_MAX_SEC = 3.0, 1.0, 10.0  # DECISIONS №2
+PAUSE_UP_FACTOR, PAUSE_DOWN_FACTOR, CALM_CALLS = 1.5, 0.9, 20  # DECISIONS №2
+RETRY_AFTER_DEFAULT_SEC, ERROR_PAUSE_SEC, MAX_ERRORS_IN_ROW = 20.0, 10, 20  # DECISIONS №2, №3
+LONG_WAIT_SEC = 300  # DECISIONS №3; после MAX_ERRORS_IN_ROW ошибок подряд ждём и продолжаем (до конца отведённого времени)
 LOG_EVERY_SEC = 600  # строка в журнал каждые 10 мин
-SAVE_EVERY_SEC = 900  # часть файла в релиз каждые 15 мин: падение теряет не больше 15 мин
-OPENDOTA_PAUSE_SEC = 1.1  # OpenDota: 60 запросов в минуту
-OPENDOTA_DAY_RESERVE = 100  # остановка, когда в заголовке X-Rate-Limit-Remaining-Day осталось столько (лимит по IP)
+SAVE_EVERY_SEC = 900  # DECISIONS №4; часть файла в релиз каждые 15 мин: падение теряет не больше 15 мин
+OPENDOTA_PAUSE_SEC = 1.1  # DECISIONS №5; OpenDota: 60 запросов в минуту
+OPENDOTA_DAY_RESERVE = 100  # DECISIONS №5; остановка, когда в заголовке X-Rate-Limit-Remaining-Day осталось столько (лимит по IP)
 
+# Сырая строка на игрока — храним всегда, расчёт отдельно. DECISIONS №1
 MATCH_SCHEMA = pa.schema([
     ("match_id", pa.int64()), ("start_time", pa.int32()), ("duration", pa.int16()), ("game_mode", pa.int8()),
     ("lobby_type", pa.int8()), ("radiant_win", pa.bool_()), ("patch", pa.string()), ("is_radiant", pa.bool_()),
@@ -355,7 +356,7 @@ def collect_ranks(max_minutes: float, out: Path, tag: str, files: list[Path]) ->
 
 
 def update_run_stats(out: Path, tag: str, stats: dict) -> Path:
-    """Итоги запуска в run-<тег>.json (для отчёта tools/run_report.py): номер запуска GitHub и цифры шагов."""
+    """Итоги запуска в run-<тег>.json (для отчёта tools/report.py): номер запуска GitHub и цифры шагов."""
     path = out / f"run-{tag}.json"
     data = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {
         "tag": tag, "run_number": os.environ.get("GITHUB_RUN_NUMBER"), "run_id": os.environ.get("GITHUB_RUN_ID")}

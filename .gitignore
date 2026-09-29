@@ -32,3 +32,6 @@ assets/voice_samples/
 
 # Статистика публикуется как ассет релиза, не в истории
 stats.json
+
+# Настройки Claude Code проекта (хуки) — коммитим
+!.claude/settings.json

@@ -6,7 +6,7 @@ name: Статистика матчей
 
 on:
   schedule:
-    - cron: "0 5,11,17,23 * * *"  # каждые 6 часов: 02:00, 08:00, 14:00, 20:00 по Москве
+    - cron: "0 5,11,17,23 * * *"  # DECISIONS №6; каждые 6 часов: 02:00, 08:00, 14:00, 20:00 по Москве
   workflow_dispatch: {}   # кнопка «Run workflow» для ручного запуска
 
 permissions:
@@ -66,4 +66,4 @@ jobs:
       - name: Отчёт о запуске
         if: ${{ !cancelled() }}
         continue-on-error: true
-        run: python tools/run_report.py --run "$GITHUB_RUN_NUMBER"
+        run: python tools/report.py --run "$GITHUB_RUN_NUMBER"
