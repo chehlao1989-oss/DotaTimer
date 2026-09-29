@@ -118,9 +118,33 @@ def write_parquet(rows: list[dict], schema: pa.Schema, path: Path) -> None:
     pq.write_table(table, path, compression="zstd")
 
 
-def collect_matches(key: str, calls: int, max_minutes: float, out: Path, tag: str) -> Path:
+def resume_seq_num(state: Path | None) -> int | None:
+    """Откуда продолжить: номер из next_seq.txt прошлого запуска или по последнему матчу в прошлом файле.
+
+    Сбор идёт несколько раз в сутки подряд, поэтому каждый запуск продолжает с места, где остановился прошлый
+    (без дыр и без повторов). Если прошлого состояния нет — None, тогда старт от якоря.
+    """
+    if not state or not state.exists():
+        return None
+    saved = state / "next_seq.txt"
+    if saved.exists() and saved.read_text().strip().isdigit():
+        return int(saved.read_text().strip())
+    files = sorted(state.glob("matches-*.parquet"))
+    if not files:
+        return None
+    last_id = max(pq.read_table(files[-1], columns=["match_id"]).column("match_id").to_pylist() or [0])
+    try:
+        return http_json(f"{OPENDOTA}/matches/{last_id}")["match_seq_num"] + 1
+    except (urllib.error.URLError, OSError, ValueError, KeyError) as error:
+        print(f"не нашёл последний матч {last_id} в OpenDota ({type(error).__name__}), старт от якоря", flush=True)
+        return None
+
+
+def collect_matches(key: str, calls: int, max_minutes: float, out: Path, tag: str, state: Path | None = None) -> Path:
     patches = http_json(f"{OPENDOTA}/constants/patch")
-    seq = anchor_seq_num()
+    seq = resume_seq_num(state)
+    print(f"старт: {'продолжаю с прошлого запуска' if seq else 'от якоря (матчи суточной давности)'}", flush=True)
+    seq = seq or anchor_seq_num()
     rows, kept, errors, calm, pause = [], 0, 0, 0, PAUSE_START_SEC
     started = time.monotonic()
     deadline = started + max_minutes * 60
@@ -162,6 +186,7 @@ def collect_matches(key: str, calls: int, max_minutes: float, out: Path, tag: st
         time.sleep(pause)
     path = out / f"matches-{tag}.parquet"
     write_parquet(rows, MATCH_SCHEMA, path)
+    (out / "next_seq.txt").write_text(str(seq))  # следующий запуск продолжит отсюда
     print(f"матчей: {kept}, строк: {len(rows)}, файл {path.name}: {path.stat().st_size // 1024} КБ")
     return path
 
@@ -212,6 +237,7 @@ def main() -> None:
     parser.add_argument("--calls", type=int, default=2500)
     parser.add_argument("--max-minutes", type=float, default=240)
     parser.add_argument("--matches", help="для ranks: файл матчей этого запуска")
+    parser.add_argument("--state", help="для matches: папка с next_seq.txt или последним файлом матчей прошлого запуска")
     args = parser.parse_args()
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -220,7 +246,7 @@ def main() -> None:
         key = os.environ.get("STEAM_API_KEY", "").strip()
         if not key:
             sys.exit("нет STEAM_API_KEY")
-        collect_matches(key, args.calls, args.max_minutes, out, tag)
+        collect_matches(key, args.calls, args.max_minutes, out, tag, Path(args.state) if args.state else None)
     else:
         if not args.matches:
             sys.exit("для ranks нужен --matches")

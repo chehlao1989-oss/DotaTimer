@@ -41,3 +41,11 @@ def test_parquet_roundtrip(tmp_path):
     table = pq.read_table(path)
     assert table.num_rows == 10 and table.schema.field("items").type.value_type.bit_width == 16
     assert id_range(path) == (9000000001, 9000000001)
+
+
+def test_resume_from_previous_run(tmp_path):
+    from tools.collect_raw import resume_seq_num
+    assert resume_seq_num(None) is None
+    assert resume_seq_num(tmp_path) is None  # прошлого запуска нет — старт от якоря
+    (tmp_path / "next_seq.txt").write_text("7577293702\n")
+    assert resume_seq_num(tmp_path) == 7577293702

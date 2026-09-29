@@ -1,11 +1,12 @@
-# Ежедневный сбор сырых матчей и рангов (docs/RECOMMENDER_SPEC.md, раздел 2).
+# Постоянный сбор сырых матчей и рангов (docs/RECOMMENDER_SPEC.md, раздел 2; лимиты — docs/DATA_SOURCES.md).
+# Запуск каждые 6 часов; каждый запуск продолжает с матча, на котором остановился прошлый (next_seq.txt в релизе).
 # Результат — файлы релиза «data-raw»: matches-<дата-время>.parquet и ranks-<дата-время>.parquet.
 # Каждый запуск добавляет свои файлы, старые не перезаписываются. В историю репозитория данные не попадают.
 name: Статистика матчей
 
 on:
   schedule:
-    - cron: "0 23 * * *"  # каждый день в 23:00 UTC = 02:00 по Москве
+    - cron: "0 5,11,17,23 * * *"  # каждые 6 часов: 02:00, 08:00, 14:00, 20:00 по Москве
   workflow_dispatch: {}   # кнопка «Run workflow» для ручного запуска
 
 permissions:
@@ -18,7 +19,7 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 330
+    timeout-minutes: 350
     steps:
       - uses: actions/checkout@v4
 
@@ -29,15 +30,29 @@ jobs:
       - name: Библиотеки сборщика
         run: pip install -r requirements-collector.txt
 
+      - name: Откуда продолжить (прошлый запуск)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p state
+          gh release download data-raw -p next_seq.txt -D state || true
+          if [ ! -f state/next_seq.txt ]; then
+            latest=$(gh release view data-raw --json assets -q '.assets[].name' 2>/dev/null | grep '^matches-' | sort | tail -1 || true)
+            if [ -n "$latest" ]; then gh release download data-raw -p "$latest" -D state; fi
+          fi
+          ls state
+
       - name: Собрать матчи (Steam)
         env:
           STEAM_API_KEY: ${{ secrets.STEAM_API_KEY }}
-        run: python tools/collect_raw.py matches --out raw --calls 2500 --max-minutes 210
+        run: python tools/collect_raw.py matches --out raw --state state --calls 3000 --max-minutes 250
 
       - name: Собрать ранги (OpenDota)
+        continue-on-error: true  # без рангов матчи всё равно нужны: сохраняем их в любом случае
         run: python tools/collect_raw.py ranks --matches "$(ls raw/matches-*.parquet)" --out raw --calls 2400 --max-minutes 60
 
       - name: Добавить файлы в релиз data-raw
+        if: ${{ !cancelled() && hashFiles('raw/matches-*.parquet') != '' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -45,3 +60,4 @@ jobs:
             --notes "Сырые сыгранные публичные матчи (Steam Web API) и их ранги (OpenDota). Один файл на запуск, по строке на игрока, без аккаунтов. Формат: docs/RECOMMENDER_SPEC.md, раздел 2." \
             --prerelease
           gh release upload data-raw raw/*.parquet
+          gh release upload data-raw raw/next_seq.txt --clobber
