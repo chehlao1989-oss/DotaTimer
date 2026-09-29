@@ -36,12 +36,12 @@ MIN_DURATION_SEC = {"normal": 15 * 60, "turbo": 10 * 60}  # спека 2.2
 ANCHOR_BACK_IDS = 1_800_000
 ANCHOR_TRIES = 10  # сколько настоящих матчей пробовать как стартовый
 
-# Темп для Steam. После «429» (лимит запросов) пауза растёт на 1 сек, а после каждых 10 спокойных запросов
-# уменьшается на 0,5 сек. Раньше было +1,5 и −0,25 за 40 запросов: пауза застревала на 8–9 сек и сбор шёл
-# вдвое медленнее, чем позволяет Steam (запуск 29.09: 5 ошибок «429» на 500 запросов, пауза 9 сек).
-PAUSE_START_SEC, PAUSE_MIN_SEC, PAUSE_MAX_SEC = 3.0, 2.0, 15.0
-PAUSE_UP_SEC, PAUSE_DOWN_SEC, CALM_CALLS = 1.0, 0.5, 10
-RATE_LIMIT_PAUSE_SEC, ERROR_PAUSE_SEC, MAX_ERRORS_IN_ROW = 20, 10, 20
+# Темп для Steam — только по замерам из docs/DATA_SOURCES.md (раздел «Steam: лимит частоты»). Не менять без новых замеров.
+# Коротко: пауза 1,5 сек → «429» на каждом 10–12-м запросе; 3–7,5 сек → на каждом ~22-м; 8–9 сек → раз в сотни запросов.
+# Поэтому стартуем сразу с 8 сек и не опускаемся ниже 7.
+PAUSE_START_SEC, PAUSE_MIN_SEC, PAUSE_MAX_SEC = 8.0, 7.0, 15.0
+PAUSE_UP_SEC, PAUSE_DOWN_SEC, CALM_CALLS = 1.0, 0.5, 50
+RATE_LIMIT_PAUSE_SEC, ERROR_PAUSE_SEC, MAX_ERRORS_IN_ROW = 30, 10, 20
 OPENDOTA_PAUSE_SEC = 1.1  # бесплатный лимит OpenDota — 60 запросов в минуту
 
 MATCH_SCHEMA = pa.schema([
