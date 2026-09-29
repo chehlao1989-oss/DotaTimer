@@ -36,10 +36,12 @@ MIN_DURATION_SEC = {"normal": 15 * 60, "turbo": 10 * 60}  # спека 2.2
 ANCHOR_BACK_IDS = 1_800_000
 ANCHOR_TRIES = 10  # сколько настоящих матчей пробовать как стартовый
 
-# Бережный темп для Steam (подобран по первым запускам: лимит «429» наступает при ~1 запросе в 2 сек)
+# Темп для Steam. После «429» (лимит запросов) пауза растёт на 1 сек, а после каждых 10 спокойных запросов
+# уменьшается на 0,5 сек. Раньше было +1,5 и −0,25 за 40 запросов: пауза застревала на 8–9 сек и сбор шёл
+# вдвое медленнее, чем позволяет Steam (запуск 29.09: 5 ошибок «429» на 500 запросов, пауза 9 сек).
 PAUSE_START_SEC, PAUSE_MIN_SEC, PAUSE_MAX_SEC = 3.0, 2.0, 15.0
-PAUSE_UP_SEC, PAUSE_DOWN_SEC, CALM_CALLS = 1.5, 0.25, 40
-RATE_LIMIT_PAUSE_SEC, ERROR_PAUSE_SEC, MAX_ERRORS_IN_ROW = 30, 10, 20
+PAUSE_UP_SEC, PAUSE_DOWN_SEC, CALM_CALLS = 1.0, 0.5, 10
+RATE_LIMIT_PAUSE_SEC, ERROR_PAUSE_SEC, MAX_ERRORS_IN_ROW = 20, 10, 20
 OPENDOTA_PAUSE_SEC = 1.1  # бесплатный лимит OpenDota — 60 запросов в минуту
 
 MATCH_SCHEMA = pa.schema([
@@ -120,7 +122,9 @@ def collect_matches(key: str, calls: int, max_minutes: float, out: Path, tag: st
     patches = http_json(f"{OPENDOTA}/constants/patch")
     seq = anchor_seq_num()
     rows, kept, errors, calm, pause = [], 0, 0, 0, PAUSE_START_SEC
-    deadline = time.monotonic() + max_minutes * 60
+    started = time.monotonic()
+    deadline = started + max_minutes * 60
+    limits = 0
     for i in range(calls):
         if time.monotonic() > deadline:
             print(f"время вышло ({max_minutes:.0f} мин), сохраняю собранное", flush=True)
@@ -136,7 +140,7 @@ def collect_matches(key: str, calls: int, max_minutes: float, out: Path, tag: st
                 print("слишком много ошибок подряд, заканчиваю сбор")
                 break
             if code == 429:
-                pause = min(PAUSE_MAX_SEC, pause + PAUSE_UP_SEC)
+                pause, limits = min(PAUSE_MAX_SEC, pause + PAUSE_UP_SEC), limits + 1
             time.sleep(RATE_LIMIT_PAUSE_SEC if code == 429 else ERROR_PAUSE_SEC)
             continue
         errors, calm = 0, calm + 1
@@ -152,7 +156,9 @@ def collect_matches(key: str, calls: int, max_minutes: float, out: Path, tag: st
                 rows.extend(new)
                 kept += 1
         if i % 100 == 0:
-            print(f"запрос {i}/{calls}, матчей {kept}, пауза {pause:.1f} сек", flush=True)
+            minutes = (time.monotonic() - started) / 60
+            print(f"запрос {i}/{calls}, матчей {kept}, пауза {pause:.1f} сек, {minutes:.0f} мин, "
+                  f"{i / max(minutes, 0.01):.1f} запросов в минуту, ошибок «429» {limits}", flush=True)
         time.sleep(pause)
     path = out / f"matches-{tag}.parquet"
     write_parquet(rows, MATCH_SCHEMA, path)
