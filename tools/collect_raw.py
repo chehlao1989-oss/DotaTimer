@@ -48,6 +48,7 @@ LONG_WAIT_SEC = 300  # DECISIONS №3; после MAX_ERRORS_IN_ROW ошибок
 LOG_EVERY_SEC = 600  # строка в журнал каждые 10 мин
 SAVE_EVERY_SEC = 900  # DECISIONS №4; часть файла в релиз каждые 15 мин: падение теряет не больше 15 мин
 OPENDOTA_PAUSE_SEC = 1.1  # DECISIONS №5; OpenDota: 60 запросов в минуту
+OPENDOTA_MINUTE_WAIT_SEC = 60  # DECISIONS №5; 429 при живом суточном лимите — ждём минутное окно
 OPENDOTA_DAY_RESERVE = 100  # DECISIONS №5; остановка, когда в заголовке X-Rate-Limit-Remaining-Day осталось столько (лимит по IP)
 
 # Сырая строка на игрока — храним всегда, расчёт отдельно. DECISIONS №1
@@ -152,13 +153,13 @@ def resume_seq_num(state: Path | None) -> int | None:
         return None
 
 
-def retry_after(error) -> float:
-    """Сколько ждать после 429: заголовок Retry-After (секунды), иначе RETRY_AFTER_DEFAULT_SEC."""
+def retry_after(error, default: float = RETRY_AFTER_DEFAULT_SEC) -> float:
+    """Сколько ждать после 429: заголовок Retry-After (секунды), иначе default."""
     headers = getattr(error, "headers", None)
     try:
         return max(1.0, float(headers.get("Retry-After")))
     except (AttributeError, TypeError, ValueError):
-        return RETRY_AFTER_DEFAULT_SEC
+        return default
 
 
 def gh_upload(release: str | None, paths: list[Path]) -> bool:
@@ -303,35 +304,54 @@ def id_range(files) -> tuple[int, int]:
     return ids[int(len(ids) * 0.05)], ids[min(len(ids) - 1, int(len(ids) * 0.95))]
 
 
+def day_left(headers) -> int | None:
+    """Остаток суточного лимита OpenDota из заголовка ответа (есть и в ответе с ошибкой 429)."""
+    raw = (headers or {}).get("X-Rate-Limit-Remaining-Day") if headers is not None else None
+    return int(raw) if raw and str(raw).isdigit() else None
+
+
 def collect_ranks(max_minutes: float, out: Path, tag: str, files: list[Path]) -> dict:
     """Ранги из /publicMatches по диапазону номеров собранных матчей.
 
-    Лимит OpenDota считается по IP, у раннера GitHub свой. Поэтому единственная граница лимита — остаток
-    на сутки из заголовка ответа X-Rate-Limit-Remaining-Day: по нему после первого запроса считается, сколько
-    запросов сделать (и шаг, чтобы раскидать их по всему диапазону), и по нему же сбор останавливается
-    при остатке OPENDOTA_DAY_RESERVE. Кроме лимита шаг ограничен временем (max_minutes).
+    Лимит OpenDota считается по IP, у раннера GitHub свой. Единственная граница лимита — остаток на сутки
+    из заголовка ответа X-Rate-Limit-Remaining-Day (DECISIONS №5): по нему после первого ответа считается план
+    запросов (и шаг, чтобы раскидать их по всему диапазону), и по нему же сбор останавливается при остатке
+    OPENDOTA_DAY_RESERVE. Ответ 429 без исчерпанного суточного лимита — это минутный лимит: ждём Retry-After
+    (иначе 60 сек) и продолжаем (BUGLOG №18). Кроме лимита шаг ограничен временем (max_minutes).
+    Причина остановки пишется в итог запуска (ranks_stop).
     """
     low, high = id_range(files)
-    ranks, cursor, planned, step, requests, left = {}, high + 1, None, 1, 0, None
+    ranks, cursor, planned, step, requests, left, first_left = {}, high + 1, None, 1, 0, None, None
+    limits, stop = 0, "дошли до конца диапазона"
     deadline = time.monotonic() + max_minutes * 60
-    while cursor > low and time.monotonic() < deadline:
+    while True:
+        if cursor <= low:
+            break
+        if time.monotonic() >= deadline:
+            stop = f"время шага вышло ({max_minutes:.0f} мин)"
+            break
         requests += 1
         try:
             page, headers = http_json_headers(f"{OPENDOTA}/publicMatches?less_than_match_id={cursor}")
         except (urllib.error.URLError, OSError, ValueError) as error:
             code = getattr(error, "code", "")
-            print(f"запрос {requests}: ошибка {type(error).__name__} {code}", flush=True)
+            left = day_left(getattr(error, "headers", None)) if code == 429 else left
+            print(f"запрос {requests}: ошибка {type(error).__name__} {code}, остаток лимита на сутки {left}", flush=True)
             if code == 429:
-                print("OpenDota ответил 429 — лимит исчерпан, заканчиваю сбор рангов", flush=True)
-                break
-            time.sleep(ERROR_PAUSE_SEC)
+                limits += 1
+                if left is not None and left <= OPENDOTA_DAY_RESERVE:
+                    stop = f"суточный лимит: остаток {left}"
+                    break
+                time.sleep(retry_after(error, OPENDOTA_MINUTE_WAIT_SEC))
+            else:
+                time.sleep(ERROR_PAUSE_SEC)
             continue
         for m in page or []:
             if m.get("avg_rank_tier") is not None and low <= m["match_id"] <= high:
                 ranks[m["match_id"]] = (m["avg_rank_tier"], m.get("num_rank_tier") or 0)
-        raw_left = headers.get("X-Rate-Limit-Remaining-Day")
-        left = int(raw_left) if raw_left and raw_left.isdigit() else None
+        left = day_left(headers)
         if planned is None:
+            first_left = left
             by_time = int(max_minutes * 60 / (OPENDOTA_PAUSE_SEC + 0.5))
             planned = max(1, min(by_time, left - OPENDOTA_DAY_RESERVE) if left is not None else by_time)
             step = max(1, (high - low) // planned)
@@ -340,7 +360,7 @@ def collect_ranks(max_minutes: float, out: Path, tag: str, files: list[Path]) ->
         if requests % 100 == 0:
             print(f"запрос {requests}/{planned}, матчей с рангом {len(ranks)}, остаток лимита {left}", flush=True)
         if left is not None and left <= OPENDOTA_DAY_RESERVE:
-            print(f"остаток лимита OpenDota {left} — заканчиваю сбор рангов", flush=True)
+            stop = f"суточный лимит: остаток {left}"
             break
         cursor = high + 1 - requests * step
         time.sleep(OPENDOTA_PAUSE_SEC)
@@ -349,10 +369,12 @@ def collect_ranks(max_minutes: float, out: Path, tag: str, files: list[Path]) ->
     write_parquet(rows, RANK_SCHEMA, path)
     ours = match_ids(files)
     ranked = len(ours & ranks.keys())
-    print(f"итог: запросов OpenDota {requests}, остаток лимита {left}, матчей с рангом {len(rows)}, "
-          f"из них наших {ranked} из {len(ours)} ({ranked / max(len(ours), 1):.0%})", flush=True)
-    return {"opendota_requests": requests, "opendota_left": left, "ranked_ours": ranked, "ours": len(ours),
-            "ranks_bytes": path.stat().st_size, "ranks_file": path.name}
+    print(f"итог: запросов OpenDota {requests} (план {planned}, 429: {limits}), остаток лимита {left} "
+          f"(в начале {first_left}), остановка: {stop}; матчей с рангом {len(rows)}, из них наших {ranked} "
+          f"из {len(ours)} ({ranked / max(len(ours), 1):.0%})", flush=True)
+    return {"opendota_requests": requests, "opendota_planned": planned, "opendota_429": limits,
+            "opendota_left": left, "opendota_left_first": first_left, "ranks_stop": stop,
+            "ranked_ours": ranked, "ours": len(ours), "ranks_bytes": path.stat().st_size, "ranks_file": path.name}
 
 
 def update_run_stats(out: Path, tag: str, stats: dict) -> Path:

@@ -47,7 +47,10 @@ def load_runs(assets: list[dict]) -> list[dict]:
 
 
 def legacy_matches(assets: list[dict], runs: list[dict]) -> int:
-    """Матчи из файлов запусков без run-файла (до нового сборщика): скачиваем и считаем разные match_id."""
+    """Матчи из файлов старого сборщика (одним файлом, без частей -pNN и без run-файла).
+
+    Части -pNN без run-файла — это идущий запуск (см. --live); в «всего» их не считаем (BUGLOG №19).
+    """
     import io
 
     import pyarrow.parquet as pq
@@ -55,7 +58,8 @@ def legacy_matches(assets: list[dict], runs: list[dict]) -> int:
     ids = set()
     for a in assets:
         name = a["name"]
-        if name.startswith("matches-") and name.endswith(".parquet") and name[8:23] not in tags:
+        if (name.startswith("matches-") and name.endswith(".parquet") and name[8:23] not in tags
+                and not re.search(r"-p\d+\.parquet$", name)):
             with urllib.request.urlopen(a["browser_download_url"], timeout=300) as response:
                 table = pq.read_table(io.BytesIO(response.read()), columns=["match_id"])
             ids.update(table.column("match_id").to_pylist())
@@ -76,13 +80,15 @@ def report(runs: list[dict], assets: list[dict], run_number: str | None = None, 
     label = f"запуск №{run.get('run_number')} ({run['tag']} UTC)"
     return [
         f"1. Матчей: {_n(run.get('matches', 0))} за {label}; всего: {_n(total)} "
-        f"(замер: run-файлы + {_n(legacy)} матчей из файлов до нового сборщика)",
+        f"(замер: законченные запуски; из них {_n(legacy)} — файлы старого сборщика; идущий запуск — --live)",
         f"2. Скорость: {_n(run.get('matches_per_hour', 0))} матчей/час, {_n(run.get('steam_requests', 0))} запросов Steam "
         f"за {run.get('minutes', 0):.0f} мин, пауза в конце {run.get('final_pause_sec')} сек (замер)",
         f"3. Ошибок 429 от Steam: {run.get('steam_429', 0)} (замер)",
         f"4. OpenDota: {run.get('opendota_requests', '—')} запросов, остаток лимита на сутки {run.get('opendota_left', '—')}; "
         f"ранг у {ranked if ranked is not None else '—'} из {ours} наших матчей"
-        + (f" ({ranked / ours:.0%})" if ranked is not None and ours else "") + " (замер)",
+        + (f" ({ranked / ours:.0%})" if ranked is not None and ours else "")
+        + (f"; план {run.get('opendota_planned')}, 429: {run.get('opendota_429')}, остановка: {run.get('ranks_stop')}"
+           if run.get("ranks_stop") else "") + " (замер)",
         f"5. Данные: этот запуск {run_bytes / MB:.1f} МБ, всего в релизе {data_bytes / MB:.1f} МБ (замер)"
         + ("" if run.get("all_saved", True) else "; ВНИМАНИЕ: последняя часть матчей не выложена"),
     ]

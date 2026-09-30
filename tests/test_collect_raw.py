@@ -114,3 +114,38 @@ def test_run_report_lines():
     assert len(lines) == 5
     assert "150 000" in lines[0] and "214 725" in lines[0] and "№6" in lines[0]
     assert "(60%)" in lines[3] and "2.0 МБ" in lines[4] and "3.0 МБ" in lines[4]
+
+
+def test_ranks_continue_after_minute_429(tmp_path, monkeypatch):
+    """429 при живом суточном лимите не останавливает сбор рангов (BUGLOG №18); 429 с остатком ≤ 100 — стоп."""
+    import urllib.error
+    import tools.collect_raw as cr
+    write_parquet([{**r, "match_id": 1000 + k} for k in range(1000) for r in match_rows(match(), PATCHES)[:1]],
+                  MATCH_SCHEMA, tmp_path / "matches-t-p00.parquet")
+    files = cr.match_files(str(tmp_path / "matches-*.parquet"))
+    monkeypatch.setattr(cr.time, "sleep", lambda _s: None)
+
+    def run(day_left_on_429):
+        state = {"n": 0}
+
+        def fake(url, timeout=60):
+            state["n"] += 1
+            if state["n"] <= 2:
+                raise urllib.error.HTTPError(url, 429, "Too Many", {"X-Rate-Limit-Remaining-Day": day_left_on_429}, None)
+            cursor = int(url.rsplit("=", 1)[1])
+            return [{"match_id": cursor - 1, "avg_rank_tier": 45, "num_rank_tier": 3}], {"X-Rate-Limit-Remaining-Day": "2500"}
+
+        monkeypatch.setattr(cr, "http_json_headers", fake)
+        return cr.collect_ranks(20, tmp_path, "t", files)
+
+    stats = run("2500")  # минутный лимит: ждём и продолжаем
+    assert stats["opendota_429"] == 2 and stats["ranks_stop"] == "дошли до конца диапазона" and stats["ranked_ours"] > 100
+    stats = run("50")  # суточный лимит кончился: стоп сразу
+    assert stats["opendota_requests"] == 1 and stats["ranks_stop"].startswith("суточный лимит")
+
+
+def test_report_total_skips_running_parts():
+    """Части идущего запуска (-pNN без run-файла) не попадают в «всего» (BUGLOG №19)."""
+    from tools.report import legacy_matches
+    assets = [{"name": "matches-2026-09-30-0153-p00.parquet", "browser_download_url": "http://нет-сети"}]
+    assert legacy_matches(assets, []) == 0

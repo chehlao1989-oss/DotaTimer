@@ -68,7 +68,7 @@ def test_save_every_15_minutes():
 def test_opendota_limit_by_header_only():
     """№5: у сбора рангов нет своего бюджета запросов — только остаток лимита из заголовка и время."""
     import inspect
-    assert (cr.OPENDOTA_PAUSE_SEC, cr.OPENDOTA_DAY_RESERVE) == (1.1, 100)
+    assert (cr.OPENDOTA_PAUSE_SEC, cr.OPENDOTA_DAY_RESERVE, cr.OPENDOTA_MINUTE_WAIT_SEC) == (1.1, 100, 60)
     assert "calls" not in inspect.signature(cr.collect_ranks).parameters
     workflow = (ROOT / ".github" / "workflows" / "stats.yml").read_text(encoding="utf-8")
     ranks_line = next(line for line in workflow.splitlines() if "collect_raw.py ranks" in line)
