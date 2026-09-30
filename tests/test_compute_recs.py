@@ -239,18 +239,22 @@ def test_buys_list_for_program_filter(result, tmp_path):
     assert set(load_hero(path, HERO)["buys"]["normal"]["core"]) == set(buys)
 
 
-def test_mechanic_bonus_moves_mechanic_answers_up(tmp_path):
-    """mechanic_bonus прибавляет к S только ответам по правилу механик (0 — как в спеке)."""
+def test_mechanic_answers_first(tmp_path):
+    """DECISIONS №18: сначала ответы по механике, потом «по опыту»; внутри группы — по S; сам S не меняется."""
     import dataclasses
     folder = tmp_path / "raw"
     folder.mkdir()
     make_matches(folder / "matches-test.parquet", n=2000)
     base = load_config()
     args = (str(folder / "matches-*.parquet"), None, ITEMS, {}, {}, HEROES)
-    plain = compute(*args, base, log=lambda *_: None)
-    bonus = compute(*args, dataclasses.replace(base, mechanic_bonus=5.0), log=lambda *_: None)
-    rows = lambda r: {row[0]: row for row in r["item"]["normal"]["all"]["core"][str(HERO)][str(HEART)]}  # noqa: E731
-    flags = plain["meta"]["flags"]
-    for y, row in rows(bonus).items():
-        delta = row[1] - rows(plain)[y][1]
-        assert abs(delta - (5.0 if flags[row[6]] != "exp" else 0.0)) < 0.02
+    first = compute(*args, base, log=lambda *_: None)
+    plain = compute(*args, dataclasses.replace(base, mechanic_first=False), log=lambda *_: None)
+    flags = first["meta"]["flags"]
+    rows = first["item"]["normal"]["all"]["core"][str(HERO)][str(HEART)]
+    is_exp = [flags[r[6]] == "exp" for r in rows]
+    assert is_exp == sorted(is_exp)  # все механические раньше всех «по опыту»
+    for group in (False, True):
+        s_values = [r[1] for r, e in zip(rows, is_exp) if e == group]
+        assert s_values == sorted(s_values, reverse=True)
+    plain_rows = plain["item"]["normal"]["all"]["core"][str(HERO)][str(HEART)]
+    assert sorted(r[1] for r in rows) == sorted(r[1] for r in plain_rows)  # S тот же, меняется только порядок

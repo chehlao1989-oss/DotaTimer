@@ -66,11 +66,11 @@ class RecsConfig:
     exclude_tree_of: str  # предметы, собранные из этого (сапоги), — не ответ, кроме keep_from_excluded
     keep_from_excluded: list
     eb_min_games: float  # ячейки с меньшим числом игр в оценку τ² не берём (BUGLOG №21)
-    component_final_share: float
+    component_final_share: float  # промежуточный предмет — ответ, только если с ним заканчивают игру хотя бы так часто
     duckdb_memory_limit: str  # предел памяти DuckDB; сверх — сброс на диск
     store_rank_groups: bool  # считать и хранить ранговые группы G1–G3
     min_role_share: float  # роль героя пишется в файл, если его в ней играют хотя бы так часто
-    mechanic_bonus: float  # прибавка к S для ответа по правилу механик (0 — как в спеке 6.2)  # промежуточный предмет — ответ, только если с ним заканчивают игру хотя бы так часто
+    mechanic_first: bool  # сначала ответы по правилу механик, потом «по опыту игроков»; внутри — по S (DECISIONS №18)
     adaptation_top: int  # сколько лучших по A пускать в кандидаты без правила механик
     min_buy_share: float  # доля игр H в роли, в которых он покупает Y; реже — Y не кандидат (спека 6.4)
 
@@ -449,8 +449,7 @@ def rank_answers(con: duckdb.DuckDBPyConnection, table: str, level: str, cfg: Re
     return con.execute(f"""
         WITH t AS (SELECT t.*, coalesce({", ".join(rules)}) AS rule FROM {table} t {" ".join(joins)}),
         s AS (
-            SELECT *, a_s / {sd_a} + {cfg.lam} * coalesce(b_s, 0) / {sd_b}
-                      + CASE WHEN rule IS NOT NULL THEN {cfg.mechanic_bonus} ELSE 0 END AS S,
+            SELECT *, a_s / {sd_a} + {cfg.lam} * coalesce(b_s, 0) / {sd_b} AS S,
                    CASE WHEN vA IS NULL OR vA > {tau_a} THEN 'low' WHEN n >= {cfg.conf_high} THEN 'high'
                         WHEN n >= {cfg.conf_mid} THEN 'mid' ELSE 'low' END AS conf,
                    row_number() OVER (PARTITION BY bucket, role, hero, ctx ORDER BY a_s DESC) AS ra
@@ -462,7 +461,8 @@ def rank_answers(con: duckdb.DuckDBPyConnection, table: str, level: str, cfg: Re
               AND NOT (b_s IS NOT NULL AND vb_s IS NOT NULL AND (b_s + {cfg.z90} * sqrt(greatest(vb_s, 0))) * 100 < -{cfg.veto_b})
               {confident}
         ),
-        r AS (SELECT *, row_number() OVER (PARTITION BY bucket, role, hero, ctx ORDER BY S DESC) AS rs FROM f)
+        r AS (SELECT *, row_number() OVER (PARTITION BY bucket, role, hero, ctx
+                                           ORDER BY {'rule IS NULL, ' if cfg.mechanic_first else ''}S DESC) AS rs FROM f)
         SELECT bucket, role, hero, ctx, y, S, a_s, b_s, conf, n, rule FROM r WHERE rs <= {cfg.top_n}
         ORDER BY bucket, role, hero, ctx, rs
     """).fetchall()

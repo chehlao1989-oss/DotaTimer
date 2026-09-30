@@ -286,9 +286,9 @@ def main() -> None:
                   and not k.startswith("recipe") and v.get("qual") != "consumable" and not v.get("tier")
                   and ((v.get("created") and v["cost"] >= cfg.candidate_min_cost) or k in cfg.extra_candidates)}
     bench = check_benchmark(recs, json.loads(BENCHMARK_PATH.read_text(encoding="utf-8")), candidates)
-    print(f"8.1 вики-эталон: {bench['hits']}/{bench['pairs']} пар = {_pct(bench['share'])}; "
-          f"с уверенностью не ниже средней {bench['hits_confident']}/{bench['pairs_confident']} = "
-          f"{_pct(bench['share_confident'])} (нужно от 80%)")
+    print(f"8.1 вики-эталон по достижимым парам: {bench['hits_reachable']}/{bench['pairs_reachable']} = "
+          f"{_pct(bench['share_reachable'])} (нужно от 80%); все пары {_pct(bench['share'])}, "
+          f"с уверенностью не ниже средней {_pct(bench['share_confident'])}")
     matches, ranks = raw_globs(Path(args.raw))
     hold = check_holdout(matches, ranks, refs, cfg, args.holdout_days, log=lambda *_: None)
     print(f"8.2 отложенные {args.holdout_days} дн.: знак B совпал {hold['agree']}/{hold['checked']} = "

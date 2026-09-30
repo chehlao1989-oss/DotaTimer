@@ -122,3 +122,8 @@ def test_recs_config_decisions():
     """№12: вес по давности 21 день; кандидат — если H покупает Y в ≥ 3% игр."""
     config = json.loads((ROOT / "data" / "recs_config.json").read_text(encoding="utf-8"))
     assert config["half_life_days"] == 21 and config["min_buy_share"] == 0.03
+
+
+def test_mechanic_answers_first():
+    """№18: сначала ответы по механике (решение автора 30.09)."""
+    assert json.loads((ROOT / "data" / "recs_config.json").read_text(encoding="utf-8"))["mechanic_first"] is True
