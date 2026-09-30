@@ -26,7 +26,7 @@ import json
 import os
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import duckdb
@@ -57,6 +57,9 @@ class RecsConfig:
     conf_high: int
     conf_mid: int
     top_n: int
+    exclude_tree_of: str  # предметы, собранные из этого (сапоги), — не ответ, кроме keep_from_excluded
+    keep_from_excluded: list
+    component_final_share: float  # промежуточный предмет — ответ, только если с ним заканчивают игру хотя бы так часто
     adaptation_top: int  # сколько лучших по A пускать в кандидаты без правила механик
     min_buy_share: float  # доля игр H в роли, в которых он покупает Y; реже — Y не кандидат (спека 6.4)
 
@@ -76,6 +79,7 @@ class ItemMeta:
     mechanic_of: dict  # id X → список механик (меток врага)
     names: dict  # id → ключ предмета
     answers: list  # (вид контекста x/m/e, контекст, id Y, id правила) — Y механически отвечает контексту
+    components: set = field(default_factory=set)  # id кандидатов, которые входят в рецепт другого предмета
 
 
 def component_closure(key: str, items: dict, seen=None) -> set:
@@ -94,6 +98,11 @@ def build_item_meta(items: dict, tagger: MechanicsTagger, heroes: dict, cfg: Rec
                and not k.startswith("recipe") and v.get("qual") != "consumable" and not v.get("tier")}
     candidates = {k for k in buyable if (items[k].get("created") and items[k]["cost"] >= cfg.candidate_min_cost)
                   or k in cfg.extra_candidates}
+    # сапоги (всё, что собирается из Boots of Speed) — не ответ на врага, кроме гривов (решение автора 30.09, DECISIONS №14)
+    candidates -= {k for k in candidates if cfg.exclude_tree_of in component_closure(k, items)
+                   and k not in cfg.keep_from_excluded}
+    # промежуточные: входят в рецепт другого покупаемого предмета; оставит или уберёт расчёт по данным (prepare)
+    components = {c for k in buyable for c in component_closure(k, items)} & candidates
     key_items = {k for k in buyable if tagger.item_traits(k)
                  or (items[k].get("created") and items[k]["cost"] >= cfg.key_item_min_cost)}
     expand = set()
@@ -120,7 +129,8 @@ def build_item_meta(items: dict, tagger: MechanicsTagger, heroes: dict, cfg: Rec
     for h in heroes.values():
         add("e", str(h["id"]), tagger.hero_traits(h["name"]))
     return ItemMeta({ids[k] for k in candidates if k in ids}, {ids[k] for k in key_items if k in ids},
-                    sorted(expand), mechanic_of, {v: k for k, v in ids.items()}, sorted(answers))
+                    sorted(expand), mechanic_of, {v: k for k, v in ids.items()}, sorted(answers),
+                    {ids[k] for k in components if k in ids})
 
 
 # ---------- подготовка игр ----------
@@ -180,6 +190,7 @@ def prepare(con: duckdb.DuckDBPyConnection, matches_glob: str, ranks_glob: str |
     con.execute("CREATE OR REPLACE TABLE expand(z SMALLINT, y SMALLINT)")
     if meta.expand:
         con.executemany("INSERT INTO expand VALUES (?, ?)", meta.expand)
+    drop_unfinished_components(con, meta, cfg)
     con.execute("CREATE OR REPLACE TABLE key_items(x SMALLINT)")
     if meta.key_items:
         con.executemany("INSERT INTO key_items VALUES (?)", [(x,) for x in sorted(meta.key_items)])
@@ -202,6 +213,28 @@ def prepare(con: duckdb.DuckDBPyConnection, matches_glob: str, ranks_glob: str |
     if meta.answers:
         con.executemany("INSERT INTO ans VALUES (?, ?, ?, ?)", meta.answers)
     con.execute("CREATE OR REPLACE TABLE ans1 AS SELECT kind, ctx, y, min(rule) AS rule FROM ans GROUP BY ALL")
+
+
+def drop_unfinished_components(con: duckdb.DuckDBPyConnection, meta: ItemMeta, cfg: RecsConfig) -> None:
+    """Промежуточный предмет (Sange, Kaya, Crystalys…) — ответ, только если с ним обычно и заканчивают игру.
+
+    Для каждого Y-компонента: доля игроков, у которых в итоговом инвентаре лежит сам Y, среди всех, у кого есть
+    Y или его доделка. Меньше component_final_share — Y обычно доделывают дальше, как ответ он не нужен
+    (засчитается его доделка). Решение автора 30.09 (вариант А, DECISIONS №14). Итог — таблица component_share.
+    """
+    con.execute("CREATE OR REPLACE TABLE comp(y SMALLINT)")
+    if meta.components:
+        con.executemany("INSERT INTO comp VALUES (?)", [(y,) for y in sorted(meta.components)])
+    con.execute("""
+        CREATE OR REPLACE TABLE component_share AS
+        WITH own AS (
+            SELECT p.match_id, p.is_radiant, p.hero, e.y, max((t.z = e.y)::INT) AS itself
+            FROM pg p, UNNEST(p.items) AS t(z) JOIN expand e ON e.z = t.z JOIN comp c ON c.y = e.y
+            GROUP BY ALL
+        )
+        SELECT y, avg(itself) AS share, count(*) AS players FROM own GROUP BY y
+    """)
+    con.execute(f"DELETE FROM expand WHERE y IN (SELECT y FROM component_share WHERE share < {cfg.component_final_share})")
 
 
 # ---------- метрики по стратам (в DuckDB) ----------
@@ -299,15 +332,22 @@ def level_metrics(con: duckdb.DuckDBPyConnection, level: str, rank_filter: str, 
 
 
 def eb_k(con: duckdb.DuckDBPyConnection, table: str, metric: str, default: float) -> float:
-    """Сила стягивания k = σ²/τ² методом моментов (эмпирический Байес, раздел 5)."""
-    cnt, total_var, within, sigma2 = con.execute(f"""
-        SELECT count(*), var_samp({metric}), avg(v{metric}), avg(v{metric} * n) FROM {table}
-        WHERE {metric} IS NOT NULL AND v{metric} > 0 AND n > 0
+    """Сила стягивания k = σ²/τ² (эмпирический Байес, раздел 5), τ² — методом моментов DerSimonian–Laird.
+
+    Ячейки с весом 1/дисперсия: ячейки с долей игры и огромной дисперсией почти не влияют. Простая оценка
+    «общий разброс минус средняя дисперсия» на реальных данных уходила в минус из-за таких ячеек (BUGLOG №21).
+    σ² — дисперсия на одну игру (средняя v·n), тогда k измеряется в играх, как n в формуле стягивания.
+    """
+    cnt, sw, sw2, swt, swt2, sigma2 = con.execute(f"""
+        SELECT count(*), sum(1 / v{metric}), sum(1 / (v{metric} * v{metric})), sum({metric} / v{metric}),
+               sum({metric} * {metric} / v{metric}), avg(v{metric} * n)
+        FROM {table} WHERE {metric} IS NOT NULL AND v{metric} > 0 AND n > 0
     """).fetchone()
-    if cnt < 30 or total_var is None:
+    if cnt < 30 or not sw or not sigma2:
         return default
-    tau2 = total_var - within
-    if tau2 <= 0 or not sigma2 or sigma2 <= 0:
+    q = swt2 - swt * swt / sw  # Σ w (θ − θ̄_w)²
+    tau2 = (q - (cnt - 1)) / (sw - sw2 / sw)
+    if tau2 <= 0:
         return default
     return max(1.0, sigma2 / tau2)
 
@@ -483,6 +523,9 @@ def compute(matches_glob: str, ranks_glob: str | None, items: dict, abilities: d
         cells = {lvl: con.execute(f"SELECT count(*) FROM met_{lvl}").fetchone()[0] for lvl in LEVELS}
         log(f"[{group}] ячеек: " + ", ".join(f"{lvl} {c}" for lvl, c in cells.items())
             + f"; k_A={k['A']:.0f}, k_B={k['B']:.0f}; {time.time() - t0:.0f} с")
+    result["meta"]["components"] = {  # доля «заканчивают с ним самим»; ниже порога — не ответ (DECISIONS №14)
+        meta.names.get(int(y), str(y)): [round(share, 3), int(players), share >= cfg.component_final_share]
+        for y, share, players in con.execute("SELECT y, share, players FROM component_share ORDER BY share").fetchall()}
     result["meta"]["seconds"] = round(time.time() - t0)
     return result
 

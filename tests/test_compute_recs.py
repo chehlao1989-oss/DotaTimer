@@ -124,3 +124,53 @@ def test_recency_weight_halves_every_half_life(tmp_path):
     prepare(con, str(tmp_path / "matches-*.parquet"), None, ItemMeta(set(), set(), [], {}, {}, []), HEROES, cfg)
     weights = [round(w, 3) for (w,) in con.execute("SELECT DISTINCT wt FROM pg ORDER BY wt DESC").fetchall()]
     assert weights == [1.0, 0.5, 0.25]
+
+
+def test_components_and_boots_filtered(tmp_path):
+    """DECISIONS №14: сапоги не ответ (кроме гривов); промежуточный — только если с ним заканчивают игру."""
+    import duckdb
+    from app.threats.mechanics import MechanicsTagger, load_mechanics_config
+    from tools.compute_recs import build_item_meta, prepare
+    items = {
+        "big": {"id": 501, "cost": 3000, "created": True, "components": ["comp_a"]},
+        "comp_a": {"id": 502, "cost": 1500, "created": True, "components": []},  # обычно доделывают → убрать
+        "big_b": {"id": 503, "cost": 3000, "created": True, "components": ["comp_b"]},
+        "comp_b": {"id": 504, "cost": 1500, "created": True, "components": []},  # обычно так и заканчивают → оставить
+        "boots": {"id": 29, "cost": 500},
+        "power_treads": {"id": 63, "cost": 1400, "created": True, "components": ["boots"]},
+        "arcane_boots": {"id": 180, "cost": 1400, "created": True, "components": ["boots"]},
+        "guardian_greaves": {"id": 231, "cost": 5000, "created": True, "components": ["arcane_boots"]},
+    }
+    inventories = [[501]] * 10 + [[502]] * 2 + [[504]] * 8 + [[503]] * 2 + [[63, 231]] * 3
+    rows = []
+    for m, inv in enumerate(inventories):
+        for slot in range(10):
+            rows.append({"match_id": m, "start_time": 1780000000, "duration": 1800, "game_mode": 22, "lobby_type": 7,
+                         "radiant_win": True, "patch": "7.41", "is_radiant": slot < 5, "hero_id": slot + 1,
+                         "items": inv if slot == 0 else [], "item_neutral": 0, "net_worth": 1000 - slot,
+                         "gold_per_min": 0, "xp_per_min": 0, "kills": 0, "deaths": 0, "assists": 0, "last_hits": 0})
+    pq.write_table(pa.Table.from_pylist(rows, schema=MATCH_SCHEMA), tmp_path / "matches-a.parquet")
+    cfg = load_config()
+    tagger = MechanicsTagger(load_mechanics_config(), items, {}, {}, {})
+    meta = build_item_meta(items, tagger, HEROES, cfg)
+    con = duckdb.connect()
+    prepare(con, str(tmp_path / "matches-*.parquet"), None, meta, HEROES, cfg)
+    answers = {y for (y,) in con.execute("SELECT DISTINCT y FROM expand").fetchall()}
+    assert answers == {501, 503, 504, 231}  # big, big_b, comp_b, guardian_greaves
+
+
+def test_empirical_bayes_finds_true_spread():
+    """BUGLOG №21: k = σ²/τ² находится и при ячейках с огромной дисперсией (доля игры)."""
+    import duckdb
+    from tools.compute_recs import eb_k
+    rng = random.Random(3)
+    rows = []
+    for _ in range(3000):  # истинный разброс τ = 0.05, дисперсия на игру σ² = 0.25 → k = 100
+        n = rng.choice([50, 200, 1000, 3000])
+        rows.append((rng.gauss(0, 0.05) + rng.gauss(0, (0.25 / n) ** 0.5), 0.25 / n, n))
+    for _ in range(500):  # ячейки с долей игры: шум огромный
+        rows.append((rng.gauss(0, 0.9), 0.8, 0.3))
+    con = duckdb.connect()
+    con.execute("CREATE TABLE cells(A DOUBLE, vA DOUBLE, n DOUBLE)")
+    con.executemany("INSERT INTO cells VALUES (?, ?, ?)", rows)
+    assert 60 < eb_k(con, "cells", "A", 999.0) < 170
