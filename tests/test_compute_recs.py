@@ -251,8 +251,9 @@ def test_mechanic_answers_first(tmp_path):
     plain = compute(*args, dataclasses.replace(base, mechanic_first=False), log=lambda *_: None)
     flags = first["meta"]["flags"]
     rows = first["item"]["normal"]["all"]["core"][str(HERO)][str(HEART)]
-    is_exp = [flags[r[6]] == "exp" for r in rows]
-    assert is_exp == sorted(is_exp)  # все механические раньше всех «по опыту»
+    # первыми — ответы по механике, которые против этого врага берут чаще (A > 0, mechanic_first_min_a = 0)
+    is_exp = [not (flags[r[6]] != "exp" and r[2] > base.mechanic_first_min_a) for r in rows]
+    assert is_exp == sorted(is_exp)
     for group in (False, True):
         s_values = [r[1] for r, e in zip(rows, is_exp) if e == group]
         assert s_values == sorted(s_values, reverse=True)

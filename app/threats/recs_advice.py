@@ -32,12 +32,13 @@ class AdviceConfig:
     multi_threat_bonus: float  # спека 6.6
     hysteresis: float  # спека 6.7, в единицах S
     top_for_bonus: int  # в топ-N против двух угроз — бонус (спека 6.6: топ-3)
+    show_delta_min_pp: float = 1.0  # подпись «+N%» под советом — только от этой прибавки A
 
 
 def advice_config(raw: dict) -> AdviceConfig:
     r = raw["recs_advice"]
     return AdviceConfig(r["phase_base_cost"], r["phase_cost_per_min"], r["multi_threat_bonus"], r["hysteresis"],
-                        r["top_for_bonus"])
+                        r["top_for_bonus"], r.get("show_delta_min_pp", 1.0))
 
 
 class RecsSource:
@@ -208,8 +209,10 @@ class RecsRecommender:
             for index, (key, d, tier) in enumerate(chosen):
                 changed = index == 0 and threat.hero in self._previous and self._previous[threat.hero][0] != key
                 cost = self.items[key].cost if key in self.items else 0
+                # подпись «+N%» — только если против врага предмет берут заметно чаще, иначе «±0%» и «−2%» — шум
+                delta = d[2] if d[2] >= cfg.show_delta_min_pp else None
                 items.append(RecItem(key, round(score[key], 2), TIER_MECHANIC if d[6] != EXPERIENCE_FLAG else tier,
-                                     d[2], d[5], None if d[6] == EXPERIENCE_FLAG else d[6], changed=changed,
+                                     delta, d[5], None if d[6] == EXPERIENCE_FLAG else d[6], changed=changed,
                                      shared=max(1, tops.get(key, 1)),
                                      affordable=my_gold is not None and my_gold >= cost))
             if first:

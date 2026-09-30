@@ -73,6 +73,8 @@ class RecsConfig:
     min_role_share: float  # роль героя пишется в файл, если его в ней играют хотя бы так часто
     mechanic_first: bool  # сначала ответы по правилу механик, потом «по опыту игроков»; внутри — по S (DECISIONS №18)
     mechanic_first_min_a: float | None  # ответ по механике идёт первым, только если A* > этого (None — всегда)
+    broad_rule_share: float  # правило «широкое», если его признак есть у большей доли героев (DECISIONS №19)
+    mechanic_first_b_significant: bool  # в первую группу пускать и ответ с значимо положительным B
     adaptation_top: int  # сколько лучших по A пускать в кандидаты без правила механик
     min_buy_share: float  # доля игр H в роли, в которых он покупает Y; реже — Y не кандидат (спека 6.4)
 
@@ -93,6 +95,7 @@ class ItemMeta:
     names: dict  # id → ключ предмета
     answers: list  # (вид контекста x/m/e, контекст, id Y, id правила) — Y механически отвечает контексту
     components: set = field(default_factory=set)  # id кандидатов, которые входят в рецепт другого предмета
+    broad_rules: dict = field(default_factory=dict)  # широкое правило → доля героев с его признаком (DECISIONS №19)
 
 
 def component_closure(key: str, items: dict, seen=None) -> set:
@@ -141,9 +144,13 @@ def build_item_meta(items: dict, tagger: MechanicsTagger, heroes: dict, cfg: Rec
         add("m", rule.enemy, {rule.enemy})
     for h in heroes.values():
         add("e", str(h["id"]), tagger.hero_traits(h["name"]))
+    # широкие правила: признак врага есть у доли героев больше broad_rule_share (DECISIONS №19)
+    share = {r.id: sum(1 for h in heroes.values() if r.enemy in tagger.hero_traits(h["name"])) / max(len(heroes), 1)
+             for r in tagger.rules}
+    broad = {rule: round(v, 3) for rule, v in share.items() if v > cfg.broad_rule_share}
     return ItemMeta({ids[k] for k in candidates if k in ids}, {ids[k] for k in key_items if k in ids},
                     sorted(expand), mechanic_of, {v: k for k, v in ids.items()}, sorted(answers),
-                    {ids[k] for k in components if k in ids})
+                    {ids[k] for k in components if k in ids}, broad)
 
 
 # ---------- подготовка игр ----------
@@ -225,7 +232,16 @@ def prepare(con: duckdb.DuckDBPyConnection, matches_glob: str, ranks_glob: str |
     con.execute("CREATE OR REPLACE TABLE ans(kind VARCHAR, ctx VARCHAR, y SMALLINT, rule VARCHAR)")
     if meta.answers:
         con.executemany("INSERT INTO ans VALUES (?, ?, ?, ?)", meta.answers)
-    con.execute("CREATE OR REPLACE TABLE ans1 AS SELECT kind, ctx, y, min(rule) AS rule FROM ans GROUP BY ALL")
+    con.execute("CREATE OR REPLACE TABLE broad(rule VARCHAR)")
+    if meta.broad_rules:
+        con.executemany("INSERT INTO broad VALUES (?)", [(r,) for r in sorted(meta.broad_rules)])
+    # у одного Y против контекста может быть несколько правил: узкое важнее широкого
+    con.execute("""
+        CREATE OR REPLACE TABLE ans1 AS
+        SELECT kind, ctx, y, arg_min(rule, (rule IN (SELECT rule FROM broad))::INT * 1000 + 0) AS rule,
+               bool_and(rule IN (SELECT rule FROM broad)) AS broad
+        FROM ans GROUP BY ALL
+    """)
 
 
 def drop_unfinished_components(con: duckdb.DuckDBPyConnection, meta: ItemMeta, cfg: RecsConfig) -> None:
@@ -442,19 +458,32 @@ def rank_answers(con: duckdb.DuckDBPyConnection, table: str, level: str, cfg: Re
     """
     sd_a, sd_b = con.execute(f"SELECT stddev_samp(a_s), stddev_samp(b_s) FROM {table}").fetchone()
     sd_a, sd_b = sd_a or 1.0, sd_b or 1.0
-    joins, rules = [], []
+    joins, rules, broads = [], [], []
     for i, (kind, expr) in enumerate(RULE_LOOKUP[level]):
         joins.append(f"LEFT JOIN ans1 r{i} ON r{i}.kind = '{kind}' AND r{i}.ctx = {expr} AND r{i}.y = t.y")
         rules.append(f"r{i}.rule")
+        broads.append(f"r{i}.broad")
     tau_a = eb["A"]["tau2"]  # уверенность низкая, если вес ячейки в оценке A меньше 50% (v > τ², спека 5)
     # сначала ответы по механике (DECISIONS №18); с mechanic_first_min_a — только если против врага его берут чаще
     first_key = ""
     if cfg.mechanic_first:
-        first_key = ("rule IS NULL, " if cfg.mechanic_first_min_a is None
-                     else f"(rule IS NULL OR a_s <= {cfg.mechanic_first_min_a}), ")
+        if cfg.mechanic_first_min_a is None:
+            first_key = "rule IS NULL, "
+        else:
+            # берут чаще (A > порога) или помогает (B значимо > 0): иначе настоящий ответ по эффекту
+            # (Skadi против Heart в искусственных данных: A −0,5, B +9,8) уходил за популярный, но бесполезный
+            works = (f" AND NOT (b_s IS NOT NULL AND b_s - {cfg.z90} * sqrt(greatest(coalesce(vb_s, 0), 0)) > 0)"
+                     if cfg.mechanic_first_b_significant else "")
+            first_key = f"(rule IS NULL OR (a_s <= {cfg.mechanic_first_min_a}{works})), "
     confident = "AND conf <> 'low'" if only_confident else ""
     return con.execute(f"""
-        WITH t AS (SELECT t.*, coalesce({", ".join(rules)}) AS rule FROM {table} t {" ".join(joins)}),
+        WITH t0 AS (SELECT t.*, coalesce({", ".join(rules)}) AS rule0, coalesce({", ".join(broads)}) AS broad0
+                    FROM {table} t {" ".join(joins)}),
+        -- ответ на широкое правило — «по механике», только если A значимо больше нуля (DECISIONS №19)
+        t AS (SELECT * EXCLUDE (rule0, broad0),
+                     CASE WHEN broad0 AND NOT (a_s - {cfg.z90} * sqrt(greatest(coalesce(va_s, 0), 0)) > 0) THEN NULL
+                          ELSE rule0 END AS rule
+              FROM t0),
         s AS (
             SELECT *, a_s / {sd_a} + {cfg.lam} * coalesce(b_s, 0) / {sd_b} AS S,
                    CASE WHEN vA IS NULL OR vA > {tau_a} THEN 'low' WHEN n >= {cfg.conf_high} THEN 'high'
@@ -555,6 +584,7 @@ def compute(matches_glob: str, ranks_glob: str | None, items: dict, abilities: d
                        "patch": patch, "first_start": first, "last_start": last, "generated_at": int(time.time()),
                        "half_life_days": cfg.half_life_days, "k": {},
                        "row_format": ROW_FORMAT, "conf_codes": CONF_CODES, "flags": flags,
+                       "broad_rules": meta.broad_rules,
                        "hero_class": {str(h): [c, r] for h, c, r in con.execute("SELECT * FROM hero_cls").fetchall()}},
               "item": {}, "item_hero": {}, "hero": {}, "item_class": {}, "hero_class": {}, "threat": {}, "buys": {}}
     for group, flt in groups.items():

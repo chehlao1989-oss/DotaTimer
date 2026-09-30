@@ -126,5 +126,7 @@ def test_recs_config_decisions():
 
 
 def test_mechanic_answers_first():
-    """№18: сначала ответы по механике (решение автора 30.09)."""
-    assert json.loads((ROOT / "data" / "recs_config.json").read_text(encoding="utf-8"))["mechanic_first"] is True
+    """№18–19: первыми — ответы по механике с A > 0; широкое правило (признак у > 40% героев) — только при значимом A."""
+    config = json.loads((ROOT / "data" / "recs_config.json").read_text(encoding="utf-8"))
+    assert config["mechanic_first"] is True and config["mechanic_first_min_a"] == 0.0
+    assert config["broad_rule_share"] == 0.4
