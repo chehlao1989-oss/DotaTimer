@@ -50,7 +50,7 @@ jobs:
         id: matches
         env:
           STEAM_API_KEY: ${{ secrets.STEAM_API_KEY }}
-        run: python tools/collect_raw.py matches --out raw --state state --release data-raw --tag "$TAG" --max-minutes 290
+        run: python tools/collect_raw.py matches --out raw --state state --release data-raw --tag "$TAG" --max-minutes 290 --windows 12
 
       - name: Собрать ранги (OpenDota)
         continue-on-error: true  # без рангов матчи всё равно нужны
