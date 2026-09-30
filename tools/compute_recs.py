@@ -72,6 +72,7 @@ class RecsConfig:
     store_rank_groups: bool  # считать и хранить ранговые группы G1–G3
     min_role_share: float  # роль героя пишется в файл, если его в ней играют хотя бы так часто
     mechanic_first: bool  # сначала ответы по правилу механик, потом «по опыту игроков»; внутри — по S (DECISIONS №18)
+    mechanic_first_min_a: float | None  # ответ по механике идёт первым, только если A* > этого (None — всегда)
     adaptation_top: int  # сколько лучших по A пускать в кандидаты без правила механик
     min_buy_share: float  # доля игр H в роли, в которых он покупает Y; реже — Y не кандидат (спека 6.4)
 
@@ -446,6 +447,11 @@ def rank_answers(con: duckdb.DuckDBPyConnection, table: str, level: str, cfg: Re
         joins.append(f"LEFT JOIN ans1 r{i} ON r{i}.kind = '{kind}' AND r{i}.ctx = {expr} AND r{i}.y = t.y")
         rules.append(f"r{i}.rule")
     tau_a = eb["A"]["tau2"]  # уверенность низкая, если вес ячейки в оценке A меньше 50% (v > τ², спека 5)
+    # сначала ответы по механике (DECISIONS №18); с mechanic_first_min_a — только если против врага его берут чаще
+    first_key = ""
+    if cfg.mechanic_first:
+        first_key = ("rule IS NULL, " if cfg.mechanic_first_min_a is None
+                     else f"(rule IS NULL OR a_s <= {cfg.mechanic_first_min_a}), ")
     confident = "AND conf <> 'low'" if only_confident else ""
     return con.execute(f"""
         WITH t AS (SELECT t.*, coalesce({", ".join(rules)}) AS rule FROM {table} t {" ".join(joins)}),
@@ -463,7 +469,7 @@ def rank_answers(con: duckdb.DuckDBPyConnection, table: str, level: str, cfg: Re
               {confident}
         ),
         r AS (SELECT *, row_number() OVER (PARTITION BY bucket, role, hero, ctx
-                                           ORDER BY {'rule IS NULL, ' if cfg.mechanic_first else ''}S DESC) AS rs FROM f)
+                                           ORDER BY {first_key}S DESC) AS rs FROM f)
         SELECT bucket, role, hero, ctx, y, S, a_s, b_s, conf, n, rule FROM r WHERE rs <= {cfg.top_n}
         ORDER BY bucket, role, hero, ctx, rs
     """).fetchall()
