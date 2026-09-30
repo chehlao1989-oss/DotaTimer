@@ -43,7 +43,7 @@ def test_item_hint_uses_stats_and_skips_owned():
     shown.clear()
     ctrl.on_inventory(InventorySnapshot("alchemist", ("heart",), (None, None, None), None), 1200)
     text, voice = shown[-1]
-    assert voice == "item_hint"
+    assert voice is None  # фраза «Совет по предметам» убрана (BUGLOG №28)
     assert "У Alchemist появился Heart of Tarrasque" in text
     assert "Spirit Vessel (+12% против Heart of Tarrasque)" in text and "Skadi" not in text
     shown.clear()

@@ -39,6 +39,9 @@ TARGETS = [(1920, 1080), (2560, 1080)]
 # Миникарта с кнопками справа от неё. Не входит в центрированный HUD: прижата к левому нижнему углу и
 # масштабируется по высоте. Замер по скриншоту автора 20260929094950 (2560×1080), глазами по кропу, ±5 px.
 MINIMAP_REF = (0, 798, 328, 282)  # x, y, ширина, высота при высоте экрана 1080
+# Килфид и чат над миникартой слева. Замер по скриншоту автора 20260930224009 (игра 30.09): 2 строки килфида
+# на 685–745 px; с новыми убийствами растёт вверх — запас на ~6 строк до 540 px (оценка).
+KILLFEED_REF = (0, 540, 380, 250)
 STEAM_SCREENS = Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")) / "Steam" / "userdata"
 SAMPLE_MESSAGES = [(ru.MSG_POWER_RUNE.format(sec=30), False),
                    (ru.MSG_FIRST_POWER_RUNE_EARLY.format(time="6:00"), True)]
@@ -64,8 +67,10 @@ def hud_zones(w: int, h: int) -> dict[str, QRect]:
     top = hud.topbar_slots()
     inv = hud.inventory_slots()
     mx, my, mw, mh = MINIMAP_REF
+    kx, ky, kw, kh = KILLFEED_REF
     return {
         "миникарта": QRect(round(mx * s), round(my * s), round(mw * s), round(mh * s)),
+        "килфид и чат": QRect(round(kx * s), round(ky * s), round(kw * s), round(kh * s)),
         "верхняя панель": QRect(top[0].x, top[0].y, top[-1].x + top[-1].w - top[0].x, top[0].h),
         "инвентарь": QRect(inv[0].x, inv[0].y, inv[-1].x + inv[-1].w - inv[0].x, inv[-1].y + inv[-1].h - inv[0].y),
     }

@@ -72,6 +72,7 @@ class ThreatsService(QObject):
         self.card_duration: float | None = None
         self.recommender: Recommender | RecsRecommender | None = None
         self.recs: RecsSource | None = None  # готовые советы recs.zip (если файл есть)
+        self.tagger: MechanicsTagger | None = None
         self._rec_key = None  # с какими данными пересчитывали рекомендации в последний раз
         self._last_recs = {}
         self._gold: int | None = None
@@ -105,6 +106,7 @@ class ThreatsService(QObject):
         advisor = Advisor(tagger, self.stats, buyable, {k: i.cost for k, i in data.items.items()},
                           self.config.stats_min_games, self.config.stats_min_base_games)
         self.data = data
+        self.tagger = tagger
         self.controller = ThreatsController(data, tagger, advisor, self.config, self.settings, self.show, self.turbo)
         self.controller.card_duration = self.card_duration
         self.controller.card_items = self._card_items
@@ -236,8 +238,7 @@ class ThreatsService(QObject):
         if self.strip is not None and self.overlays_enabled:
             titles = {t.hero.name: t.hero.localized for t in self.controller.threats}
             self.strip.update_recommendations(recs if self.settings.enabled else [], titles)
-        if any(item.changed for rec in recs for item in rec.items):
-            self.show(None, True, "item_hint")
+        # голосовая фраза «Совет по предметам» убрана: при смене советов она повторялась (замечание автора 30.09)
 
     def _card_items(self, hero: str) -> str:
         """Строка советов для полной карточки — те же, что на полоске."""
@@ -245,6 +246,8 @@ class ThreatsService(QObject):
         rec = self._last_recs.get(hero)
         if rec is None:
             return ""
+        if self.recs is not None:
+            return self._card_items_short(rec)
         parts = []
         for item in rec.items:
             name = self.controller.item_title(item.item)
@@ -260,6 +263,28 @@ class ThreatsService(QObject):
             else:
                 parts.append(name)
         return ", ".join(parts)
+
+    def _card_items_short(self, rec) -> str:
+        """Советы для карточки: каждый предмет с новой строки, причина механики по-русски, без процентов
+        (карточка переносилась посреди фраз — предпросмотр 30.09; «+X%» в карточке автор не просил, 29.09)."""
+        lines = []
+        for item in rec.items:
+            if item.bought:
+                continue
+            name = self.controller.item_title(item.item)
+            reason = self._mechanic_reason(item.item, item.reason)
+            lines.append(ru.CARD_ITEM_LINE.format(item=name, reason=reason) if reason else name)
+        return ru.CARD_ITEMS_JOIN.join(lines)
+
+    def _mechanic_reason(self, item: str, rule_id: str | None) -> str | None:
+        """«пробивает уклонение», «режет лечение»: метка ответа предмета по правилу механик."""
+        if rule_id is None or self.tagger is None:
+            return None
+        rule = next((r for r in self.tagger.rules if r.id == rule_id), None)
+        if rule is None:
+            return None
+        tags = [t for t in rule.answers if t in self.tagger.item_answers(item)]
+        return ru.MECHANIC_REASONS.get(tags[0]) if tags else None
 
     def hide_overlays(self) -> None:
         """Убрать полоску угроз (конец катки, Дота закрыта, данные не приходят)."""

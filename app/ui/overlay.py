@@ -15,7 +15,7 @@ from app.config import OverlaySettings
 from app.i18n import ru
 from app.ui.outlined_label import OutlinedLabel
 
-BASE_WIDTH = 440
+BASE_WIDTH = 560  # карточка угроз с причинами механик в 440 переносилась посреди фраз (предпросмотр 30.09)
 BASE_FONT_PX = 20  # при высоте экрана 1080
 FONT_FAMILY = "Segoe UI"  # с полужирным начертанием Windows подставляет Segoe UI Semibold
 SCALE_MIN, SCALE_MAX = 0.8, 1.5
