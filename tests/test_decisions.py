@@ -130,3 +130,10 @@ def test_mechanic_answers_first():
     config = json.loads((ROOT / "data" / "recs_config.json").read_text(encoding="utf-8"))
     assert config["mechanic_first"] is True and config["mechanic_first_min_a"] == 0.0
     assert config["broad_rule_share"] == 0.4
+    assert config["mechanic_first_b_significant"] is False  # «A > 0 или B значимо > 0» не включать (автор, 01.10)
+
+
+def test_b_is_veto_only():
+    """№20: λ = 0 — B только вето, пока знак B на свежих данных не совпадает в ≥ 70%."""
+    config = json.loads((ROOT / "data" / "recs_config.json").read_text(encoding="utf-8"))
+    assert config["lam"] == 0.0 and config["veto_b"] == 2.0
