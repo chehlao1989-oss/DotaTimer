@@ -16,8 +16,11 @@ from app.threats.advisor import Advisor
 from app.threats.controller import ThreatSettings, ThreatsController
 from app.threats.data import DataCache, DataUpdater, GameData
 from app.threats.mechanics import MechanicsTagger, load_mechanics_config
+from app.paths import app_data_dir
 from app.threats.recommend import TIER_HERO, Recommender, ThreatInput, format_delta, recommend_config
+from app.threats.recs_advice import RecsRecommender, RecsSource, advice_config, rank_threats
 from app.threats.scoring import load_threat_config
+from app.threats.threat_score import threat_score_config
 from app.threats.stats import BUCKET_NORMAL, BUCKET_TURBO, Stats, download_stats
 from app.threats.tracker import IGNORED_QUALITIES
 from app.vision.service import VisionService
@@ -25,6 +28,23 @@ from app.vision.service import VisionService
 log = logging.getLogger(__name__)
 
 THREATS_CONFIG = Path(__file__).resolve().parents[2] / "data" / "threats.json"
+
+
+def recs_path() -> Path:
+    """Файл готовых советов: %APPDATA%\\DotaTimer\\recs.zip."""
+    return app_data_dir() / "recs.zip"
+
+
+def describe_threat(reasons: dict) -> str:
+    """Причина угрозы для карточки: роль, лейт, матчап (цифры — из файла советов)."""
+    parts = []
+    if "role" in reasons:
+        parts.append(ru.THREAT_ROLE[reasons["role"]])
+    if "late" in reasons:
+        parts.append(ru.THREAT_LATE_PP.format(pp=reasons["late"]))
+    if "matchup" in reasons:
+        parts.append(ru.THREAT_MATCHUP_PP.format(pp=reasons["matchup"]))
+    return ru.THREAT_JOIN.join(parts)
 
 
 class ThreatsService(QObject):
@@ -49,7 +69,8 @@ class ThreatsService(QObject):
         self._rank_requested = False
         self.strip = None  # полоска угроз (ThreatStrip), подключается из main
         self.card_duration: float | None = None
-        self.recommender: Recommender | None = None
+        self.recommender: Recommender | RecsRecommender | None = None
+        self.recs: RecsSource | None = None  # готовые советы recs.zip (если файл есть)
         self._rec_key = None  # с какими данными пересчитывали рекомендации в последний раз
         self._last_recs = {}
         self._gold: int | None = None
@@ -91,12 +112,33 @@ class ThreatsService(QObject):
         costs = {k: i.cost for k, i in data.items.items()}
         self.recommender = Recommender(tagger, self.stats, buyable, costs,
                                        recommend_config(raw_config))
+        self._use_recs_file(data, raw_config)
         if self.vision is None and (self.cache.root / "images" / "heroes").is_dir():
             self.vision = VisionService(data, self.cache)
             self.vision.topbar_ready.connect(self._on_topbar)
             self.vision.inventory_seen.connect(self._on_inventory)
             self.vision.start()
         log.info("Угрозы готовы: героев %d, статистика %s", len(data.heroes), "есть" if self.stats.available else "нет")
+
+    def _use_recs_file(self, data: GameData, raw_config: dict) -> None:
+        """Угрозы и советы — из готового файла советов recs.zip, если он есть (спека 7, recs_advice.py)."""
+        path = recs_path()
+        self.recs = RecsSource.open(path) if path.is_file() else None
+        if self.recs is None:
+            log.info("Файла советов %s нет — угрозы и советы по старой схеме", path)
+            return
+        self.recommender = RecsRecommender(self.recs, data.items, advice_config(raw_config))
+        score_cfg = threat_score_config(raw_config)
+        controller = self.controller
+        controller.rank_threats = lambda heroes: rank_threats(self.recs, heroes, controller.my_hero_id(),
+                                                              controller.bucket(), score_cfg, describe_threat)
+
+        def counters(hero: str, item: str) -> list[str]:
+            enemy = data.hero_by_name(hero)
+            return self.recommender.counters(controller.my_hero_id(), enemy.id, item) if enemy else []
+
+        controller.item_counters = counters
+        log.info("Советы из %s: матчей %s, патч %s", path.name, self.recs.meta.get("matches"), self.recs.meta.get("patch"))
 
     def _update_data(self) -> None:
         """Фон: обновить справочники, иконки, статистику и матчапы (только вне катки)."""
@@ -185,6 +227,7 @@ class ThreatsService(QObject):
         self._rec_key = key
         self.recommender.bucket = BUCKET_TURBO if self.turbo() else BUCKET_NORMAL
         self.recommender.stats = self.stats
+        self.recommender.role_mode = self.settings.role_mode
         recs = self.recommender.recommend(self.controller.my_hero_id(), inputs, set(self.controller.own_items),
                                           self.last_clock or 0, self._gold)
         self._last_recs = {r.hero: r for r in recs}

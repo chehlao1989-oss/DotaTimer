@@ -62,6 +62,8 @@ class ThreatsController:
         self.card_duration: float | None = None  # сколько секунд держать полную карточку
         self.card_items = None  # функция: герой-угроза → строка советов из модуля рекомендаций
         self.on_enemies_changed = None  # служба пересчитывает рекомендации
+        self.rank_threats = None  # функция: герои-враги → угрозы (из recs.zip); None — старая оценка
+        self.item_counters = None  # функция: (герой-враг, предмет) → ключи советов (из recs.zip); None — старая
 
     # --- названия ---
     def hero_title(self, key: str) -> str:
@@ -125,8 +127,11 @@ class ThreatsController:
         """Враги узнаны по экрану или выбраны вручную."""
         self.enemies = list(enemies)
         heroes = [h for h in (self.data.hero_by_name(e) for e in enemies) if h]
-        self.threats = score_enemies(heroes, self.data, self.config, self.settings.effective_rank, self.turbo(),
-                                     self.my_hero_id())[:self.settings.threat_count]
+        if self.rank_threats is not None:
+            self.threats = self.rank_threats(heroes)[:self.settings.threat_count]
+        else:
+            self.threats = score_enemies(heroes, self.data, self.config, self.settings.effective_rank, self.turbo(),
+                                         self.my_hero_id())[:self.settings.threat_count]
         log.info("Враги: %s; угрозы: %s", enemies, [(t.hero.name, t.score, t.reason) for t in self.threats])
         if self.on_enemies_changed:
             self.on_enemies_changed()
@@ -166,7 +171,7 @@ class ThreatsController:
         rank = ru.RANK_NAMES.get(rank_bracket(self.settings.effective_rank) or 0, ru.RANK_UNKNOWN)
         lines = [ru.CARD_TITLE]
         for threat in self.threats:
-            reason = ru.CARD_REASON[threat.reason].format(wr=threat.winrate or 0, rank=rank)
+            reason = threat.note or ru.CARD_REASON[threat.reason].format(wr=threat.winrate or 0, rank=rank)
             lines.append(ru.CARD_LINE.format(hero=threat.hero.localized, reason=reason))
             if self.card_items is not None:
                 items = self.card_items(threat.hero.name)
@@ -200,6 +205,12 @@ class ThreatsController:
 
     def hint_text(self, hint: ItemHint) -> str:
         enemy = self.data.hero_by_name(hint.hero)
+        if self.item_counters is not None:
+            keys = self.item_counters(hint.hero, hint.item)
+            counters = ", ".join(self.item_title(k) for k in keys) if keys else ru.HINT_NO_COUNTERS
+            template = ru.HINT_ITEM if hint.kind == KIND_ITEM else ru.HINT_BUILDING
+            return template.format(hero=self.hero_title(hint.hero), item=self.item_title(hint.item),
+                                   component=self.item_title(hint.component or ""), counters=counters)
         suggestions = self.advisor.suggest(list(hint.rules), self.my_hero_id(), self.bucket(),
                                            enemy_hero_id=enemy.id if enemy else None, enemy_item=hint.item,
                                            owned=self.own_items, limit=self.config.suggestions_per_hint)

@@ -113,9 +113,10 @@ def test_turbo_shrine_not_overridden():
     assert set(shrine) <= {"source", "verified"} and shrine["verified"] is True
 
 
-def test_threat_overlays_disabled_until_author_ok():
-    """№11: интерфейс угроз выключен до проверок 8.1–8.3 и «ок» автора."""
-    assert json.loads((ROOT / "data" / "threats.json").read_text(encoding="utf-8"))["overlays_enabled"] is False
+def test_threat_overlays_enabled_for_game_check():
+    """№11: интерфейс угроз включён 30.09 для проверки в игре (карт-бланш автора), советы — из recs.zip."""
+    raw = json.loads((ROOT / "data" / "threats.json").read_text(encoding="utf-8"))
+    assert raw["overlays_enabled"] is True and "recs_advice" in raw
 
 
 def test_recs_config_decisions():

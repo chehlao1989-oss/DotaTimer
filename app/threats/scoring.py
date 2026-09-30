@@ -87,6 +87,7 @@ class Threat:
     score: float
     reason: str  # главная причина: winrate / matchup / core
     winrate: float | None
+    note: str | None = None  # готовая причина для карточки (угрозы из recs.zip, app/threats/recs_advice.py)
 
 
 def score_enemies(enemies: list[Hero], data: GameData, config: ThreatConfig, rank_tier: int | None,

@@ -27,8 +27,16 @@
     "phase_cost_per_min": 200,
     "per_threat": 2
   },
-  "overlays_enabled": false,
-  "overlays_note": "DECISIONS №11. Карточка, полоска и подсказки угроз выключены до переделки (решение автора 29.09.2026): лучше ничего, чем неверные советы. Распознавание и сбор данных работают.",
+  "overlays_enabled": true,
+  "overlays_note": "DECISIONS №11. 29.09 выключено до переделки; 30.09 включено для проверки в игре с советами из recs.zip (автор дал карт-бланш и проверяет в игре вечером 30.09).",
+  "recs_advice": {
+    "note": "Советы из recs.zip в игре (app/threats/recs_advice.py). phase_* — «сейчас»: предмет стоит не больше base + per_min × минуты (как в прежнем модуле); multi_threat_bonus 0.5 и hysteresis 0.5 — из спеки 6.6–6.7; top_for_bonus 3 — «в топ-3 против двух угроз» (спека 6.6).",
+    "phase_base_cost": 2500,
+    "phase_cost_per_min": 200,
+    "multi_threat_bonus": 0.5,
+    "hysteresis": 0.5,
+    "top_for_bonus": 3
+  },
   "threat_score": {
     "note": "Угрозы по нашим матчам: место по нетворсу, сила в лейте, матчап, винрейт. Веса подбираются.",
     "w_farm": 3.0,
