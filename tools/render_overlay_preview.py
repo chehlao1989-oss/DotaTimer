@@ -71,6 +71,33 @@ def hud_zones(w: int, h: int) -> dict[str, QRect]:
     }
 
 
+REAL_SCENARIO = {"hero": "juggernaut", "enemies": ["phantom_assassin", "axe"], "minute": 15, "gold": 3000,
+                 "enemy_items": {"phantom_assassin": {"butterfly"}}}
+
+
+def real_threats():
+    """Советы из настоящего recs.zip (если есть) для сцены REAL_SCENARIO — как их покажет программа."""
+    from app.paths import app_data_dir
+    from app.threats.data import DataCache, GameData
+    from app.threats.recommend import ThreatInput
+    from app.threats.recs_advice import AdviceConfig, RecsRecommender, RecsSource
+    import json
+    path = app_data_dir() / "recs.zip"
+    source = RecsSource.open(path) if path.is_file() else None
+    data = GameData.from_cache(DataCache())
+    if source is None or not data.ready:
+        return None
+    raw = json.loads((ROOT / "data" / "threats.json").read_text(encoding="utf-8"))["recs_advice"]
+    rec = RecsRecommender(source, data.items, AdviceConfig(raw["phase_base_cost"], raw["phase_cost_per_min"],
+                                                            raw["multi_threat_bonus"], raw["hysteresis"],
+                                                            raw["top_for_bonus"]))
+    me = data.hero_by_name(REAL_SCENARIO["hero"])
+    inputs = [ThreatInput(e, data.hero_by_name(e).id, frozenset(REAL_SCENARIO["enemy_items"].get(e, set())))
+              for e in REAL_SCENARIO["enemies"]]
+    threats = rec.recommend(me.id, inputs, set(), REAL_SCENARIO["minute"] * 60, REAL_SCENARIO["gold"])
+    return threats, {e: data.hero_by_name(e).localized for e in REAL_SCENARIO["enemies"]}
+
+
 def build_windows(w: int, h: int, images_dir: Path) -> list[QWidget]:
     """Окна программы как на экране w×h: подменяем размер экрана, от которого они считают масштаб и место."""
     screen = QRect(0, 0, w, h)
@@ -91,7 +118,9 @@ def build_windows(w: int, h: int, images_dir: Path) -> list[QWidget]:
     for frame in messages._frames():
         frame.setGraphicsEffect(None)  # эффект плавного угасания не рисуется через render() — снимаем для снимка
     strip = ThreatStrip(StripSettings(), images_dir)
-    strip.update_recommendations(SAMPLE_THREATS, {"axe": "Axe", "phantom_assassin": "Phantom Assassin", "sniper": "Sniper"})
+    threats, titles = real_threats() or (SAMPLE_THREATS, {"axe": "Axe", "phantom_assassin": "Phantom Assassin",
+                                                          "sniper": "Sniper"})
+    strip.update_recommendations(threats, titles)
     for widget in (messages, strip):
         widget.show()
         widget.relayout()
