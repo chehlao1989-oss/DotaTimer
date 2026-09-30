@@ -62,14 +62,17 @@ def check_benchmark(recs: dict, benchmark: dict, candidates: set, bucket: str = 
     """Доля пар (H, E), где в топ-3 советов против E есть предмет из вики-списка E.
 
     Вики-список фильтруется по кандидатам-ответам (расходники, нейтралки, старые предметы выпадают).
-    Пары без советов не считаются. Отдельно — пары, где у первого совета уверенность не низкая.
+    Пары без советов не считаются. Отдельно — пары, где у первого совета уверенность не низкая, и «достижимые» пары:
+    герой H покупает хотя бы один вики-предмет в ≥ 3% игр (иначе программа его не покажет по спеке 6.4).
     """
     table = recs["hero"].get(bucket, {}).get(group, {})
-    pairs = hits = pairs_conf = hits_conf = 0
+    names = recs.get("_item_names", {})
+    pairs = hits = pairs_conf = hits_conf = pairs_reach = hits_reach = 0
     misses = []
     for hero_id in recs["meta"]["hero_class"]:
         role = main_role(recs, int(hero_id))
         answers = table.get(role, {}).get(hero_id, {})
+        buys = {names.get(y, y) for y in recs.get("buys", {}).get(bucket, {}).get(role, {}).get(hero_id, [])}
         for enemy in benchmark["heroes"].values():
             wiki = set(enemy["counter_items"]) & candidates
             rows = [decode(recs, r) for r in answers.get(str(enemy["hero_id"]), [])]
@@ -82,11 +85,16 @@ def check_benchmark(recs: dict, benchmark: dict, candidates: set, bucket: str = 
             if rows[0][4] != "low":
                 pairs_conf += 1
                 hits_conf += hit
+            if wiki & buys:
+                pairs_reach += 1
+                hits_reach += hit
             if not hit:
                 misses.append((int(hero_id), enemy["hero_id"], top))
-    return {"pairs": pairs, "hits": hits, "share": hits / pairs if pairs else None,
-            "pairs_confident": pairs_conf, "hits_confident": hits_conf,
-            "share_confident": hits_conf / pairs_conf if pairs_conf else None, "misses": misses}
+    share = lambda h, n: h / n if n else None  # noqa: E731
+    return {"pairs": pairs, "hits": hits, "share": share(hits, pairs),
+            "pairs_confident": pairs_conf, "hits_confident": hits_conf, "share_confident": share(hits_conf, pairs_conf),
+            "pairs_reachable": pairs_reach, "hits_reachable": hits_reach, "share_reachable": share(hits_reach, pairs_reach),
+            "misses": misses}
 
 
 # ---------- 8.2 ----------

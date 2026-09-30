@@ -28,3 +28,10 @@ def test_report_has_table():
               "2": {"id": 2, "name": "npc_dota_hero_phantom_assassin", "localized_name": "Phantom Assassin"}}
     text = report_markdown(RECS, heroes)
     assert "## Juggernaut (core)" in text and "**monkey_king_bar**" in text
+
+
+def test_benchmark_reachable_pairs():
+    """Достижимые пары: герой покупает хотя бы один вики-предмет (иначе программа его не покажет, спека 6.4)."""
+    recs = {**RECS, "buys": {"normal": {"core": {"1": ["monkey_king_bar"]}}}}
+    res = check_benchmark(recs, BENCH, {"monkey_king_bar", "bfury", "blade_mail"})
+    assert (res["pairs_reachable"], res["hits_reachable"]) == (1, 1)  # vs PA достижима и попала; vs Axe (blade_mail) — нет

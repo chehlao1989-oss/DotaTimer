@@ -227,3 +227,30 @@ def test_recs_zip_by_hero(result, tmp_path):
     back = load_all(path)
     assert back["item"]["normal"]["all"]["core"][str(HERO)] == result["item"]["normal"]["all"]["core"][str(HERO)]
     assert "support" not in mine["item"]["normal"]["all"]  # тестовый герой всегда кор — роль саппорта не пишется
+
+
+def test_buys_list_for_program_filter(result, tmp_path):
+    """Спека 6.4: в файле советов — что герой покупает ≥ 3% игр в роли; попадает в кусок героя в архиве."""
+    from app.threats.recs_file import load_hero, write_recs_zip
+    buys = result["buys"]["normal"]["core"][str(HERO)]
+    assert {SKADI, BKB, VESSEL} <= set(buys)
+    path = tmp_path / "recs.zip"
+    write_recs_zip(result, path)
+    assert set(load_hero(path, HERO)["buys"]["normal"]["core"]) == set(buys)
+
+
+def test_mechanic_bonus_moves_mechanic_answers_up(tmp_path):
+    """mechanic_bonus прибавляет к S только ответам по правилу механик (0 — как в спеке)."""
+    import dataclasses
+    folder = tmp_path / "raw"
+    folder.mkdir()
+    make_matches(folder / "matches-test.parquet", n=2000)
+    base = load_config()
+    args = (str(folder / "matches-*.parquet"), None, ITEMS, {}, {}, HEROES)
+    plain = compute(*args, base, log=lambda *_: None)
+    bonus = compute(*args, dataclasses.replace(base, mechanic_bonus=5.0), log=lambda *_: None)
+    rows = lambda r: {row[0]: row for row in r["item"]["normal"]["all"]["core"][str(HERO)][str(HEART)]}  # noqa: E731
+    flags = plain["meta"]["flags"]
+    for y, row in rows(bonus).items():
+        delta = row[1] - rows(plain)[y][1]
+        assert abs(delta - (5.0 if flags[row[6]] != "exp" else 0.0)) < 0.02

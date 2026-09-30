@@ -4,7 +4,8 @@
   meta.json          — патч, число матчей, формат строк (row_format, conf_codes, flags), класс героя и т.п.;
   threat.json        — угрозы: роли врагов, сила в лейте, матчапы;
   class.json         — запасной вариант по классу героя (item_class, hero_class);
-  heroes/<id>.json   — {таблица: {режим: {ранговая группа: {роль: {контекст: [строки]}}}}} для таблиц item, item_hero, hero.
+  heroes/<id>.json   — {таблица: {режим: {ранговая группа: {роль: {контекст: [строки]}}}}} для таблиц item, item_hero, hero;
+                       плюс "buys": {режим: {роль: [номера предметов, которые герой покупает ≥ 3% игр]}} (отсев, спека 6.4).
 Целый файл в памяти занимает сотни мегабайт (замер 30.09: 8,5 МБ архив → +300 МБ), кусок одного героя — единицы.
 """
 import json
@@ -33,6 +34,10 @@ def write_recs_zip(result: dict, path: Path, min_role_share: float = 0.0) -> Non
                             continue
                         (per_hero.setdefault(hero, {}).setdefault(table, {}).setdefault(bucket, {})
                          .setdefault(group, {})[role]) = contexts
+    for bucket, roles in result.get("buys", {}).items():
+        for role, heroes in roles.items():
+            for hero, ys in heroes.items():
+                per_hero.setdefault(hero, {}).setdefault("buys", {}).setdefault(bucket, {})[role] = ys
     with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         archive.writestr("meta.json", _dump({**result["meta"], "min_role_share": min_role_share}))
         archive.writestr("threat.json", _dump(threat))
@@ -60,13 +65,18 @@ def load_all(path: Path) -> dict:
     with zipfile.ZipFile(path) as archive:
         result = {"meta": json.loads(archive.read("meta.json")), "threat": json.loads(archive.read("threat.json")),
                   **json.loads(archive.read("class.json"))}
-        for table in HERO_TABLES:
+        for table in (*HERO_TABLES, "buys"):
             result.setdefault(table, {})
         for name in archive.namelist():
             if not name.startswith("heroes/"):
                 continue
             hero = name.removeprefix("heroes/").removesuffix(".json")
             for table, buckets in json.loads(archive.read(name)).items():
+                if table == "buys":
+                    for bucket, roles in buckets.items():
+                        for role, ys in roles.items():
+                            result["buys"].setdefault(bucket, {}).setdefault(role, {})[hero] = ys
+                    continue
                 for bucket, groups in buckets.items():
                     for group, roles in groups.items():
                         for role, contexts in roles.items():

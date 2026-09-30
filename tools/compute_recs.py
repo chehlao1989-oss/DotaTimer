@@ -69,7 +69,8 @@ class RecsConfig:
     component_final_share: float
     duckdb_memory_limit: str  # предел памяти DuckDB; сверх — сброс на диск
     store_rank_groups: bool  # считать и хранить ранговые группы G1–G3
-    min_role_share: float  # роль героя пишется в файл, если его в ней играют хотя бы так часто  # промежуточный предмет — ответ, только если с ним заканчивают игру хотя бы так часто
+    min_role_share: float  # роль героя пишется в файл, если его в ней играют хотя бы так часто
+    mechanic_bonus: float  # прибавка к S для ответа по правилу механик (0 — как в спеке 6.2)  # промежуточный предмет — ответ, только если с ним заканчивают игру хотя бы так часто
     adaptation_top: int  # сколько лучших по A пускать в кандидаты без правила механик
     min_buy_share: float  # доля игр H в роли, в которых он покупает Y; реже — Y не кандидат (спека 6.4)
 
@@ -448,7 +449,8 @@ def rank_answers(con: duckdb.DuckDBPyConnection, table: str, level: str, cfg: Re
     return con.execute(f"""
         WITH t AS (SELECT t.*, coalesce({", ".join(rules)}) AS rule FROM {table} t {" ".join(joins)}),
         s AS (
-            SELECT *, a_s / {sd_a} + {cfg.lam} * coalesce(b_s, 0) / {sd_b} AS S,
+            SELECT *, a_s / {sd_a} + {cfg.lam} * coalesce(b_s, 0) / {sd_b}
+                      + CASE WHEN rule IS NOT NULL THEN {cfg.mechanic_bonus} ELSE 0 END AS S,
                    CASE WHEN vA IS NULL OR vA > {tau_a} THEN 'low' WHEN n >= {cfg.conf_high} THEN 'high'
                         WHEN n >= {cfg.conf_mid} THEN 'mid' ELSE 'low' END AS conf,
                    row_number() OVER (PARTITION BY bucket, role, hero, ctx ORDER BY a_s DESC) AS ra
@@ -546,7 +548,7 @@ def compute(matches_glob: str, ranks_glob: str | None, items: dict, abilities: d
                        "half_life_days": cfg.half_life_days, "k": {},
                        "row_format": ROW_FORMAT, "conf_codes": CONF_CODES, "flags": flags,
                        "hero_class": {str(h): [c, r] for h, c, r in con.execute("SELECT * FROM hero_cls").fetchall()}},
-              "item": {}, "item_hero": {}, "hero": {}, "item_class": {}, "hero_class": {}, "threat": {}}
+              "item": {}, "item_hero": {}, "hero": {}, "item_class": {}, "hero_class": {}, "threat": {}, "buys": {}}
     for group, flt in groups.items():
         for lvl in LEVELS:
             level_metrics_parts(con, lvl, flt, f"met_{lvl}", min_buy_share=cfg.min_buy_share,
@@ -573,6 +575,15 @@ def compute(matches_glob: str, ranks_glob: str | None, items: dict, abilities: d
         cells = {lvl: con.execute(f"SELECT count(*) FROM met_{lvl}").fetchone()[0] for lvl in LEVELS}
         log(f"[{group}] ячеек: " + ", ".join(f"{lvl} {c}" for lvl, c in cells.items())
             + f"; k_A={k['A']:.0f}, k_B={k['B']:.0f}; {time.time() - t0:.0f} с")
+    # что герой H вообще покупает в роли (≥ min_buy_share игр): отсев в программе (спека 6.4) и сверка 8.1
+    for bucket, role, hero, ys in con.execute(f"""
+        WITH t AS (SELECT bucket, role, hero, sum(wt) AS n FROM pg GROUP BY ALL),
+        o AS (SELECT p.bucket, p.role, p.hero, o.y, sum(p.wt) AS k FROM pg p JOIN owned_y o USING (match_id, is_radiant, hero)
+              GROUP BY ALL)
+        SELECT o.bucket, o.role, o.hero, list(o.y ORDER BY o.y) FROM o JOIN t USING (bucket, role, hero)
+        WHERE o.k >= {cfg.min_buy_share} * t.n GROUP BY ALL
+    """).fetchall():
+        result["buys"].setdefault(bucket, {}).setdefault(role, {})[str(hero)] = [int(y) for y in ys]
     result["meta"]["components"] = {  # доля «заканчивают с ним самим»; ниже порога — не ответ (DECISIONS №14)
         meta.names.get(int(y), str(y)): [round(share, 3), int(players), share >= cfg.component_final_share]
         for y, share, players in con.execute("SELECT y, share, players FROM component_share ORDER BY share").fetchall()}
