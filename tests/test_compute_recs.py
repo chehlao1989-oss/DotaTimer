@@ -213,3 +213,17 @@ def test_variances_are_sane_with_fractional_weights(tmp_path):
         level_metrics(con, level, "true", "met")
         worst = con.execute("SELECT max(vA), min(vA), max(vB), min(vB) FROM met").fetchone()
         assert all(v is None or 0 <= v < 1 for v in worst), (level, worst)
+
+
+def test_recs_zip_by_hero(result, tmp_path):
+    """DECISIONS №16–17: архив по героям, программа читает только своего героя; редкие роли не пишутся."""
+    from app.threats.recs_file import load_all, load_hero, load_meta, write_recs_zip
+    path = tmp_path / "recs.zip"
+    write_recs_zip(result, path, min_role_share=0.1)
+    mine = load_hero(path, HERO)
+    assert str(HEART) in mine["item"]["normal"]["all"]["core"]
+    assert load_hero(path, 999) is None
+    assert load_meta(path)["row_format"][0] == "item_id"
+    back = load_all(path)
+    assert back["item"]["normal"]["all"]["core"][str(HERO)] == result["item"]["normal"]["all"]["core"][str(HERO)]
+    assert "support" not in mine["item"]["normal"]["all"]  # тестовый герой всегда кор — роль саппорта не пишется

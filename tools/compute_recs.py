@@ -2,7 +2,7 @@
 
 Вход: сырые матчи matches-*.parquet и ранги ranks-*.parquet (tools/collect_raw.py),
 справочники OpenDota (предметы, способности, герои) и правила механик (data/mechanics.json).
-Выход: recs.json.gz — готовые ответы для программы (раздел 7).
+Выход: recs.zip — готовые ответы для программы, разложенные по героям (раздел 7, app/threats/recs_file.py).
 
 Коротко:
 - «у H есть Y», если в итоговом инвентаре есть Y или предмет, в который Y собирается (дерево из dotaconstants);
@@ -18,10 +18,9 @@
 
 Все тяжёлые расчёты идут в DuckDB: в Python попадают только готовые топ-N ответов.
 
-Запуск: python tools/compute_recs.py --raw raw --out recs.json.gz [--cache %APPDATA%/DotaTimer/cache]
+Запуск: python tools/compute_recs.py --raw raw --out recs.zip [--cache %APPDATA%/DotaTimer/cache]
 """
 import argparse
-import gzip
 import json
 import os
 import sys
@@ -37,6 +36,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.threats.mechanics import MechanicsTagger, load_mechanics_config  # noqa: E402
+from app.threats.recs_file import write_recs_zip  # noqa: E402
 
 CONFIG_PATH = ROOT / "data" / "recs_config.json"
 EPS = 1e-6  # DECISIONS №15; остаток вычитания дробных счётчиков меньше этого — ноль (BUGLOG №21)
@@ -67,7 +67,9 @@ class RecsConfig:
     keep_from_excluded: list
     eb_min_games: float  # ячейки с меньшим числом игр в оценку τ² не берём (BUGLOG №21)
     component_final_share: float
-    duckdb_memory_limit: str  # предел памяти DuckDB; сверх — сброс на диск  # промежуточный предмет — ответ, только если с ним заканчивают игру хотя бы так часто
+    duckdb_memory_limit: str  # предел памяти DuckDB; сверх — сброс на диск
+    store_rank_groups: bool  # считать и хранить ранговые группы G1–G3
+    min_role_share: float  # роль героя пишется в файл, если его в ней играют хотя бы так часто  # промежуточный предмет — ответ, только если с ним заканчивают игру хотя бы так часто
     adaptation_top: int  # сколько лучших по A пускать в кандидаты без правила механик
     min_buy_share: float  # доля игр H в роли, в которых он покупает Y; реже — Y не кандидат (спека 6.4)
 
@@ -537,7 +539,8 @@ def compute(matches_glob: str, ranks_glob: str | None, items: dict, abilities: d
     patch = con.execute("SELECT mode(patch) FROM pg").fetchone()[0]
     log(f"матчей {total}, строк {rows}, с рангом {ranked} ({ranked / max(total, 1):.0%}), "
         f"подготовка {time.time() - t0:.0f} с")
-    groups = {"all": "true", **{g: f"rank_group = '{g}'" for g in cfg.rank_groups}}
+    # ранговые группы — только если включены (DECISIONS №17: пока ранг у 17% матчей, выборки в группах малы)
+    groups = {"all": "true", **({g: f"rank_group = '{g}'" for g in cfg.rank_groups} if cfg.store_rank_groups else {})}
     result = {"meta": {"matches": total, "by_bucket": by_bucket, "ranked_share": round(ranked / max(total, 1), 3),
                        "patch": patch, "first_start": first, "last_start": last, "generated_at": int(time.time()),
                        "half_life_days": cfg.half_life_days, "k": {},
@@ -592,20 +595,21 @@ def raw_globs(raw: Path) -> tuple[str, str | None]:
     return str(raw / "matches-*.parquet"), ranks
 
 
-def write_recs(result: dict, out: Path) -> None:
-    with gzip.open(out, "wt", encoding="utf-8") as f:
-        json.dump(result, f, ensure_ascii=False, separators=(",", ":"))
+def write_recs(result: dict, out: Path, cfg: RecsConfig) -> None:
+    """recs.zip по героям; роли, в которых героя играют реже min_role_share, не пишутся (DECISIONS №17)."""
+    write_recs_zip(result, out, cfg.min_role_share)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Расчёт советов по сырым матчам")
     parser.add_argument("--raw", default="raw", help="папка с matches-*.parquet и ranks-*.parquet")
-    parser.add_argument("--out", default="recs.json.gz")
+    parser.add_argument("--out", default="recs.zip")
     parser.add_argument("--cache", default=str(Path(os.environ.get("APPDATA", ".")) / "DotaTimer" / "cache"))
     args = parser.parse_args()
     matches, ranks = raw_globs(Path(args.raw))
-    result = compute(matches, ranks, *load_refs(Path(args.cache)), load_config())
-    write_recs(result, Path(args.out))
+    cfg = load_config()
+    result = compute(matches, ranks, *load_refs(Path(args.cache)), cfg)
+    write_recs(result, Path(args.out), cfg)
     print(f"{args.out}: {Path(args.out).stat().st_size // 1024} КБ, матчей {result['meta']['matches']}, "
           f"{result['meta']['seconds']} с")
 

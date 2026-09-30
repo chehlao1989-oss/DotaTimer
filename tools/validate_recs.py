@@ -5,7 +5,7 @@
 8.3 Отчёт автору: Markdown-таблица топ-3 для выбранных героев против выбранных героев и предметов.
 
 Запуск:
-  python tools/validate_recs.py --raw raw --recs recs.json.gz --report docs/recs_report.md [--holdout-days 3]
+  python tools/validate_recs.py --raw raw --recs recs.zip --report docs/recs_report.md [--holdout-days 3]
 """
 import argparse
 import gzip
@@ -23,6 +23,7 @@ if str(ROOT) not in sys.path:
 from tools.compute_recs import (compute, level_metrics_parts, load_config, load_refs, prepare,  # noqa: E402
                                 raw_globs, build_item_meta)
 from app.threats.mechanics import MechanicsTagger, load_mechanics_config  # noqa: E402
+from app.threats.recs_file import load_all  # noqa: E402
 
 BENCHMARK_PATH = ROOT / "data" / "benchmark_counters.json"
 # набор автора для проверки глазами (спека 8.3): его герои и враги/предметы из разговора с автором
@@ -33,6 +34,9 @@ TOP = 3
 
 
 def load_recs(path: Path) -> dict:
+    """Весь файл советов: recs.zip (по героям) или старый recs.json.gz."""
+    if Path(path).suffix == ".zip":
+        return load_all(Path(path))
     with gzip.open(path, "rt", encoding="utf-8") as f:
         return json.load(f)
 
@@ -259,7 +263,7 @@ def report_html(recs: dict, heroes: dict, items: dict, images_dir: Path, rules: 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Проверки советов (спека, раздел 8)")
     parser.add_argument("--raw", default="raw")
-    parser.add_argument("--recs", default="recs.json.gz")
+    parser.add_argument("--recs", default="recs.zip")
     parser.add_argument("--cache", default=str(Path(os.environ.get("APPDATA", ".")) / "DotaTimer" / "cache"))
     parser.add_argument("--holdout-days", type=int, default=3)
     parser.add_argument("--report", default="recs_report.md")
