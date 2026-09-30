@@ -110,44 +110,139 @@ def check_holdout(matches_glob: str, ranks_glob: str | None, refs: tuple, cfg, d
 
 
 # ---------- 8.3 ----------
-def report_markdown(recs: dict, heroes: dict, bucket: str = "normal", group: str = "all") -> str:
-    """Топ-3 для героев автора против героев и предметов из набора (спека 8.3)."""
+CONF_RU = {"high": "высокая", "mid": "средняя", "low": "низкая"}
+ROLE_RU = {"core": "кор", "offlane": "тройка", "support": "саппорт"}
+
+
+def report_sections(recs: dict, heroes: dict, bucket: str = "normal", group: str = "all") -> list[dict]:
+    """Данные отчёта 8.3: для каждого героя автора — строки «против героя E» и «предмет X у врага» с топ-3."""
     by_name = {v["name"].removeprefix("npc_dota_hero_"): v for v in heroes.values()}
     items_ids = recs.get("_item_ids", {})
-    lines = [f"# Отчёт по советам ({bucket}, ранги: {group})", "",
-             f"Матчей: {recs['meta']['matches']}, патч {recs['meta']['patch']}, "
-             f"доля с рангом {recs['meta']['ranked_share']:.0%}.", "",
-             "Колонки: предмет, A (насколько чаще берут, п.п.), B (насколько чаще выигрывают с ним, п.п.), "
-             "игр, уверенность, откуда (правило механики или «опыт» — по опыту игроков).", ""]
+    sections = []
     for hero_key in REPORT_HEROES:
         hero = by_name.get(hero_key)
         if not hero:
             continue
         role = main_role(recs, hero["id"])
-        lines += [f"## {hero['localized_name']} ({role})", "", "| против | 1 | 2 | 3 |", "|---|---|---|---|"]
+
+        def answers(table: str, hero=hero, role=role) -> dict:
+            return recs[table].get(bucket, {}).get(group, {}).get(role, {}).get(str(hero["id"]), {})
+
+        rows = []
         for enemy_key in REPORT_ENEMIES:
             enemy = by_name.get(enemy_key)
-            rows = recs["hero"].get(bucket, {}).get(group, {}).get(role, {}).get(str(hero["id"]), {}).get(
-                str(enemy["id"]) if enemy else "", [])
-            name = enemy["localized_name"] if enemy else enemy_key
-            lines.append(_row(name, rows))
+            rows.append({"kind": "hero", "key": enemy_key, "title": enemy["localized_name"] if enemy else enemy_key,
+                         "answers": answers("hero").get(str(enemy["id"]) if enemy else "", [])[:TOP]})
         for item_key in REPORT_ITEMS:
-            x = items_ids.get(item_key)
-            rows = recs["item"].get(bucket, {}).get(group, {}).get(role, {}).get(str(hero["id"]), {}).get(str(x), [])
-            lines.append(_row(f"{item_key} у врага", rows))
+            rows.append({"kind": "item", "key": item_key, "title": item_key,
+                         "answers": answers("item").get(str(items_ids.get(item_key)), [])[:TOP]})
+        sections.append({"hero": hero, "role": role, "rows": rows})
+    return sections
+
+
+def report_markdown(recs: dict, heroes: dict, bucket: str = "normal", group: str = "all",
+                    items: dict | None = None) -> str:
+    """Топ-3 для героев автора против героев и предметов (спека 8.3). Предметы — полным английским названием."""
+    def name(key: str) -> str:
+        return ((items or {}).get(key) or {}).get("dname") or key
+
+    lines = [f"# Отчёт по советам ({bucket}, ранги: {group})", "",
+             f"Матчей: {recs['meta']['matches']}, патч {recs['meta']['patch']}, "
+             f"доля с рангом {recs['meta']['ranked_share']:.0%}.", "",
+             "Колонки: предмет, A (насколько чаще берут, п.п.), B (насколько чаще выигрывают с ним, п.п.), "
+             "игр, уверенность, откуда (правило механики или «опыт» — по опыту игроков).", ""]
+    for section in report_sections(recs, heroes, bucket, group):
+        lines += [f"## {section['hero']['localized_name']} ({section['role']})", "",
+                  "| против | 1 | 2 | 3 |", "|---|---|---|---|"]
+        for row in section["rows"]:
+            title = row["title"] if row["kind"] == "hero" else f"{name(row['key'])} у врага"
+            cells = [_cell(r, name) for r in row["answers"]] + ["—"] * (TOP - len(row["answers"]))
+            lines.append(f"| {title} | " + " | ".join(cells) + " |")
         lines.append("")
     return "\n".join(lines)
 
 
-def _cell(row) -> str:
+def _cell(row, name=lambda key: key) -> str:
     y, _s, a, b, conf, n, flag = row
     source = "опыт" if flag == "exp" else flag
-    return f"**{y}** A {a:+.1f}, B {b:+.1f}, {n} игр, {conf}, {source}"
+    return f"**{name(y)}** A {a:+.1f}, B {b:+.1f}, {n} игр, {conf}, {source}"
 
 
-def _row(title: str, rows: list) -> str:
-    cells = [_cell(r) for r in rows[:TOP]] + ["—"] * (TOP - len(rows[:TOP]))
-    return f"| {title} | " + " | ".join(cells) + " |"
+def _num(value: int) -> str:
+    return f"{value:,}".replace(",", " ")
+
+
+REPORT_CSS = """
+:root{--bg:#101217;--panel:#181b22;--line:#2a2f3a;--text:#e6e9ef;--muted:#9aa3b2;--accent:#d8b45a}
+body{margin:0;padding:24px 16px;background:var(--bg);color:var(--text);font:14px/1.4 "Segoe UI",system-ui,sans-serif}
+h1{font-size:20px;margin:0 0 4px} .sub{color:var(--muted);margin:0 0 20px;max-width:900px}
+section{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:0 0 18px;overflow-x:auto}
+h2{display:flex;align-items:center;gap:10px;font-size:17px;margin:4px 0 10px}
+.role{color:var(--accent);font-size:13px;font-weight:400}
+table{border-collapse:collapse;width:100%;min-width:760px}
+th,td{border-top:1px solid var(--line);padding:8px;vertical-align:top;text-align:left}
+th{width:200px;font-weight:600} td{width:30%}
+.answer{display:flex;gap:8px;align-items:flex-start}
+small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.none{color:var(--muted)}
+.icon{width:44px;height:32px;border-radius:3px;flex:none;vertical-align:middle;margin-right:6px}
+.portrait{width:64px;height:36px;border-radius:4px;vertical-align:middle}
+.portrait.small{width:48px;height:27px;margin-right:6px}
+.empty{display:inline-block;background:var(--line)}
+.pic{display:inline-block;background-size:cover;background-position:center}
+"""
+
+
+def report_html(recs: dict, heroes: dict, items: dict, images_dir: Path, rules: dict,
+                bucket: str = "normal", group: str = "all") -> str:
+    """Отчёт 8.3 страницей: иконки предметов и портреты героев из кеша программы, полные английские названия."""
+    import base64
+    import html
+
+    styles = {}  # каждая картинка вставляется в страницу один раз (класс с фоном), дальше — ссылка на класс
+
+    def img(kind: str, key: str, cls: str) -> str:
+        path = images_dir / kind / f"{key}.png"
+        if not path.is_file():
+            return f'<span class="{cls} empty"></span>'
+        css_class = f"img-{kind}-{key}"
+        if css_class not in styles:
+            data = base64.b64encode(path.read_bytes()).decode()
+            styles[css_class] = f".{css_class}{{background-image:url(data:image/png;base64,{data})}}"
+        return f'<span class="{cls} pic {css_class}"></span>'
+
+    def dname(key: str) -> str:
+        return html.escape((items.get(key) or {}).get("dname") or key)
+
+    out = []
+    for section in report_sections(recs, heroes, bucket, group):
+        hero = section["hero"]
+        hero_key = hero["name"].removeprefix("npc_dota_hero_")
+        out.append(f'<section><h2>{img("heroes", hero_key, "portrait")}{html.escape(hero["localized_name"])}'
+                   f'<span class="role">{ROLE_RU.get(section["role"], section["role"] or "")}</span></h2><table>')
+        for row in section["rows"]:
+            if row["kind"] == "hero":
+                head = f'{img("heroes", row["key"], "portrait small")}против {html.escape(row["title"])}'
+            else:
+                head = f'{img("items", row["key"], "icon")}{dname(row["key"])} у врага'
+            cells = []
+            for y, _s, a, b, conf, n, flag in row["answers"]:
+                source = "по опыту игроков" if flag == "exp" else "по механике: " + html.escape(rules.get(flag, flag))
+                cells.append(f'<td><div class="answer">{img("items", y, "icon")}<div><b>{dname(y)}</b>'
+                             f'<small>берут {a:+.1f} п.п. · побед {b:+.1f} п.п.<br>{_num(n)} игр · '
+                             f'уверенность {CONF_RU.get(conf, conf)}<br>{source}</small></div></div></td>')
+            cells += ['<td class="none">—</td>'] * (TOP - len(cells))
+            out.append(f'<tr><th>{head}</th>{"".join(cells)}</tr>')
+        out.append("</table></section>")
+    meta = recs["meta"]
+    return ('<!doctype html><html lang="ru"><head><meta charset="utf-8">'
+            '<meta name="viewport" content="width=device-width,initial-scale=1">'
+            f'<title>Советы по предметам</title><style>{REPORT_CSS}{"".join(styles.values())}</style></head><body>'
+            '<h1>Советы по предметам: проверка глазами (8.3)</h1>'
+            f'<p class="sub">{_num(meta["matches"])} матчей, патч {meta["patch"]}, режим {bucket}, все ранги. '
+            '«Берут» — насколько чаще покупают против этого врага, «побед» — насколько чаще выигрывают с этим '
+            'предметом против него (оба в процентных пунктах).</p>'
+            + "".join(out) + "</body></html>")
 
 
 def main() -> None:
@@ -174,8 +269,11 @@ def main() -> None:
     hold = check_holdout(matches, ranks, refs, cfg, args.holdout_days, log=lambda *_: None)
     print(f"8.2 отложенные {args.holdout_days} дн.: знак B совпал {hold['agree']}/{hold['checked']} = "
           f"{_pct(hold['share'])} (нужно от 70%; советов с высокой уверенностью {hold['high_rows']})")
-    Path(args.report).write_text(report_markdown(recs, heroes), encoding="utf-8")
-    print(f"8.3 отчёт: {args.report}")
+    Path(args.report).write_text(report_markdown(recs, heroes, items=items), encoding="utf-8")
+    html_path = Path(args.report).with_suffix(".html")
+    rules = {r["id"]: r["title_ru"] for r in json.loads((ROOT / "data" / "mechanics.json").read_text(encoding="utf-8"))["rules"]}
+    html_path.write_text(report_html(recs, heroes, items, Path(args.cache) / "images", rules), encoding="utf-8")
+    print(f"8.3 отчёт: {args.report}, {html_path}")
 
 
 def _pct(v) -> str:
