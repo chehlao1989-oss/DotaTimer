@@ -59,6 +59,7 @@ class RecsConfig:
     top_n: int
     exclude_tree_of: str  # предметы, собранные из этого (сапоги), — не ответ, кроме keep_from_excluded
     keep_from_excluded: list
+    eb_min_games: float  # ячейки с меньшим числом игр в оценку τ² не берём (BUGLOG №21)
     component_final_share: float  # промежуточный предмет — ответ, только если с ним заканчивают игру хотя бы так часто
     adaptation_top: int  # сколько лучших по A пускать в кандидаты без правила механик
     min_buy_share: float  # доля игр H в роли, в которых он покупает Y; реже — Y не кандидат (спека 6.4)
@@ -331,22 +332,22 @@ def level_metrics(con: duckdb.DuckDBPyConnection, level: str, rank_filter: str, 
     """)
 
 
-def eb_k(con: duckdb.DuckDBPyConnection, table: str, metric: str, default: float) -> float:
-    """Сила стягивания k = σ²/τ² (эмпирический Байес, раздел 5), τ² — методом моментов DerSimonian–Laird.
+def eb_k(con: duckdb.DuckDBPyConnection, table: str, metric: str, default: float, min_games: float = 0) -> float:
+    """Сила стягивания k = σ²/τ² (эмпирический Байес, раздел 5), τ² — методом моментов.
 
-    Ячейки с весом 1/дисперсия: ячейки с долей игры и огромной дисперсией почти не влияют. Простая оценка
-    «общий разброс минус средняя дисперсия» на реальных данных уходила в минус из-за таких ячеек (BUGLOG №21).
-    σ² — дисперсия на одну игру (средняя v·n), тогда k измеряется в играх, как n в формуле стягивания.
+    τ² = общий разброс оценок − средняя дисперсия внутри ячеек; σ² — дисперсия на одну игру (средняя v·n),
+    тогда k измеряется в играх, как n в формуле стягивания. Берутся только ячейки, где игр не меньше min_games:
+    у ячеек с долей игры дисперсия огромная, и τ² уходил в минус (BUGLOG №21, первая попытка); взвешивание
+    1/дисперсия (DerSimonian–Laird) не подошло — редкие предметы с почти нулевой дисперсией давали τ² ≈ 0 и k в
+    миллиарды (замер 30.09, 378 809 матчей).
     """
-    cnt, sw, sw2, swt, swt2, sigma2 = con.execute(f"""
-        SELECT count(*), sum(1 / v{metric}), sum(1 / (v{metric} * v{metric})), sum({metric} / v{metric}),
-               sum({metric} * {metric} / v{metric}), avg(v{metric} * n)
-        FROM {table} WHERE {metric} IS NOT NULL AND v{metric} > 0 AND n > 0
+    cnt, total_var, within, sigma2 = con.execute(f"""
+        SELECT count(*), var_samp({metric}), avg(v{metric}), avg(v{metric} * n) FROM {table}
+        WHERE {metric} IS NOT NULL AND v{metric} > 0 AND n >= greatest({min_games}, 1e-9)
     """).fetchone()
-    if cnt < 30 or not sw or not sigma2:
+    if cnt < 30 or total_var is None or not sigma2:
         return default
-    q = swt2 - swt * swt / sw  # Σ w (θ − θ̄_w)²
-    tau2 = (q - (cnt - 1)) / (sw - sw2 / sw)
+    tau2 = total_var - within
     if tau2 <= 0:
         return default
     return max(1.0, sigma2 / tau2)
@@ -503,7 +504,8 @@ def compute(matches_glob: str, ranks_glob: str | None, items: dict, abilities: d
         for lvl in LEVELS:
             level_metrics(con, lvl, flt, f"met_{lvl}", min_buy_share=cfg.min_buy_share,
                           min_ctx=cfg.conf_mid if lvl == "L1" else 0)
-        k = {"A": eb_k(con, "met_L2", "A", cfg.k_a_default), "B": eb_k(con, "met_L2", "B", cfg.k_b_default)}
+        k = {"A": eb_k(con, "met_L2", "A", cfg.k_a_default, cfg.eb_min_games),
+             "B": eb_k(con, "met_L2", "B", cfg.k_b_default, cfg.eb_min_games)}
         result["meta"]["k"][group] = {m: round(v, 1) for m, v in k.items()}
         smooth(con, "met_L2", "s_L2", k, PRIOR_L2, "met_L3")
         smooth(con, "met_L1", "s_L1", k, PRIOR_L1, "s_L2")

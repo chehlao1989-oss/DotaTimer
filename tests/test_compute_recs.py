@@ -173,4 +173,5 @@ def test_empirical_bayes_finds_true_spread():
     con = duckdb.connect()
     con.execute("CREATE TABLE cells(A DOUBLE, vA DOUBLE, n DOUBLE)")
     con.executemany("INSERT INTO cells VALUES (?, ?, ?)", rows)
-    assert 60 < eb_k(con, "cells", "A", 999.0) < 170
+    assert 60 < eb_k(con, "cells", "A", 999.0, min_games=100) < 170
+    assert not 60 < eb_k(con, "cells", "A", 999.0) < 170  # без отбора ячеек оценка смещена (замер теста: 270)
