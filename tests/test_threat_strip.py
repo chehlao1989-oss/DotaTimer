@@ -32,3 +32,19 @@ def test_strip_stays_above_minimap_after_rerender(qapp, tmp_path):
     screen = QGuiApplication.primaryScreen().availableGeometry()
     assert strip.geometry().bottom() <= screen.bottom() - round(BOTTOM_OFFSET * strip.factor())
     strip.close()
+
+
+def test_rerender_leaves_no_old_captions(qapp, tmp_path):
+    """После перерисовки не остаётся старых подписей и иконок (игра 30.09: «+3%» висело за портретом, BUGLOG №29)."""
+    from app.ui.outlined_label import OutlinedLabel
+    from app.ui.threat_strip import ThreatStrip
+    recs = [ThreatRecommendation("drow_ranger", (RecItem("monkey_king_bar", 1, "hero", 3.0, 900),
+                                                 RecItem("blade_mail", 1, "hero", None, 900)))]
+    strip = ThreatStrip(StripSettings(), tmp_path)
+    strip.show()
+    for _ in range(3):
+        strip.update_recommendations(recs, {"drow_ranger": "Drow Ranger"})
+        qapp.processEvents()
+    visible = [w for w in strip.findChildren(OutlinedLabel) if w.isVisible()]
+    assert len(visible) == 1 + 2  # имя героя + подпись под каждой из двух иконок, без остатков прошлых перерисовок
+    strip.close()

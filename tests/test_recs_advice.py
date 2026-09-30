@@ -107,6 +107,34 @@ def test_new_enemy_item_switches_advice_at_once(tmp_path):
     assert after.items[0].item == "monkey_king_bar" and after.items[0].changed  # ответ на Butterfly — сразу
 
 
+def test_early_strong_core_outranks_support(tmp_path):
+    """Сила в начале игры (лейт < 0) не опускает кора ниже саппортов (игра 30.09: Muerta, Kez ниже VS и ES)."""
+    result = {**RESULT, "threat": {"normal": {"all": {
+        "1": {"roles": {"core": 0.9, "support": 0.1}, "late": [-20.0, 900, 900], "vs": {}},
+        "2": {"roles": {"support": 0.9, "core": 0.1}, "late": [0.0, 900, 900], "vs": {}},
+    }}}}
+    path = tmp_path / "early.zip"
+    write_recs_zip(result, path)
+    heroes = [Hero(2, "support_hero", "Support"), Hero(1, "early_core", "Early Core")]
+    threats = rank_threats(RecsSource(path), heroes, ME, "normal", SCORE, describe=lambda r: "")
+    assert threats[0].hero.name == "early_core"
+
+
+def test_hint_for_big_item_of_any_enemy():
+    """Подсказка на крупный предмет (от 2000) у любого врага, по которому кликнули (BUGLOG №30: Daedalus у ES)."""
+    from app.threats.data import GameData
+    from app.threats.mechanics import MechanicsTagger, load_mechanics_config
+    from app.threats.tracker import ItemTracker
+    items = {"greater_crit": Item("greater_crit", 141, "Daedalus", 5100, "epic", ("lesser_crit", "demon_edge")),
+             "lesser_crit": Item("lesser_crit", 149, "Crystalys", 2000, "rare", ("broadsword",)),
+             "falcon_blade": Item("falcon_blade", 596, "Falcon Blade", 1125, "rare", ("sobi_mask",))}
+    data = GameData(items=items)
+    tagger = MechanicsTagger(load_mechanics_config(), {k: {"cost": i.cost} for k, i in items.items()}, {}, {})
+    tracker = ItemTracker(data, tagger, min_component_cost=1000)
+    hints = tracker.update("earthshaker", {"greater_crit", "falcon_blade"}, 1500, threats={"earthshaker"})
+    assert [h.item for h in hints] == ["greater_crit"]  # Daedalus — да, Falcon Blade (1125) — нет
+
+
 def test_threat_role_is_most_played_role(tmp_path):
     heroes = [Hero(AXE, "axe", "Axe")]
     threats = rank_threats(source(tmp_path), heroes, ME, "normal", SCORE, describe=lambda r: r.get("role"))

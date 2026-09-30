@@ -35,13 +35,16 @@ class EnemyItems:
 
 
 class ItemTracker:
-    def __init__(self, data: GameData, tagger: MechanicsTagger, min_component_cost: int):
+    def __init__(self, data: GameData, tagger: MechanicsTagger, min_component_cost: int, hint_min_cost: int = 2000):
         self.data = data
         self.tagger = tagger
         self.enemies: dict[str, EnemyItems] = {}
         self._said: set[tuple[str, str, str]] = set()  # (вид, герой, предмет) — уже подсказано
+        # важный предмет: с механикой или крупный (от hint_min_cost, как «ключевой предмет» в расчёте советов, спека 3.3);
+        # раньше только с механикой — на Daedalus у Earthshaker подсказки не было (игра 30.09, BUGLOG №30)
         self._important = {k for k, item in data.items.items() if item.cost > 0 and item.qual not in IGNORED_QUALITIES
-                           and not k.startswith("recipe") and self.rules_for(k)}
+                           and not k.startswith("recipe") and not item.tier
+                           and (self.rules_for(k) or (item.components and item.cost >= hint_min_cost))}
         # компонент → важные предметы, в которые он входит (с учётом компонентов компонентов)
         self._parents: dict[str, set[str]] = {}
         for big in self._important:

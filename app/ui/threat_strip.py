@@ -109,11 +109,18 @@ class ThreatStrip(DraggableOverlay):
         self.settings.visible = not self.settings.visible
         self.setVisible(self.settings.visible and (bool(self._recs) or self._layout_mode))
 
-    def _clear(self) -> None:
-        while self._row.count():
-            item = self._row.takeAt(0)
+    def _clear(self, layout=None) -> None:
+        """Убрать прошлые портреты, иконки и подписи. Рекурсивно: подписи лежат во вложенных столбцах —
+        без этого старые «+3%» оставались висеть за портретом (игра 30.09, BUGLOG №29)."""
+        layout = layout if layout is not None else self._row
+        while layout.count():
+            item = layout.takeAt(0)
             if item.widget():
+                item.widget().hide()
                 item.widget().deleteLater()
+            elif item.layout():
+                self._clear(item.layout())
+                item.layout().deleteLater()
 
     def _render(self) -> None:
         f = self.factor()

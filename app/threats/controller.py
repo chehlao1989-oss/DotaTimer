@@ -192,16 +192,20 @@ class ThreatsController:
     def on_inventory(self, snapshot: InventorySnapshot, clock: int | None) -> None:
         if clock is None or snapshot.hero not in self.enemies or not self.settings.enabled:
             return
-        threats = {t.hero.name for t in self.threats}
-        for hint in self.tracker.update(snapshot.hero, snapshot.items, clock, threats):
-            self.show(self.hint_text(hint), True, None)  # без голоса: «Совет по предметам» убран (автор, 30.09)
+        # подсказка — по любому врагу, по которому кликнули (раньше только по двум угрозам, BUGLOG №30)
+        for hint in self.tracker.update(snapshot.hero, snapshot.items, clock, set(self.enemies)):
+            text = self.hint_text(hint)
+            log.info("Подсказка: %s", text.replace("\n", " | "))
+            self.show(text, True, None)  # без голоса: «Совет по предметам» убран (автор, 30.09)
 
     def manual_item(self, hero: str, item: str, clock: int | None) -> None:
         """«Вижу у врага предмет» (горячая клавиша). Считается угрозой, раз пользователь сам отметил."""
         threats = {t.hero.name for t in self.threats} | {hero}
         known = set(self.tracker.enemies[hero].items) if hero in self.tracker.enemies else set()
         for hint in self.tracker.update(hero, known | {item}, clock or 0, threats):
-            self.show(self.hint_text(hint), True, None)
+            text = self.hint_text(hint)
+            log.info("Подсказка: %s", text.replace("\n", " | "))
+            self.show(text, True, None)
 
     def hint_text(self, hint: ItemHint) -> str:
         enemy = self.data.hero_by_name(hint.hero)

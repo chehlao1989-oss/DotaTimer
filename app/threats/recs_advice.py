@@ -98,8 +98,9 @@ def rank_threats(source: RecsSource, enemies: list, my_hero_id: int | None, buck
         if farm is not None:
             score += cfg.w_farm * (3.0 - farm)
         if late_pp is not None:
-            # сила в лейте опасна у фармящих: у саппорта она поднимала его в угрозы (Lion, 30.09)
-            score += cfg.w_late * late_pp * farming
+            # сила в лейте опасна у фармящих: у саппорта она поднимала его в угрозы (Lion, 30.09);
+            # только прибавка: сильный в начале кор тоже опасен, минус опускал Muerta и Kez ниже саппортов (игра 30.09)
+            score += cfg.w_late * max(0.0, late_pp) * farming
         if matchup_pp is not None:
             score += cfg.w_matchup * (-matchup_pp)
         reasons = {}
