@@ -78,7 +78,7 @@ def test_opendota_limit_by_header_only():
 def test_collection_schedule():
     """№6: 2 запуска в сутки (вариант Б автора), 290 мин на матчи и 20 на ранги."""
     workflow = (ROOT / ".github" / "workflows" / "stats.yml").read_text(encoding="utf-8")
-    assert 'cron: "0 11,23 * * *"' in workflow
+    assert 'cron: "17 11,23 * * *"' in workflow
     assert "matches --out raw --state state --release data-raw --tag \"$TAG\" --max-minutes 290" in workflow
     assert "--max-minutes 20" in workflow and "timeout-minutes: 350" in workflow
 

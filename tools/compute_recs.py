@@ -68,6 +68,7 @@ class RecsConfig:
     eb_min_games: float  # ячейки с меньшим числом игр в оценку τ² не берём (BUGLOG №21)
     component_final_share: float  # промежуточный предмет — ответ, только если с ним заканчивают игру хотя бы так часто
     duckdb_memory_limit: str  # предел памяти DuckDB; сверх — сброс на диск
+    duckdb_threads: int  # потоков DuckDB: меньше потоков — меньше пик памяти
     store_rank_groups: bool  # считать и хранить ранговые группы G1–G3
     min_role_share: float  # роль героя пишется в файл, если его в ней играют хотя бы так часто
     mechanic_first: bool  # сначала ответы по правилу механик, потом «по опыту игроков»; внутри — по S (DECISIONS №18)
@@ -529,6 +530,7 @@ def compute(matches_glob: str, ranks_glob: str | None, items: dict, abilities: d
     # память: на 378 809 матчах без ограничения было 11,4 ГБ (замер 30.09), у раннера GitHub 16 ГБ
     con.execute(f"SET memory_limit = '{cfg.duckdb_memory_limit}'")
     con.execute("SET preserve_insertion_order = false")
+    con.execute(f"SET threads = {cfg.duckdb_threads}")  # память растёт с числом потоков (BUGLOG №22)
     con.execute(f"SET temp_directory = '{(Path(tempfile.gettempdir()) / 'dotatimer_duckdb').as_posix()}'")
     flags = [EXPERIENCE_FLAG] + [r.id for r in tagger.rules]
     t0 = time.time()

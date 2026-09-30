@@ -30,7 +30,7 @@ next_seq.txt в релизе обновляется только после вы
 Не менять без: нового замера заголовков.
 Где в коде: tools/collect_raw.py: OPENDOTA_PAUSE_SEC, OPENDOTA_MINUTE_WAIT_SEC, OPENDOTA_DAY_RESERVE, collect_ranks
 
-### №6 Сбор: 2 запуска в сутки (02:00 и 14:00 МСК) по 290 + 20 мин
+### №6 Сбор: 2 запуска в сутки (02:17 и 14:17 МСК, не на :00 — BUGLOG №23) по 290 + 20 мин
 Замер/источник: решение автора 30.09 — вариант Б (меньше нагрузка на GitHub Actions, правила допустимого использования; DATA_SOURCES.md). Дата: 30.09.2026
 Не менять без: решения автора.
 Где в коде: .github/workflows/stats.yml: cron, --max-minutes

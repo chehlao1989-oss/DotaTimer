@@ -6,7 +6,7 @@ name: Статистика матчей
 
 on:
   schedule:
-    - cron: "0 11,23 * * *"  # DECISIONS №6; 2 раза в сутки: 02:00 и 14:00 по Москве
+    - cron: "17 11,23 * * *"  # DECISIONS №6; 2 раза в сутки: 02:17 и 14:17 по Москве (не на :00 — BUGLOG №23)
   workflow_dispatch: {}   # кнопка «Run workflow» для ручного запуска
 
 permissions:
