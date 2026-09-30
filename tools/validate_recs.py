@@ -112,24 +112,39 @@ def check_holdout(matches_glob: str, ranks_glob: str | None, refs: tuple, cfg, d
         for role, by_hero in groups.get("all", {}).items():
             for hero, by_ctx in by_hero.items():
                 for ctx, answers in by_ctx.items():
-                    for y, _s, _a, b, conf, _n, _flag in (decode(train, r) for r in answers):
-                        if conf == "high" and b != 0 and y in ids:
-                            rows.append((bucket, role, int(hero), ctx, ids[y], b))
+                    for y, _s, a, b, conf, _n, _flag in (decode(train, r) for r in answers):
+                        if conf == "high" and y in ids:
+                            rows.append((bucket, role, int(hero), ctx, ids[y], b, a))
     con = duckdb.connect()
     roles = {v["name"].removeprefix("npc_dota_hero_"): tuple(v.get("roles") or ()) for v in heroes.values()}
     tagger = MechanicsTagger(load_mechanics_config(), items, abilities, hero_abilities, roles)
     prepare(con, matches_glob, ranks_glob, build_item_meta(items, tagger, heroes, cfg), heroes, cfg,
             where=f"start_time >= {cutoff}")
     level_metrics_parts(con, "L2", "true", "test_L2", min_buy_share=cfg.min_buy_share)
-    con.execute("CREATE TABLE train(bucket VARCHAR, role VARCHAR, hero SMALLINT, ctx VARCHAR, y SMALLINT, b DOUBLE)")
+    con.execute("CREATE TABLE train(bucket VARCHAR, role VARCHAR, hero SMALLINT, ctx VARCHAR, y SMALLINT, b DOUBLE, "
+                "a DOUBLE)")
     if rows:
-        con.executemany("INSERT INTO train VALUES (?, ?, ?, ?, ?, ?)", rows)
-    checked, agree = con.execute("""
-        SELECT count(*), count(*) FILTER (WHERE sign(t.b) = sign(s.B))
-        FROM train t JOIN test_L2 s USING (bucket, role, hero, ctx, y) WHERE s.B IS NOT NULL AND s.B <> 0
+        con.executemany("INSERT INTO train VALUES (?, ?, ?, ?, ?, ?, ?)", rows)
+    # спека 8.2: знак B; дополнительно — только значимые на проверочной части (там шум меньше) и то же для A
+    stats = con.execute(f"""
+        WITH j AS (SELECT t.*, s.A AS ta, s.vA AS tva, s.B AS tb, s.vB AS tvb FROM train t
+                   JOIN test_L2 s USING (bucket, role, hero, ctx, y))
+        SELECT count(*) FILTER (WHERE b <> 0 AND tb IS NOT NULL AND tb <> 0),
+               count(*) FILTER (WHERE b <> 0 AND tb IS NOT NULL AND tb <> 0 AND sign(b) = sign(tb)),
+               count(*) FILTER (WHERE b <> 0 AND abs(tb) > {cfg.z90} * sqrt(greatest(tvb, 0))),
+               count(*) FILTER (WHERE b <> 0 AND abs(tb) > {cfg.z90} * sqrt(greatest(tvb, 0)) AND sign(b) = sign(tb)),
+               count(*) FILTER (WHERE a <> 0 AND ta IS NOT NULL AND ta <> 0),
+               count(*) FILTER (WHERE a <> 0 AND ta IS NOT NULL AND ta <> 0 AND sign(a) = sign(ta)),
+               count(*) FILTER (WHERE a <> 0 AND abs(ta) > {cfg.z90} * sqrt(greatest(tva, 0))),
+               count(*) FILTER (WHERE a <> 0 AND abs(ta) > {cfg.z90} * sqrt(greatest(tva, 0)) AND sign(a) = sign(ta))
+        FROM j
     """).fetchone()
-    return {"cutoff": cutoff, "high_rows": len(rows), "checked": checked, "agree": agree,
-            "share": agree / checked if checked else None}
+    share = lambda h, n: h / n if n else None  # noqa: E731
+    checked, agree, b_sig, b_sig_agree, a_checked, a_agree, a_sig, a_sig_agree = stats
+    return {"cutoff": cutoff, "high_rows": len(rows), "checked": checked, "agree": agree, "share": share(agree, checked),
+            "b_significant": b_sig, "share_b_significant": share(b_sig_agree, b_sig),
+            "a_checked": a_checked, "share_a": share(a_agree, a_checked),
+            "a_significant": a_sig, "share_a_significant": share(a_sig_agree, a_sig)}
 
 
 # ---------- 8.3 ----------
