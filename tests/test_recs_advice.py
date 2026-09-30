@@ -111,3 +111,19 @@ def test_threat_role_is_most_played_role(tmp_path):
     heroes = [Hero(AXE, "axe", "Axe")]
     threats = rank_threats(source(tmp_path), heroes, ME, "normal", SCORE, describe=lambda r: r.get("role"))
     assert threats[0].note == "offlane"  # Axe в тройке 90% игр
+
+
+def test_download_recs_keeps_old_copy_on_bad_file(tmp_path):
+    """Скачивание раз в сутки: целый файл заменяет старый, битый — нет (старая копия остаётся)."""
+    import os
+    from app.threats.recs_file import download_recs, load_meta
+    good = tmp_path / "remote.zip"
+    write_recs_zip(RESULT, good)
+    target = tmp_path / "recs.zip"
+    assert download_recs(target, good.as_uri()) and load_meta(target)["matches"] == 100
+    assert not download_recs(target, good.as_uri())  # свежая копия — не качаем
+    bad = tmp_path / "bad.zip"
+    bad.write_bytes(b"not a zip")
+    os.utime(target, (0, 0))  # копия «старая»
+    assert not download_recs(target, bad.as_uri())
+    assert load_meta(target)["matches"] == 100

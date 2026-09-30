@@ -1,0 +1,52 @@
+# Расчёт советов после каждого сбора (docs/RECOMMENDER_SPEC.md, разделы 3–7): сырые матчи из релиза data-raw →
+# tools/compute_recs.py → recs.zip в релиз «recs». Программа скачивает recs.zip раз в сутки (app/threats/recs_file.py).
+name: Расчёт советов
+
+on:
+  workflow_run:
+    workflows: ["Статистика матчей"]
+    types: [completed]
+  workflow_dispatch: {}   # кнопка «Run workflow» для ручного запуска
+
+permissions:
+  contents: write  # чтобы выкладывать recs.zip в релиз
+
+concurrency:
+  group: recs
+  cancel-in-progress: true  # считаем по самым свежим данным
+
+jobs:
+  compute:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Библиотеки
+        run: pip install -r requirements-collector.txt
+
+      - name: Сырые матчи из релиза data-raw
+        run: |
+          mkdir -p raw
+          gh release download data-raw -p "matches-*.parquet" -p "ranks-*.parquet" -D raw
+          ls raw | wc -l && du -sh raw
+
+      - name: Справочники OpenDota (герои, предметы, способности — 5 запросов)
+        run: python -c "from pathlib import Path; from app.threats.data import DataCache, DataUpdater; DataUpdater(DataCache(Path('cache'))).refresh_core()"
+
+      - name: Расчёт советов
+        run: python tools/compute_recs.py --raw raw --out recs.zip --cache cache
+
+      - name: Выложить recs.zip в релиз recs
+        run: |
+          gh release view recs >/dev/null 2>&1 || gh release create recs --title "Советы" \
+            --notes "Готовые советы по предметам (recs.zip, по героям). Считаются после каждого сбора из релиза data-raw. Формат: app/threats/recs_file.py." \
+            --prerelease
+          gh release upload recs recs.zip --clobber

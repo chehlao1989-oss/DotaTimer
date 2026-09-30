@@ -9,10 +9,39 @@
 Целый файл в памяти занимает сотни мегабайт (замер 30.09: 8,5 МБ архив → +300 МБ), кусок одного героя — единицы.
 """
 import json
+import logging
+import time
+import urllib.error
+import urllib.request
 import zipfile
 from pathlib import Path
 
+log = logging.getLogger(__name__)
+
+RECS_URL = "https://github.com/chehlao1989-oss/DotaTimer/releases/download/recs/recs.zip"
+MAX_AGE_SEC = 24 * 3600
+TIMEOUT_SEC = 120
 HERO_TABLES = ("item", "item_hero", "hero")
+
+
+def download_recs(path: Path, url: str = RECS_URL, max_age: float = MAX_AGE_SEC) -> bool:
+    """Скачать свежий recs.zip, если копии больше суток. Вызывать в фоновом потоке; без сети — прошлая копия."""
+    if path.is_file() and time.time() - path.stat().st_mtime < max_age:
+        return False
+    try:
+        request = urllib.request.Request(url, headers={"User-Agent": "DotaTimer/0.1"})
+        with urllib.request.urlopen(request, timeout=TIMEOUT_SEC) as response:
+            body = response.read()
+        tmp = path.with_suffix(".tmp")
+        tmp.write_bytes(body)
+        with zipfile.ZipFile(tmp) as archive:  # файл целый, прежде чем заменить старый
+            json.loads(archive.read("meta.json"))
+        tmp.replace(path)
+        log.info("Скачаны советы: %d КБ", len(body) // 1024)
+        return True
+    except (urllib.error.URLError, OSError, ValueError, KeyError, zipfile.BadZipFile):
+        log.warning("Не удалось скачать советы, работаю с прошлой копией", exc_info=True)
+        return False
 CLASS_TABLES = ("item_class", "hero_class")
 
 

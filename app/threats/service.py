@@ -19,6 +19,7 @@ from app.threats.mechanics import MechanicsTagger, load_mechanics_config
 from app.paths import app_data_dir
 from app.threats.recommend import TIER_HERO, Recommender, ThreatInput, format_delta, recommend_config
 from app.threats.recs_advice import RecsRecommender, RecsSource, advice_config, rank_threats
+from app.threats.recs_file import download_recs
 from app.threats.scoring import load_threat_config
 from app.threats.threat_score import threat_score_config
 from app.threats.stats import BUCKET_NORMAL, BUCKET_TURBO, Stats, download_stats
@@ -148,6 +149,7 @@ class ThreatsService(QObject):
         if data.ready:
             updater.refresh_images(data)
         download_stats(self.cache)
+        download_recs(recs_path())
         self.data_ready.emit()
         updater.refresh_matchups(data, stop=lambda: self._in_match)
 
