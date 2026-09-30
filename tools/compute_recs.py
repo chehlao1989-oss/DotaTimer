@@ -25,6 +25,7 @@ import gzip
 import json
 import os
 import sys
+import tempfile
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -38,7 +39,12 @@ if str(ROOT) not in sys.path:
 from app.threats.mechanics import MechanicsTagger, load_mechanics_config  # noqa: E402
 
 CONFIG_PATH = ROOT / "data" / "recs_config.json"
+EPS = 1e-6  # DECISIONS №15; остаток вычитания дробных счётчиков меньше этого — ноль (BUGLOG №21)
 EXPERIENCE_FLAG = "exp"  # пометка «по опыту игроков»: не по правилу механик, а по топу адаптации
+# Компактная строка ответа (размер файла, раздел 7): номера вместо названий, округление до 0,1 п.п.
+ROW_FORMAT = [  # DECISIONS №16
+    "item_id", "S", "A_pp", "B_pp", "conf", "games", "source"]
+CONF_CODES = ["low", "mid", "high"]  # conf в строке — номер в этом списке
 
 
 @dataclass(frozen=True)
@@ -60,7 +66,8 @@ class RecsConfig:
     exclude_tree_of: str  # предметы, собранные из этого (сапоги), — не ответ, кроме keep_from_excluded
     keep_from_excluded: list
     eb_min_games: float  # ячейки с меньшим числом игр в оценку τ² не берём (BUGLOG №21)
-    component_final_share: float  # промежуточный предмет — ответ, только если с ним заканчивают игру хотя бы так часто
+    component_final_share: float
+    duckdb_memory_limit: str  # предел памяти DuckDB; сверх — сброс на диск  # промежуточный предмет — ответ, только если с ним заканчивают игру хотя бы так часто
     adaptation_top: int  # сколько лучших по A пускать в кандидаты без правила механик
     min_buy_share: float  # доля игр H в роли, в которых он покупает Y; реже — Y не кандидат (спека 6.4)
 
@@ -300,27 +307,36 @@ def level_metrics(con: duckdb.DuckDBPyConnection, level: str, rank_filter: str, 
             LEFT JOIN gxy ON gxy.bucket = pr.bucket AND gxy.role = pr.role AND gxy.hero = pr.hero
                          AND gxy.ctx = pr.ctx AND gxy.y = pr.y AND gxy.stratum = gx.stratum
         ),
-        m AS (
+        -- четыре клетки (X есть/нет × Y есть/нет): счётчики — дробные суммы весов по давности, поэтому «ноль» после
+        -- вычитания бывает остатком вроде 1e-9; такие остатки обнуляем, доли побед держим в [0, 1] (BUGLOG №21)
+        c4 AS (
             SELECT *,
-                CASE WHEN NX > 0 AND N - NX > 0 THEN NXY / NX - (NY - NXY) / (N - NX) END AS a,
-                CASE WHEN NX > 0 AND N - NX > 0 THEN
-                    (NXY / NX) * (1 - NXY / NX) / NX + ((NY - NXY) / (N - NX)) * (1 - (NY - NXY) / (N - NX)) / (N - NX)
-                END AS va,
-                CASE WHEN NXY > 0 AND NX - NXY > 0 AND NY - NXY > 0 AND N - NX - NY + NXY > 0 THEN
-                    (WXY / NXY - (WX - WXY) / (NX - NXY)) - ((WY - WXY) / (NY - NXY) - (W - WX - WY + WXY) / (N - NX - NY + NXY))
-                END AS b
+                CASE WHEN NXY > {EPS} THEN NXY ELSE 0 END AS n11,
+                CASE WHEN NX - NXY > {EPS} THEN NX - NXY ELSE 0 END AS n10,
+                CASE WHEN NY - NXY > {EPS} THEN NY - NXY ELSE 0 END AS n01,
+                CASE WHEN N - NX - NY + NXY > {EPS} THEN N - NX - NY + NXY ELSE 0 END AS n00,
+                greatest(WXY, 0) AS w11, greatest(WX - WXY, 0) AS w10, greatest(WY - WXY, 0) AS w01,
+                greatest(W - WX - WY + WXY, 0) AS w00
             FROM cells
+        ),
+        pr4 AS (
+            SELECT *,
+                n11 + n10 AS nx, n01 + n00 AS nn,
+                CASE WHEN n11 + n10 > 0 THEN n11 / (n11 + n10) END AS pa,
+                CASE WHEN n01 + n00 > 0 THEN n01 / (n01 + n00) END AS pb,
+                CASE WHEN n11 > 0 THEN least(1, w11 / n11) END AS r11, CASE WHEN n10 > 0 THEN least(1, w10 / n10) END AS r10,
+                CASE WHEN n01 > 0 THEN least(1, w01 / n01) END AS r01, CASE WHEN n00 > 0 THEN least(1, w00 / n00) END AS r00
+            FROM c4
         ),
         mb AS (
             SELECT *,
-                CASE WHEN b IS NOT NULL THEN
-                    (WXY / NXY) * (1 - WXY / NXY) / NXY
-                    + ((WX - WXY) / (NX - NXY)) * (1 - (WX - WXY) / (NX - NXY)) / (NX - NXY)
-                    + ((WY - WXY) / (NY - NXY)) * (1 - (WY - WXY) / (NY - NXY)) / (NY - NXY)
-                    + ((W - WX - WY + WXY) / (N - NX - NY + NXY)) * (1 - (W - WX - WY + WXY) / (N - NX - NY + NXY))
-                      / (N - NX - NY + NXY)
+                CASE WHEN nx > 0 AND nn > 0 THEN pa - pb END AS a,
+                CASE WHEN nx > 0 AND nn > 0 THEN pa * (1 - pa) / nx + pb * (1 - pb) / nn END AS va,
+                CASE WHEN n11 > 0 AND n10 > 0 AND n01 > 0 AND n00 > 0 THEN (r11 - r10) - (r01 - r00) END AS b,
+                CASE WHEN n11 > 0 AND n10 > 0 AND n01 > 0 AND n00 > 0 THEN
+                    r11 * (1 - r11) / n11 + r10 * (1 - r10) / n10 + r01 * (1 - r01) / n01 + r00 * (1 - r00) / n00
                 END AS vb
-            FROM m
+            FROM pr4
         )
         SELECT bucket, role, hero, ctx, y,
                sum(NX * a) / nullif(sum(CASE WHEN a IS NOT NULL THEN NX END), 0) AS A,
@@ -332,25 +348,37 @@ def level_metrics(con: duckdb.DuckDBPyConnection, level: str, rank_filter: str, 
     """)
 
 
-def eb_k(con: duckdb.DuckDBPyConnection, table: str, metric: str, default: float, min_games: float = 0) -> float:
-    """Сила стягивания k = σ²/τ² (эмпирический Байес, раздел 5), τ² — методом моментов.
+def level_metrics_parts(con: duckdb.DuckDBPyConnection, level: str, rank_filter: str, dst: str, **kwargs) -> None:
+    """То же, что level_metrics, но по кускам «режим × роль»: метрики и так считаются внутри них, результат тот же,
+    а память меньше в ~6 раз (целиком на 378 809 матчах не влезло в 8 ГБ — замер 30.09, DECISIONS №16)."""
+    parts = con.execute("SELECT DISTINCT bucket, role FROM pg ORDER BY ALL").fetchall()
+    for i, (bucket, role) in enumerate(parts):
+        level_metrics(con, level, f"({rank_filter}) AND bucket = '{bucket}' AND role = '{role}'", "met_part", **kwargs)
+        con.execute(f"CREATE OR REPLACE TABLE {dst} AS SELECT * FROM met_part" if i == 0
+                    else f"INSERT INTO {dst} SELECT * FROM met_part")
+    con.execute("DROP TABLE IF EXISTS met_part")
 
-    τ² = общий разброс оценок − средняя дисперсия внутри ячеек; σ² — дисперсия на одну игру (средняя v·n),
-    тогда k измеряется в играх, как n в формуле стягивания. Берутся только ячейки, где игр не меньше min_games:
-    у ячеек с долей игры дисперсия огромная, и τ² уходил в минус (BUGLOG №21, первая попытка); взвешивание
-    1/дисперсия (DerSimonian–Laird) не подошло — редкие предметы с почти нулевой дисперсией давали τ² ≈ 0 и k в
-    миллиарды (замер 30.09, 378 809 матчей).
+
+def eb_spread(con: duckdb.DuckDBPyConnection, table: str, metric: str, default_k: float,
+               min_games: float = 0) -> dict:
+    """Разброс истинных значений τ² между ячейками (эмпирический Байес, раздел 5), методом моментов.
+
+    τ² = общий разброс оценок − средняя дисперсия внутри ячеек, по ячейкам от min_games игр: у меньших
+    дисперсия оценивается ненадёжно. Замер 30.09 (378 809 матчей, BUGLOG №21): τ²_A стабилен от 300 игр
+    (0,00027–0,00030), τ²_B падает с ростом ячеек и выходит на 0,0011–0,0015 от 1000 игр.
+    Возвращает {"tau2", "k"}: k = σ²/τ² — то же в «играх» (σ² — дисперсия на игру), для журнала и для матчапов.
+    Если оценка не вышла — τ² из стартового k (k_a_default / k_b_default).
     """
+    sigma_all = con.execute(f"SELECT avg(v{metric} * n) FROM {table} WHERE v{metric} > 0 AND n > 0").fetchone()[0]
     cnt, total_var, within, sigma2 = con.execute(f"""
         SELECT count(*), var_samp({metric}), avg(v{metric}), avg(v{metric} * n) FROM {table}
         WHERE {metric} IS NOT NULL AND v{metric} > 0 AND n >= greatest({min_games}, 1e-9)
     """).fetchone()
-    if cnt < 30 or total_var is None or not sigma2:
-        return default
-    tau2 = total_var - within
-    if tau2 <= 0:
-        return default
-    return max(1.0, sigma2 / tau2)
+    tau2 = (total_var - within) if cnt >= 30 and total_var is not None else None
+    if not tau2 or tau2 <= 0 or not sigma2:
+        sigma2 = sigma_all or 0.25
+        return {"tau2": sigma2 / default_k, "k": default_k, "estimated": False}
+    return {"tau2": tau2, "k": sigma2 / tau2, "estimated": True}
 
 
 PRIOR_L2 = """
@@ -366,22 +394,28 @@ PRIOR_L1 = """
 """
 
 
-def smooth(con: duckdb.DuckDBPyConnection, src: str, dst: str, k: dict, prior_sql: str | None = None,
+def smooth(con: duckdb.DuckDBPyConnection, src: str, dst: str, eb: dict, prior_sql: str | None = None,
            prior: str | None = None) -> None:
-    """Стягивание к более общему уровню: θ* = (n·θ + k·θ_prior) / (n + k); без приора — к нулю."""
+    """Стягивание к более общему уровню по собственной дисперсии ячейки: θ* = (τ²·θ + v·θ_prior) / (τ² + v).
+
+    Вес ячейки τ²/(τ² + v): чем точнее оценка (меньше v), тем меньше она стягивается. Для B это важно: его точность
+    задаёт самая маленькая из четырёх клеток, а не число игр (замер 30.09, BUGLOG №21). Без приора — к нулю.
+    """
     if prior_sql:
         join = f"LEFT JOIN ({prior_sql.format(src=src, prior=prior)}) p USING (bucket, role, hero, ctx, y)"
     else:
         join = "LEFT JOIN (SELECT NULL AS bucket, NULL AS role, NULL AS hero, NULL AS ctx, NULL AS y, " \
                "NULL::DOUBLE AS pA, NULL::DOUBLE AS pB WHERE false) p USING (bucket, role, hero, ctx, y)"
-    ka, kb = k["A"], k["B"]
+    ta, tb = eb["A"]["tau2"], eb["B"]["tau2"]
     con.execute(f"""
         CREATE OR REPLACE TABLE {dst} AS
         SELECT s.*,
-            CASE WHEN s.A IS NULL THEN coalesce(p.pA, 0) ELSE (s.n * s.A + {ka} * coalesce(p.pA, 0)) / (s.n + {ka}) END AS a_s,
-            s.vA * power(s.n / (s.n + {ka}), 2) AS va_s,
-            CASE WHEN s.B IS NULL THEN coalesce(p.pB, 0) ELSE (s.n * s.B + {kb} * coalesce(p.pB, 0)) / (s.n + {kb}) END AS b_s,
-            s.vB * power(s.n / (s.n + {kb}), 2) AS vb_s
+            CASE WHEN s.A IS NULL THEN coalesce(p.pA, 0) WHEN s.vA IS NULL OR s.vA <= 0 THEN s.A
+                 ELSE (s.A * {ta} + coalesce(p.pA, 0) * s.vA) / ({ta} + s.vA) END AS a_s,
+            CASE WHEN s.vA > 0 THEN s.vA * {ta} / ({ta} + s.vA) ELSE s.vA END AS va_s,
+            CASE WHEN s.B IS NULL THEN coalesce(p.pB, 0) WHEN s.vB IS NULL OR s.vB <= 0 THEN s.B
+                 ELSE (s.B * {tb} + coalesce(p.pB, 0) * s.vB) / ({tb} + s.vB) END AS b_s,
+            CASE WHEN s.vB > 0 THEN s.vB * {tb} / ({tb} + s.vB) ELSE s.vB END AS vb_s
         FROM {src} s {join}
     """)
 
@@ -395,7 +429,7 @@ RULE_LOOKUP = {
 }
 
 
-def rank_answers(con: duckdb.DuckDBPyConnection, table: str, level: str, cfg: RecsConfig, k: dict,
+def rank_answers(con: duckdb.DuckDBPyConnection, table: str, level: str, cfg: RecsConfig, eb: dict,
                  only_confident: bool = False) -> list:
     """Топ-N ответов для каждого (bucket, role, hero, ctx): [Y, S, A*, B*, уверенность, n, правило или 'exp'].
 
@@ -407,13 +441,13 @@ def rank_answers(con: duckdb.DuckDBPyConnection, table: str, level: str, cfg: Re
     for i, (kind, expr) in enumerate(RULE_LOOKUP[level]):
         joins.append(f"LEFT JOIN ans1 r{i} ON r{i}.kind = '{kind}' AND r{i}.ctx = {expr} AND r{i}.y = t.y")
         rules.append(f"r{i}.rule")
-    k_min = min(k["A"], k["B"])
+    tau_a = eb["A"]["tau2"]  # уверенность низкая, если вес ячейки в оценке A меньше 50% (v > τ², спека 5)
     confident = "AND conf <> 'low'" if only_confident else ""
     return con.execute(f"""
         WITH t AS (SELECT t.*, coalesce({", ".join(rules)}) AS rule FROM {table} t {" ".join(joins)}),
         s AS (
             SELECT *, a_s / {sd_a} + {cfg.lam} * coalesce(b_s, 0) / {sd_b} AS S,
-                   CASE WHEN n < {k_min} THEN 'low' WHEN n >= {cfg.conf_high} THEN 'high'
+                   CASE WHEN vA IS NULL OR vA > {tau_a} THEN 'low' WHEN n >= {cfg.conf_high} THEN 'high'
                         WHEN n >= {cfg.conf_mid} THEN 'mid' ELSE 'low' END AS conf,
                    row_number() OVER (PARTITION BY bucket, role, hero, ctx ORDER BY a_s DESC) AS ra
             FROM t WHERE a_s IS NOT NULL
@@ -430,12 +464,16 @@ def rank_answers(con: duckdb.DuckDBPyConnection, table: str, level: str, cfg: Re
     """).fetchall()
 
 
-def nest_answers(out: dict, group: str, rows: list, names: dict) -> None:
-    """Строки из rank_answers → out[bucket][group][role][hero][ctx] = [[Y, S, A%, B%, conf, n, флаг], ...]."""
+def nest_answers(out: dict, group: str, rows: list, flags: list) -> None:
+    """Строки из rank_answers → out[bucket][group][role][hero][ctx] = [[id Y, S, A п.п., B п.п., conf, игр, источник]].
+
+    conf — номер в CONF_CODES, источник — номер в meta.flags («exp» или правило механик), формат — meta.row_format.
+    """
+    index = {f: i for i, f in enumerate(flags)}
     for bucket, role, hero, ctx, y, s, a, b, conf, n, rule in rows:
         cell = out.setdefault(bucket, {}).setdefault(group, {}).setdefault(role, {}).setdefault(str(hero), {})
-        cell.setdefault(ctx, []).append([names.get(int(y), str(y)), round(s, 3), round(a * 100, 2),
-                                         round((b or 0.0) * 100, 2), conf, int(round(n)), rule or EXPERIENCE_FLAG])
+        cell.setdefault(ctx, []).append([int(y), round(s, 2), round(a * 100, 1), round((b or 0.0) * 100, 1),
+                                         CONF_CODES.index(conf), int(round(n)), index[rule or EXPERIENCE_FLAG]])
 
 
 # ---------- угрозы (спека 7: threat) ----------
@@ -484,6 +522,11 @@ def compute(matches_glob: str, ranks_glob: str | None, items: dict, abilities: d
     tagger = MechanicsTagger(load_mechanics_config(), items, abilities, hero_abilities, roles)
     meta = build_item_meta(items, tagger, heroes, cfg)
     con = con or duckdb.connect()
+    # память: на 378 809 матчах без ограничения было 11,4 ГБ (замер 30.09), у раннера GitHub 16 ГБ
+    con.execute(f"SET memory_limit = '{cfg.duckdb_memory_limit}'")
+    con.execute("SET preserve_insertion_order = false")
+    con.execute(f"SET temp_directory = '{(Path(tempfile.gettempdir()) / 'dotatimer_duckdb').as_posix()}'")
+    flags = [EXPERIENCE_FLAG] + [r.id for r in tagger.rules]
     t0 = time.time()
     prepare(con, matches_glob, ranks_glob, meta, heroes, cfg, where)
     total, rows, ranked, first, last = con.execute("""
@@ -498,29 +541,31 @@ def compute(matches_glob: str, ranks_glob: str | None, items: dict, abilities: d
     result = {"meta": {"matches": total, "by_bucket": by_bucket, "ranked_share": round(ranked / max(total, 1), 3),
                        "patch": patch, "first_start": first, "last_start": last, "generated_at": int(time.time()),
                        "half_life_days": cfg.half_life_days, "k": {},
+                       "row_format": ROW_FORMAT, "conf_codes": CONF_CODES, "flags": flags,
                        "hero_class": {str(h): [c, r] for h, c, r in con.execute("SELECT * FROM hero_cls").fetchall()}},
               "item": {}, "item_hero": {}, "hero": {}, "item_class": {}, "hero_class": {}, "threat": {}}
     for group, flt in groups.items():
         for lvl in LEVELS:
-            level_metrics(con, lvl, flt, f"met_{lvl}", min_buy_share=cfg.min_buy_share,
+            level_metrics_parts(con, lvl, flt, f"met_{lvl}", min_buy_share=cfg.min_buy_share,
                           min_ctx=cfg.conf_mid if lvl == "L1" else 0)
-        k = {"A": eb_k(con, "met_L2", "A", cfg.k_a_default, cfg.eb_min_games),
-             "B": eb_k(con, "met_L2", "B", cfg.k_b_default, cfg.eb_min_games)}
-        result["meta"]["k"][group] = {m: round(v, 1) for m, v in k.items()}
-        smooth(con, "met_L2", "s_L2", k, PRIOR_L2, "met_L3")
-        smooth(con, "met_L1", "s_L1", k, PRIOR_L1, "s_L2")
-        smooth(con, "met_hero", "s_hero", k)
-        nest_answers(result["item"], group, rank_answers(con, "s_L2", "L2", cfg, k), meta.names)
-        nest_answers(result["item_hero"], group, rank_answers(con, "s_L1", "L1", cfg, k, only_confident=True),
-                     meta.names)
-        nest_answers(result["hero"], group, rank_answers(con, "s_hero", "hero", cfg, k), meta.names)
+        eb = {"A": eb_spread(con, "met_L2", "A", cfg.k_a_default, cfg.eb_min_games),
+              "B": eb_spread(con, "met_L2", "B", cfg.k_b_default, cfg.eb_min_games)}
+        k = {m: eb[m]["k"] for m in eb}
+        result["meta"]["k"][group] = {m: {"tau2": round(e["tau2"], 7), "k": round(e["k"], 1),
+                                          "estimated": e["estimated"]} for m, e in eb.items()}
+        smooth(con, "met_L2", "s_L2", eb, PRIOR_L2, "met_L3")
+        smooth(con, "met_L1", "s_L1", eb, PRIOR_L1, "s_L2")
+        smooth(con, "met_hero", "s_hero", eb)
+        nest_answers(result["item"], group, rank_answers(con, "s_L2", "L2", cfg, eb), flags)
+        nest_answers(result["item_hero"], group, rank_answers(con, "s_L1", "L1", cfg, eb, only_confident=True), flags)
+        nest_answers(result["hero"], group, rank_answers(con, "s_hero", "hero", cfg, eb), flags)
         # запасной вариант: класс героя (атрибут × типичная роль)
         for lvl in CLASS_LEVELS:
-            level_metrics(con, lvl, flt, f"met_c{lvl}", who="cls", min_buy_share=cfg.min_buy_share)
-        smooth(con, "met_cL2", "s_cL2", k, PRIOR_L2, "met_cL3")
-        smooth(con, "met_chero", "s_chero", k)
-        nest_answers(result["item_class"], group, rank_answers(con, "s_cL2", "L2", cfg, k), meta.names)
-        nest_answers(result["hero_class"], group, rank_answers(con, "s_chero", "hero", cfg, k), meta.names)
+            level_metrics_parts(con, lvl, flt, f"met_c{lvl}", who="cls", min_buy_share=cfg.min_buy_share)
+        smooth(con, "met_cL2", "s_cL2", eb, PRIOR_L2, "met_cL3")
+        smooth(con, "met_chero", "s_chero", eb)
+        nest_answers(result["item_class"], group, rank_answers(con, "s_cL2", "L2", cfg, eb), flags)
+        nest_answers(result["hero_class"], group, rank_answers(con, "s_chero", "hero", cfg, eb), flags)
         threat_block(con, group, flt, k["B"], result["threat"])
         cells = {lvl: con.execute(f"SELECT count(*) FROM met_{lvl}").fetchone()[0] for lvl in LEVELS}
         log(f"[{group}] ячеек: " + ", ".join(f"{lvl} {c}" for lvl, c in cells.items())

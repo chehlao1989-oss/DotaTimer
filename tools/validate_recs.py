@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from tools.compute_recs import (compute, level_metrics, load_config, load_refs, prepare,  # noqa: E402
+from tools.compute_recs import (compute, level_metrics_parts, load_config, load_refs, prepare,  # noqa: E402
                                 raw_globs, build_item_meta)
 from app.threats.mechanics import MechanicsTagger, load_mechanics_config  # noqa: E402
 
@@ -35,6 +35,16 @@ TOP = 3
 def load_recs(path: Path) -> dict:
     with gzip.open(path, "rt", encoding="utf-8") as f:
         return json.load(f)
+
+
+def decode(recs: dict, row: list) -> tuple:
+    """Строка ответа → (ключ предмета, S, A, B, уверенность, игр, источник). Понимает и старые строки с названиями."""
+    if isinstance(row[0], str):
+        return tuple(row)
+    meta = recs["meta"]
+    names = recs.get("_item_names", {})
+    return (names.get(row[0], str(row[0])), row[1], row[2], row[3], meta["conf_codes"][row[4]], row[5],
+            meta["flags"][row[6]])
 
 
 def main_role(recs: dict, hero_id: int) -> str | None:
@@ -58,7 +68,7 @@ def check_benchmark(recs: dict, benchmark: dict, candidates: set, bucket: str = 
         answers = table.get(role, {}).get(hero_id, {})
         for enemy in benchmark["heroes"].values():
             wiki = set(enemy["counter_items"]) & candidates
-            rows = answers.get(str(enemy["hero_id"]))
+            rows = [decode(recs, r) for r in answers.get(str(enemy["hero_id"]), [])]
             if not wiki or not rows:
                 continue
             top = [r[0] for r in rows[:TOP]]
@@ -84,12 +94,13 @@ def check_holdout(matches_glob: str, ranks_glob: str | None, refs: tuple, cfg, d
     train = compute(matches_glob, ranks_glob, items, abilities, hero_abilities, heroes, cfg, log=log,
                     where=f"start_time < {cutoff}")
     ids = {k: v["id"] for k, v in items.items() if isinstance(v, dict) and "id" in v}
+    train["_item_names"] = {v: k for k, v in ids.items()}
     rows = []
     for bucket, groups in train["item"].items():
         for role, by_hero in groups.get("all", {}).items():
             for hero, by_ctx in by_hero.items():
                 for ctx, answers in by_ctx.items():
-                    for y, _s, _a, b, conf, _n, _flag in answers:
+                    for y, _s, _a, b, conf, _n, _flag in (decode(train, r) for r in answers):
                         if conf == "high" and b != 0 and y in ids:
                             rows.append((bucket, role, int(hero), ctx, ids[y], b))
     con = duckdb.connect()
@@ -97,7 +108,7 @@ def check_holdout(matches_glob: str, ranks_glob: str | None, refs: tuple, cfg, d
     tagger = MechanicsTagger(load_mechanics_config(), items, abilities, hero_abilities, roles)
     prepare(con, matches_glob, ranks_glob, build_item_meta(items, tagger, heroes, cfg), heroes, cfg,
             where=f"start_time >= {cutoff}")
-    level_metrics(con, "L2", "true", "test_L2", min_buy_share=cfg.min_buy_share)
+    level_metrics_parts(con, "L2", "true", "test_L2", min_buy_share=cfg.min_buy_share)
     con.execute("CREATE TABLE train(bucket VARCHAR, role VARCHAR, hero SMALLINT, ctx VARCHAR, y SMALLINT, b DOUBLE)")
     if rows:
         con.executemany("INSERT INTO train VALUES (?, ?, ?, ?, ?, ?)", rows)
@@ -132,10 +143,10 @@ def report_sections(recs: dict, heroes: dict, bucket: str = "normal", group: str
         for enemy_key in REPORT_ENEMIES:
             enemy = by_name.get(enemy_key)
             rows.append({"kind": "hero", "key": enemy_key, "title": enemy["localized_name"] if enemy else enemy_key,
-                         "answers": answers("hero").get(str(enemy["id"]) if enemy else "", [])[:TOP]})
+                         "answers": [decode(recs, r) for r in answers("hero").get(str(enemy["id"]) if enemy else "", [])[:TOP]]})
         for item_key in REPORT_ITEMS:
             rows.append({"kind": "item", "key": item_key, "title": item_key,
-                         "answers": answers("item").get(str(items_ids.get(item_key)), [])[:TOP]})
+                         "answers": [decode(recs, r) for r in answers("item").get(str(items_ids.get(item_key)), [])[:TOP]]})
         sections.append({"hero": hero, "role": role, "rows": rows})
     return sections
 
@@ -258,6 +269,7 @@ def main() -> None:
     cfg = load_config()
     recs = load_recs(Path(args.recs))
     recs["_item_ids"] = {k: v["id"] for k, v in items.items() if isinstance(v, dict) and "id" in v}
+    recs["_item_names"] = {v: k for k, v in recs["_item_ids"].items()}
     candidates = {k for k, v in items.items() if isinstance(v, dict) and (v.get("cost") or 0) > 0
                   and not k.startswith("recipe") and v.get("qual") != "consumable" and not v.get("tier")
                   and ((v.get("created") and v["cost"] >= cfg.candidate_min_cost) or k in cfg.extra_candidates)}

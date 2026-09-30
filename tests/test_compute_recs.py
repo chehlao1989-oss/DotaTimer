@@ -72,8 +72,12 @@ def result(tmp_path_factory):
 
 
 def answers(result, level, ctx):
+    """Строки ответов по ключу предмета; номер предмета, уверенность и источник раскодированы по meta."""
+    names = {v["id"]: k for k, v in ITEMS.items()}
+    meta = result["meta"]
     table = result[level]["normal"]["all"]["core"][str(HERO)]
-    return {row[0]: row for row in table[ctx]}
+    return {names[row[0]]: [names[row[0]], row[1], row[2], row[3], meta["conf_codes"][row[4]], row[5],
+                            meta["flags"][row[6]]] for row in table[ctx]}
 
 
 def test_effect_finds_skadi_only_against_heart(result):
@@ -97,8 +101,11 @@ def test_hero_level_and_meta(result):
 
 
 def test_answer_rows_have_source_flag(result):
+    raw = result["item"]["normal"]["all"]["core"][str(HERO)][str(HEART)]
+    assert all(len(row) == 7 and isinstance(row[0], int) for row in raw)  # компактная запись: номер предмета
+    assert result["meta"]["row_format"][0] == "item_id" and result["meta"]["flags"][0] == "exp"
     for row in answers(result, "item", str(HEART)).values():
-        assert len(row) == 7 and isinstance(row[6], str)  # правило механики или «exp» — по опыту игроков
+        assert isinstance(row[6], str)  # правило механики или «exp» — по опыту игроков
 
 
 def test_class_fallback_and_threat(result):
@@ -160,9 +167,9 @@ def test_components_and_boots_filtered(tmp_path):
 
 
 def test_empirical_bayes_finds_true_spread():
-    """BUGLOG №21: k = σ²/τ² находится и при ячейках с огромной дисперсией (доля игры)."""
+    """BUGLOG №21: разброс τ² и k = σ²/τ² находятся и при ячейках с огромной дисперсией (доля игры)."""
     import duckdb
-    from tools.compute_recs import eb_k
+    from tools.compute_recs import eb_spread
     rng = random.Random(3)
     rows = []
     for _ in range(3000):  # истинный разброс τ = 0.05, дисперсия на игру σ² = 0.25 → k = 100
@@ -173,5 +180,36 @@ def test_empirical_bayes_finds_true_spread():
     con = duckdb.connect()
     con.execute("CREATE TABLE cells(A DOUBLE, vA DOUBLE, n DOUBLE)")
     con.executemany("INSERT INTO cells VALUES (?, ?, ?)", rows)
-    assert 60 < eb_k(con, "cells", "A", 999.0, min_games=100) < 170
-    assert not 60 < eb_k(con, "cells", "A", 999.0) < 170  # без отбора ячеек оценка смещена (замер теста: 270)
+    found = eb_spread(con, "cells", "A", 999.0, min_games=100)
+    assert found["estimated"] and 0.0018 < found["tau2"] < 0.0035 and 60 < found["k"] < 170  # истинно τ² = 0.0025, k = 100
+    assert not 60 < eb_spread(con, "cells", "A", 999.0)["k"] < 170  # без отбора ячеек оценка смещена (замер теста: 270)
+
+
+def test_variances_are_sane_with_fractional_weights(tmp_path):
+    """BUGLOG №21: дробные веса по давности не дают дисперсиям уйти в миллионы или в минус."""
+    import duckdb
+    from app.threats.mechanics import MechanicsTagger, load_mechanics_config
+    from tools.compute_recs import build_item_meta, level_metrics, prepare
+    rng = random.Random(11)
+    rows = []
+    for m in range(3000):
+        start = 1780000000 - rng.randrange(0, 40 * 86400)  # веса по давности — дробные
+        items_hero = [SKADI] if rng.random() < 0.4 else []
+        win = rng.random() < 0.5
+        for slot in range(10):
+            radiant = slot < 5
+            hero = [1, 2, 3, 4, 5][slot] if radiant else [10, 11, 12, 13, 14][slot - 5]
+            rows.append({"match_id": m, "start_time": start, "duration": 1800, "game_mode": 22, "lobby_type": 7,
+                         "radiant_win": win, "patch": "7.41", "is_radiant": radiant, "hero_id": hero,
+                         "items": items_hero if hero == HERO else ([HEART] if hero == ENEMY else []),  # X есть всегда
+                         "item_neutral": 0, "net_worth": 30000 if hero == HERO else 10000 - slot, "gold_per_min": 0,
+                         "xp_per_min": 0, "kills": 0, "deaths": 0, "assists": 0, "last_hits": 0})
+    pq.write_table(pa.Table.from_pylist(rows, schema=MATCH_SCHEMA), tmp_path / "matches-a.parquet")
+    cfg = load_config()
+    meta = build_item_meta(ITEMS, MechanicsTagger(load_mechanics_config(), ITEMS, {}, {}, {}), HEROES, cfg)
+    con = duckdb.connect()
+    prepare(con, str(tmp_path / "matches-*.parquet"), None, meta, HEROES, cfg)
+    for level in ("L2", "hero"):
+        level_metrics(con, level, "true", "met")
+        worst = con.execute("SELECT max(vA), min(vA), max(vB), min(vB) FROM met").fetchone()
+        assert all(v is None or 0 <= v < 1 for v in worst), (level, worst)
