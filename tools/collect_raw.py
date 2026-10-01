@@ -315,7 +315,7 @@ def collect_matches(key: str, calls: int, max_minutes: float, out: Path, tag: st
         window["requests"] += 1
         try:
             result = http_json(f"{STEAM_URL}?key={key}&start_at_match_seq_num={seq}&matches_requested=100")["result"]
-        except (urllib.error.URLError, OSError, ValueError, KeyError) as error:
+        except Exception as error:  # любая ошибка сети — не повод ронять сбор (запуск №9 упал на 163-й мин, BUGLOG №33)
             # в лог — только тип и код ошибки: адрес запроса содержит ключ
             code = getattr(error, "code", "")
             errors, calm = errors + 1, 0
@@ -410,7 +410,7 @@ def collect_ranks(max_minutes: float, out: Path, tag: str, files: list[Path]) ->
         requests += 1
         try:
             page, headers = http_json_headers(f"{OPENDOTA}/publicMatches?less_than_match_id={cursor}")
-        except (urllib.error.URLError, OSError, ValueError) as error:
+        except Exception as error:  # любая ошибка сети — не повод ронять сбор рангов (BUGLOG №33)
             code = getattr(error, "code", "")
             left = day_left(getattr(error, "headers", None)) if code == 429 else left
             print(f"запрос {requests}: ошибка {type(error).__name__} {code}, остаток лимита на сутки {left}", flush=True)

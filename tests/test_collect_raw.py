@@ -206,3 +206,24 @@ def test_collect_jumps_between_windows(tmp_path, monkeypatch):
     monkeypatch.setattr(cr, "http_json", fake)
     stats = cr.collect_matches("key", 10_000, max_minutes=60, out=tmp_path, tag="t", windows=4)
     assert len(jumps) == 4 and stats["windows"] == 4 and stats["window_jumps"] == 3
+
+
+def test_unexpected_network_error_does_not_stop_collection(tmp_path, monkeypatch):
+    """Обрыв ответа Steam (http.client.IncompleteRead — не OSError) не роняет сбор (запуск №9, BUGLOG №33)."""
+    import http.client
+    import tools.collect_raw as cr
+    calls = {"n": 0}
+
+    def fake(url, timeout=60):
+        if "constants/patch" in url:
+            return [{"name": "7.41", "date": "2026-03-24T00:00:00Z"}]
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise http.client.IncompleteRead(b"partial")
+        return {"result": {"matches": []}}
+
+    monkeypatch.setattr(cr, "http_json", fake)
+    monkeypatch.setattr(cr, "anchor_seq_num", lambda: 1)
+    monkeypatch.setattr(cr.time, "sleep", lambda _s: None)
+    stats = cr.collect_matches("key", 10, 60, tmp_path, "t")
+    assert stats["steam_requests"] == 2  # после ошибки сбор продолжился
