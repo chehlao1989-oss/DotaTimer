@@ -25,7 +25,9 @@ ICON_W, ICON_H = 46, 34
 CAPTION_PX = 13
 HIGHLIGHT_MS = 5000
 MARGIN = 20
-BOTTOM_OFFSET = 560  # DECISIONS №13; выше килфида и чата над миникартой (300 — налезало на килфид, игра 30.09)
+# DECISIONS №13: справа вверху, под полосой FPS (замер по скриншоту автора: 0–36 px при высоте 1080). Слева игра
+# показывает килфид, «Убийца», «Сводку смерти», терзателя — полоска их перекрывала (игры 30.09 и 01.10, BUGLOG №26, №34)
+TOP_OFFSET = 60
 COLOR_BOUGHT = QColor("#3fb950")
 COLOR_AFFORDABLE = QColor("#c9a45c")
 COLOR_HIGHLIGHT = QColor("#ffd33d")
@@ -161,8 +163,8 @@ class ThreatStrip(DraggableOverlay):
         self.place(width, height, self._default_pos)
 
     def _default_pos(self, screen, w: int, h: int):
-        """Над миникартой слева: нижний край полоски на BOTTOM_OFFSET выше низа экрана."""
-        return screen.left() + MARGIN, screen.bottom() - round(BOTTOM_OFFSET * self.factor()) - h
+        """Справа вверху: под полосой FPS, с отступом MARGIN от правого края."""
+        return screen.right() + 1 - MARGIN - w, screen.top() + round(TOP_OFFSET * self.factor())
 
     def resizeEvent(self, event):
         # Новые портреты и иконки показываются только после отрисовки, и размер полоски растёт уже после

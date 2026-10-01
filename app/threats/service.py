@@ -141,6 +141,7 @@ class ThreatsService(QObject):
             return self.recommender.counters(controller.my_hero_id(), enemy.id, item) if enemy else []
 
         controller.item_counters = counters
+        controller.hint_duration = raw_config["recs_advice"].get("hint_display_sec")
         log.info("Советы из %s: матчей %s, патч %s", path.name, self.recs.meta.get("matches"), self.recs.meta.get("patch"))
 
     def _update_data(self) -> None:

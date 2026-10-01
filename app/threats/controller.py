@@ -64,6 +64,7 @@ class ThreatsController:
         self.on_enemies_changed = None  # служба пересчитывает рекомендации
         self.rank_threats = None  # функция: герои-враги → угрозы (из recs.zip); None — старая оценка
         self.item_counters = None  # функция: (герой-враг, предмет) → ключи советов (из recs.zip); None — старая
+        self.hint_duration: float | None = None  # сколько секунд держать подсказку «у врага появился предмет»
 
     # --- названия ---
     def hero_title(self, key: str) -> str:
@@ -196,7 +197,7 @@ class ThreatsController:
         for hint in self.tracker.update(snapshot.hero, snapshot.items, clock, set(self.enemies)):
             text = self.hint_text(hint)
             log.info("Подсказка: %s", text.replace("\n", " | "))
-            self.show(text, True, None)  # без голоса: «Совет по предметам» убран (автор, 30.09)
+            self.show(text, True, None, self.hint_duration)  # без голоса: «Совет по предметам» убран (автор, 30.09)
 
     def manual_item(self, hero: str, item: str, clock: int | None) -> None:
         """«Вижу у врага предмет» (горячая клавиша). Считается угрозой, раз пользователь сам отметил."""
@@ -205,7 +206,7 @@ class ThreatsController:
         for hint in self.tracker.update(hero, known | {item}, clock or 0, threats):
             text = self.hint_text(hint)
             log.info("Подсказка: %s", text.replace("\n", " | "))
-            self.show(text, True, None)
+            self.show(text, True, None, self.hint_duration)
 
     def hint_text(self, hint: ItemHint) -> str:
         enemy = self.data.hero_by_name(hint.hero)

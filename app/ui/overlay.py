@@ -41,6 +41,14 @@ def screen_factor() -> float:
     return screen.geometry().height() / 1080 if screen else 1.0
 
 
+def clamp_to_screen(x: int, y: int, width: int, height: int, screen) -> tuple[int, int]:
+    """Окно целиком на экране: сохранённое место + новая ширина не должны вылезать за край
+    (окно сообщений на x = 2121 при ширине 560 обрезалось справа на 2560 — игра 01.10, BUGLOG №34)."""
+    x = max(screen.left(), min(x, screen.right() + 1 - width))
+    y = max(screen.top(), min(y, screen.bottom() + 1 - height))
+    return x, y
+
+
 def overlay_font(px: int) -> QFont:
     font = QFont(FONT_FAMILY)
     font.setPixelSize(px)
@@ -71,10 +79,12 @@ class DraggableOverlay(QWidget):
 
     def place(self, width: int, height: int, default_pos) -> None:
         self.resize(width, height)
+        screen = QGuiApplication.primaryScreen().availableGeometry()
         if self.settings.x is None or self.settings.y is None:
-            self.move(*default_pos(QGuiApplication.primaryScreen().availableGeometry(), width, height))
+            x, y = default_pos(screen, width, height)
         else:
-            self.move(self.settings.x, self.settings.y)
+            x, y = self.settings.x, self.settings.y
+        self.move(*clamp_to_screen(x, y, width, height, screen))
 
     def relayout(self) -> None:
         """Пересчитать размеры после смены масштаба (переопределяется)."""

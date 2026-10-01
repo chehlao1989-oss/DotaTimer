@@ -66,3 +66,16 @@ def test_manual_item():
     ctrl.set_enemies(["medusa"], show_card=False)
     ctrl.manual_item("medusa", "heart", 900)
     assert "У Medusa появился Heart of Tarrasque" in shown[-1][0]
+
+
+def test_item_hint_uses_hint_duration():
+    """Подсказку по предмету держим дольше таймеров: 6 с автор не успевал прочитать (игра 01.10, BUGLOG №34)."""
+    shown = []
+    ctrl = ThreatsController(DATA, tagger(), advisor(), load_threat_config(), ThreatSettings(),
+                             lambda text, important, voice, *rest: shown.append(rest), lambda: False)
+    ctrl.hint_duration = 12
+    ctrl.on_game_state(0, True, "npc_dota_hero_sven", "radiant", True)
+    ctrl.set_enemies(["alchemist", "medusa", "lion"])
+    shown.clear()
+    ctrl.on_inventory(InventorySnapshot("alchemist", ("heart",), (None, None, None), None), 1200)
+    assert shown and shown[-1] == (12,)

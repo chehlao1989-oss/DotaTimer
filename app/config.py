@@ -31,7 +31,7 @@ class OverlaySettings:
 class StripSettings:
     """Полоска угроз: портреты угроз и иконки контр-предметов."""
 
-    x: int | None = None  # None = по умолчанию над миникартой справа
+    x: int | None = None  # None = по умолчанию справа вверху, под полосой FPS
     y: int | None = None
     scale: float = 1.0
     opacity: float = 0.95

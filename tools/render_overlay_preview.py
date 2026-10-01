@@ -42,9 +42,17 @@ MINIMAP_REF = (0, 798, 328, 282)  # x, y, ширина, высота при вы
 # Килфид и чат над миникартой слева. Замер по скриншоту автора 20260930224009 (игра 30.09): 2 строки килфида
 # на 685–745 px; с новыми убийствами растёт вверх — запас на ~6 строк до 540 px (оценка).
 KILLFEED_REF = (0, 540, 380, 250)
+# Правый край (окна программы с 01.10 справа, BUGLOG №34). Замер по скриншоту автора 20261001135604 (2560×1080),
+# глазами по кропу, ±5 px; отступы от правого края. Полоса FPS/задержки — правые 215 px, высота 42 px;
+# лавка (быстрая покупка, золото) — правые 290 px от 975 px вниз. Миникарта справа у некоторых игроков (слова
+# автора 01.10) — зеркало MINIMAP_REF.
+FPS_REF = (215, 0, 215, 42)  # отступ от правого края, y, ширина, высота при высоте экрана 1080
+SHOP_REF = (290, 975, 290, 105)
 STEAM_SCREENS = Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")) / "Steam" / "userdata"
 SAMPLE_MESSAGES = [(ru.MSG_POWER_RUNE.format(sec=30), False),
-                   (ru.MSG_FIRST_POWER_RUNE_EARLY.format(time="6:00"), True)]
+                   (ru.MSG_FIRST_POWER_RUNE_EARLY.format(time="6:00"), True),
+                   (ru.HINT_ITEM.format(hero="Phantom Assassin", item="Butterfly",
+                                        counters="Monkey King Bar, Bloodthorn, Silver Edge"), True)]
 SAMPLE_THREATS = [ThreatRecommendation("axe", (RecItem("blade_mail", 1, "hero", 6.0, 900),
                                                RecItem("black_king_bar", 1, "hero", 4.0, 900))),
                   ThreatRecommendation("phantom_assassin", (RecItem("monkey_king_bar", 1, "hero", 9.0, 800),)),
@@ -68,7 +76,15 @@ def hud_zones(w: int, h: int) -> dict[str, QRect]:
     inv = hud.inventory_slots()
     mx, my, mw, mh = MINIMAP_REF
     kx, ky, kw, kh = KILLFEED_REF
+
+    def right(ref):
+        off, y, rw, rh = ref
+        return QRect(w - round(off * s), round(y * s), round(rw * s), round(rh * s))
+
     return {
+        "миникарта справа": right((mx + mw, my, mw, mh)),
+        "FPS": right(FPS_REF),
+        "лавка": right(SHOP_REF),
         "миникарта": QRect(round(mx * s), round(my * s), round(mw * s), round(mh * s)),
         "килфид и чат": QRect(round(kx * s), round(ky * s), round(kw * s), round(kh * s)),
         "верхняя панель": QRect(top[0].x, top[0].y, top[-1].x + top[-1].w - top[0].x, top[0].h),
@@ -103,7 +119,8 @@ def real_threats():
     return threats, {e: data.hero_by_name(e).localized for e in REAL_SCENARIO["enemies"]}
 
 
-def build_windows(w: int, h: int, images_dir: Path) -> list[QWidget]:
+def build_windows(w: int, h: int, images_dir: Path, overlay_settings: OverlaySettings,
+                  strip_settings: StripSettings) -> list[QWidget]:
     """Окна программы как на экране w×h: подменяем размер экрана, от которого они считают масштаб и место."""
     screen = QRect(0, 0, w, h)
     overlay_mod.screen_factor = lambda: h / 1080
@@ -111,18 +128,19 @@ def build_windows(w: int, h: int, images_dir: Path) -> list[QWidget]:
     def place(self, width, height, default_pos):
         self.resize(width, height)
         if self.settings.x is None or self.settings.y is None:
-            self.move(*default_pos(screen, width, height))
+            x, y = default_pos(screen, width, height)
         else:
-            self.move(self.settings.x, self.settings.y)
+            x, y = self.settings.x, self.settings.y
+        self.move(*overlay_mod.clamp_to_screen(x, y, width, height, screen))
 
     overlay_mod.DraggableOverlay.place = place
     from app.ui.threat_strip import ThreatStrip  # после подмены: полоска берёт overlay_font и place отсюда
-    messages = overlay_mod.Overlay(OverlaySettings())
+    messages = overlay_mod.Overlay(overlay_settings)
     for text, important in SAMPLE_MESSAGES:
         messages.show_message(text, important=important, duration_sec=3600)
     for frame in messages._frames():
         frame.setGraphicsEffect(None)  # эффект плавного угасания не рисуется через render() — снимаем для снимка
-    strip = ThreatStrip(StripSettings(), images_dir)
+    strip = ThreatStrip(strip_settings, images_dir)
     threats, titles = real_threats() or (SAMPLE_THREATS, {"axe": "Axe", "phantom_assassin": "Phantom Assassin",
                                                           "sniper": "Sniper"})
     strip.update_recommendations(threats, titles)
@@ -133,12 +151,13 @@ def build_windows(w: int, h: int, images_dir: Path) -> list[QWidget]:
     return [messages, strip]
 
 
-def render(screen_path: Path, w: int, h: int, images_dir: Path, out: Path) -> list[str]:
+def render(screen_path: Path, w: int, h: int, images_dir: Path, out: Path, case: str = "default",
+           overlay_settings: OverlaySettings | None = None, strip_settings: StripSettings | None = None) -> list[str]:
     image = QImage(str(screen_path)).convertToFormat(QImage.Format_ARGB32)
     stretched = image.width() != w or image.height() != h
     if stretched:
         image = image.scaled(w, h, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
-    windows = build_windows(w, h, images_dir)
+    windows = build_windows(w, h, images_dir, overlay_settings or OverlaySettings(), strip_settings or StripSettings())
     zones = hud_zones(w, h)
     painter = QPainter(image)
     painter.setRenderHint(QPainter.Antialiasing)
@@ -160,13 +179,13 @@ def render(screen_path: Path, w: int, h: int, images_dir: Path, out: Path) -> li
                       f"{'' if inside else ' — ВЫХОДИТ ЗА ЭКРАН'}")
     painter.setPen(QColor(255, 255, 255))
     painter.setFont(QFont("Segoe UI", 14))
-    painter.drawText(12, h - 12, f"{w}×{h}{' (скриншот растянут)' if stretched else ''} — {screen_path.name}")
+    painter.drawText(12, h - 12, f"{w}×{h}{' (скриншот растянут)' if stretched else ''} — {screen_path.name} — {case}")
     painter.end()
     for widget in windows:
         widget.close()
         widget.deleteLater()
     QApplication.processEvents()
-    path = out / f"{screen_path.stem}_{w}x{h}.png"
+    path = out / f"{screen_path.stem}_{w}x{h}_{case}.png"
     image.save(str(path))
     return [str(path)] + report
 
@@ -186,12 +205,20 @@ def main() -> None:
     screens = find_screens(args.screens)[: args.limit]
     if not screens:
         sys.exit("нет скриншотов: укажи --screens")
+    # окна стоят не только по умолчанию: автор их двигал, и сохранённое место в settings.json тоже проверяем
+    # (BUGLOG №34: окно сообщений на x = 2121 при новой ширине вылезло за экран — предпросмотр этого не видел)
+    from app.config import load_settings
+    saved = load_settings()
+    cases = [("default", None, None)]
+    if None not in (saved.overlay.x, saved.overlay.y) or None not in (saved.strip.x, saved.strip.y):
+        cases.append(("saved", saved.overlay, saved.strip))
     for screen in screens:
         for w, h in TARGETS:
-            lines = render(screen, w, h, images_dir, out)
-            print(lines[0])
-            for line in lines[1:]:
-                print("   ", line)
+            for case, overlay_settings, strip_settings in cases:
+                lines = render(screen, w, h, images_dir, out, case, overlay_settings, strip_settings)
+                print(lines[0])
+                for line in lines[1:]:
+                    print("   ", line)
 
 
 if __name__ == "__main__":

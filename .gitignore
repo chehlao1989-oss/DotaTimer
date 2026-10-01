@@ -35,3 +35,6 @@ stats.json
 
 # Настройки Claude Code проекта (хуки) — коммитим
 !.claude/settings.json
+
+# Временные файлы DuckDB при расчёте (tools/compute_recs.py)
+.tmp/
