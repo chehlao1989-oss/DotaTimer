@@ -85,6 +85,16 @@ def test_collection_schedule():
     assert "--max-minutes 20" in workflow and "timeout-minutes: 350" in workflow
 
 
+def test_alarm_dispatch_uses_guard():
+    """BUGLOG №37: будильник (workflow_dispatch с guard=true) проходит через сторожа, как расписание;
+    ручная кнопка (guard по умолчанию не отмечен) собирает всегда."""
+    workflow = (ROOT / ".github" / "workflows" / "stats.yml").read_text(encoding="utf-8")
+    block = workflow[workflow.index("workflow_dispatch:"):workflow.index("permissions:")]
+    assert "guard:" in block and "type: boolean" in block and "default: false" in block
+    guard_step = workflow[workflow.index("id: guard"):workflow.index("collect_guard.py")]
+    assert "if: github.event_name == 'schedule' || inputs.guard" in guard_step
+
+
 def test_no_hand_written_counter_table():
     """№8: связок «X против Y» из головы нет; правила механик — ровно 15 утверждённых автором."""
     assert not (ROOT / "data" / "counters.json").exists()
