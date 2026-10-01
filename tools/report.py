@@ -17,7 +17,7 @@ import re
 import statistics
 import sys
 import urllib.request
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 REPO = "chehlao1989-oss/DotaTimer"
@@ -66,21 +66,63 @@ def legacy_matches(assets: list[dict], runs: list[dict]) -> int:
     return len(ids)
 
 
-def report(runs: list[dict], assets: list[dict], run_number: str | None = None, legacy: int = 0) -> list[str]:
+# Части выкладываются каждые 15 мин (DECISIONS №4): если у запуска без файла итогов последняя часть старше
+# 2 × 15 мин, запуск не идёт, а оборвался (запуск №9 01.10 показывался как «идёт», BUGLOG №36).
+STALE_MIN = 30
+
+
+def _parse_time(value: str) -> datetime:
+    return datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ")
+
+
+def part_groups(assets: list[dict], runs: list[dict]) -> dict[str, list[dict]]:
+    """Части matches-<тег>-pNN без run-файла, по тегам запусков."""
+    tags = {r["tag"] for r in runs}
+    groups: dict[str, list[dict]] = {}
+    for a in sorted(assets, key=lambda a: a["name"]):
+        if re.match(r"matches-.*-p\d+\.parquet$", a["name"]) and a["name"][8:23] not in tags:
+            groups.setdefault(a["name"][8:23], []).append(a)
+    return groups
+
+
+def is_running(parts: list[dict], now: datetime) -> bool:
+    last = max(_parse_time(a["updated_at"]) for a in parts)
+    return (now - last).total_seconds() < STALE_MIN * 60
+
+
+def unique_matches(parts: list[dict]) -> int:
+    import pyarrow.parquet as pq
+    ids = set()
+    for a in parts:
+        with urllib.request.urlopen(a["browser_download_url"], timeout=300) as response:
+            ids.update(pq.read_table(io.BytesIO(response.read()), columns=["match_id"]).column("match_id").to_pylist())
+    return len(ids)
+
+
+def broken_runs(assets: list[dict], runs: list[dict], now: datetime, count=unique_matches) -> dict[str, int]:
+    """Оборванные запуски (части есть, файла итогов нет, выгрузки давно не было): тег → матчей."""
+    return {tag: count(parts) for tag, parts in part_groups(assets, runs).items() if not is_running(parts, now)}
+
+
+def report(runs: list[dict], assets: list[dict], run_number: str | None = None, legacy: int = 0,
+           broken: dict[str, int] | None = None) -> list[str]:
     if not runs:
         return ["нет файлов run-*.json в релизе: отчёт появится после первого запуска с новым сборщиком"]
     run = next((r for r in runs if str(r.get("run_number")) == str(run_number)), None) if run_number else runs[-1]
     if run is None:
         return [f"запуск №{run_number} не найден"]
-    total = sum(r.get("matches", 0) for r in runs) + legacy
+    broken = broken or {}
+    total = sum(r.get("matches", 0) for r in runs) + legacy + sum(broken.values())
     data_bytes = sum(a["size"] for a in assets if a["name"].endswith(".parquet"))
     run_bytes = run.get("matches_bytes", 0) + run.get("ranks_bytes", 0)
     ours = run.get("ours") or 0
     ranked = run.get("ranked_ours")
     label = f"запуск №{run.get('run_number')} ({run['tag']} UTC)"
+    broken_note = (f"; {_n(sum(broken.values()))} — оборванные запуски без файла итогов ({', '.join(sorted(broken))} UTC)"
+                   if broken else "")
     return [
         f"1. Матчей: {_n(run.get('matches', 0))} за {label}; всего: {_n(total)} "
-        f"(замер: законченные запуски; из них {_n(legacy)} — файлы старого сборщика; идущий запуск — --live)",
+        f"(замер: части в релизе; из них {_n(legacy)} — файлы старого сборщика{broken_note}; идущий запуск — --live)",
         f"2. Скорость: {_n(run.get('matches_per_hour', 0))} матчей/час, {_n(run.get('steam_requests', 0))} запросов Steam "
         f"за {run.get('minutes', 0):.0f} мин, пауза в конце {run.get('final_pause_sec')} сек (замер)",
         f"3. Ошибок 429 от Steam: {run.get('steam_429', 0)} (замер)",
@@ -94,23 +136,20 @@ def report(runs: list[dict], assets: list[dict], run_number: str | None = None, 
     ]
 
 
-def live(assets: list[dict], runs: list[dict]) -> list[str]:
-    """Идущий запуск: части matches-<тег>-pNN без run-файла. Скорость — по времени выгрузки первой и последней части."""
-    import pyarrow.parquet as pq
-    tags = {r["tag"] for r in runs}
-    parts = sorted((a for a in assets if re.match(r"matches-.*-p\d+\.parquet$", a["name"]) and a["name"][8:23] not in tags),
-                   key=lambda a: a["name"])
-    if not parts:
-        return ["идущего запуска с частями нет (или он уже закончился — см. отчёт без --live)"]
-    tag = parts[-1]["name"][8:23]
-    parts = [a for a in parts if a["name"][8:23] == tag]
-    matches = 0
-    for a in parts:
-        with urllib.request.urlopen(a["browser_download_url"], timeout=300) as response:
-            table = pq.read_table(io.BytesIO(response.read()), columns=["match_id"])
-        matches += len(set(table.column("match_id").to_pylist()))
+def live(assets: list[dict], runs: list[dict], now: datetime | None = None, count=unique_matches) -> list[str]:
+    """Идущий запуск: части без run-файла, выложенные за последние STALE_MIN мин. Скорость — по времени выгрузки."""
+    now = now or datetime.now(UTC).replace(tzinfo=None)
+    groups = part_groups(assets, runs)
+    running = [tag for tag, parts in groups.items() if is_running(parts, now)]
+    if not running:
+        broken = sorted(set(groups) - set(running))
+        return ["идущего запуска нет (законченный — см. отчёт без --live)"
+                + (f"; оборванные без файла итогов: {', '.join(broken)} UTC" if broken else "")]
+    tag = max(running)
+    parts = groups[tag]
+    matches = count(parts)
     started = datetime.strptime(tag, "%Y-%m-%d-%H%M")
-    last = datetime.strptime(parts[-1]["updated_at"], "%Y-%m-%dT%H:%M:%SZ")
+    last = max(_parse_time(a["updated_at"]) for a in parts)
     hours = max((last - started).total_seconds() / 3600, 1e-6)
     return [f"идёт запуск {tag} UTC: выложено частей {len(parts)}, матчей {_n(matches)} "
             f"за {hours * 60:.0f} мин до последней выгрузки ≈ {_n(round(matches / hours))} матчей/час "
@@ -156,7 +195,8 @@ def main() -> None:
         return
     assets = release_assets()
     runs = load_runs(assets)
-    lines = live(assets, runs) if args.live else report(runs, assets, args.run, legacy_matches(assets, runs))
+    lines = (live(assets, runs) if args.live else
+             report(runs, assets, args.run, legacy_matches(assets, runs), broken_runs(assets, runs, datetime.now(UTC).replace(tzinfo=None))))
     print("\n".join(lines))
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:
