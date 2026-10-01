@@ -44,6 +44,9 @@ ANCHOR_TRIES = 10  # DECISIONS №7; сколько настоящих матч�
 PAUSE_START_SEC, PAUSE_MIN_SEC, PAUSE_MAX_SEC = 3.0, 1.0, 10.0  # DECISIONS №2
 PAUSE_UP_FACTOR, PAUSE_DOWN_FACTOR, CALM_CALLS = 1.5, 0.9, 20  # DECISIONS №2
 RETRY_AFTER_DEFAULT_SEC, ERROR_PAUSE_SEC, MAX_ERRORS_IN_ROW = 20.0, 10, 20  # DECISIONS №2, №3
+WINDOW_SPAN_HOURS = 24  # окна сбора — по последним суткам (BUGLOG №24)
+WINDOW_MIN_AGE_HOURS = 1  # самое свежее окно — не ближе часа к настоящему (матчи должны доиграться)
+SEEK_TOLERANCE_SEC, SEEK_TRIES = 600, 8  # поиск номера матча по времени: точность и число шагов
 LONG_WAIT_SEC = 300  # DECISIONS №3; после MAX_ERRORS_IN_ROW ошибок подряд ждём и продолжаем (до конца отведённого времени)
 LOG_EVERY_SEC = 600  # строка в журнал каждые 10 мин
 SAVE_EVERY_SEC = 900  # DECISIONS №4; часть файла в релиз каждые 15 мин: падение теряет не больше 15 мин
@@ -209,18 +212,80 @@ class PartSaver:
         return True
 
 
+def window_targets(run_start: float, windows: int, span_hours: float = WINDOW_SPAN_HOURS) -> list[float]:
+    """Моменты (unix-время) начала окон сбора: равномерно по последним span_hours часам, от свежих к старым.
+
+    Не ближе WINDOW_MIN_AGE_HOURS к настоящему (матчи должны доиграться). Запуски во вторую половину суток (UTC ≥ 12)
+    сдвинуты на полшага: два запуска в сутки вместе покрывают каждый час (BUGLOG №24, ветка collector-freshness).
+    """
+    step = span_hours * 3600 / windows
+    offset = step / 2 if time.gmtime(run_start).tm_hour >= 12 else 0.0
+    newest = run_start - WINDOW_MIN_AGE_HOURS * 3600
+    return [newest - offset - k * step for k in range(windows)]
+
+
+def _page_point(page: list[dict]) -> tuple[int, float, int] | None:
+    """Середина страницы /publicMatches: (match_id, start_time, match_seq_num)."""
+    rows = sorted((m for m in page or [] if m.get("start_time") and m.get("match_seq_num")), key=lambda m: m["match_id"])
+    if not rows:
+        return None
+    mid = rows[len(rows) // 2]
+    return mid["match_id"], float(mid["start_time"]), mid["match_seq_num"]
+
+
+def seq_for_time(target: float, tolerance_sec: float = SEEK_TOLERANCE_SEC, tries: int = SEEK_TRIES) -> int | None:
+    """Номер последовательности матча, начатого примерно в target (unix-время), — поиск секущей по match_id.
+
+    /publicMatches отдаёт match_id, match_seq_num и start_time; номера матчей растут почти равномерно во времени,
+    поэтому 3–6 запросов хватает, чтобы попасть в tolerance_sec. None — не нашли (тогда окно пропускаем).
+    """
+    try:
+        newest = _page_point(http_json(f"{OPENDOTA}/publicMatches"))
+        older = _page_point(http_json(f"{OPENDOTA}/publicMatches?less_than_match_id={newest[0] - ANCHOR_BACK_IDS}"))
+    except (urllib.error.URLError, OSError, ValueError, KeyError, TypeError):
+        return None
+    points = [p for p in (newest, older) if p]
+    for _ in range(tries):
+        best = min(points, key=lambda p: abs(p[1] - target))
+        if abs(best[1] - target) <= tolerance_sec:
+            return best[2]
+        a, b = sorted(points, key=lambda p: abs(p[1] - target))[:2]
+        if a[1] == b[1]:
+            return None
+        guess = int(a[0] + (target - a[1]) * (b[0] - a[0]) / (b[1] - a[1]))
+        try:
+            point = _page_point(http_json(f"{OPENDOTA}/publicMatches?less_than_match_id={guess}"))
+        except (urllib.error.URLError, OSError, ValueError, KeyError):
+            return None
+        if point is None:
+            return None
+        points.append(point)
+        time.sleep(OPENDOTA_PAUSE_SEC)
+    best = min(points, key=lambda p: abs(p[1] - target))
+    return best[2] if abs(best[1] - target) <= tolerance_sec * 3 else None
+
+
 def collect_matches(key: str, calls: int, max_minutes: float, out: Path, tag: str, state: Path | None = None,
-                    release: str | None = None) -> dict:
+                    release: str | None = None, windows: int = 0) -> dict:
     patches = http_json(f"{OPENDOTA}/constants/patch")
-    seq = resume_seq_num(state)
-    print(f"старт: {'продолжаю с последнего сохранённого матча' if seq else 'от якоря (матчи суточной давности)'}; "
-          f"пауза {PAUSE_START_SEC} сек", flush=True)
-    seq = seq or anchor_seq_num()
+    targets = window_targets(time.time(), windows) if windows else []
+    seq = None
+    if targets:  # окна по суткам: свежие данные за все часы (BUGLOG №24); продолжение прошлого запуска не нужно
+        seq = seq_for_time(targets[0])
+        print(f"старт: окна по суткам — {len(targets)} шт., первое {time.strftime('%d.%m %H:%M', time.gmtime(targets[0]))} UTC",
+              flush=True)
+    if seq is None:
+        seq = resume_seq_num(state)
+        print(f"старт: {'продолжаю с последнего сохранённого матча' if seq else 'от якоря (матчи суточной давности)'}; "
+              f"пауза {PAUSE_START_SEC} сек", flush=True)
+        seq = seq or anchor_seq_num()
     saver = PartSaver(out, tag, release)
     rows, kept, errors, calm, pause = [], 0, 0, 0, PAUSE_START_SEC
-    requests = limits = 0
+    requests = limits = jumps = 0
     started = time.monotonic()
     deadline = started + max_minutes * 60
+    per_window = max_minutes * 60 / len(targets) if targets else None
+    window_index, window_deadline = 0, (started + per_window if targets else None)
     last_save = last_log = started
     window = {"requests": 0, "kept": 0, "limits": 0}
     for i in range(calls):
@@ -228,6 +293,14 @@ def collect_matches(key: str, calls: int, max_minutes: float, out: Path, tag: st
         if now > deadline:
             print(f"время вышло ({max_minutes:.0f} мин), сохраняю собранное", flush=True)
             break
+        if targets and now >= window_deadline and window_index + 1 < len(targets):
+            window_index += 1
+            window_deadline += per_window
+            jump = seq_for_time(targets[window_index])
+            if jump is not None:
+                seq, jumps = jump, jumps + 1
+            print(f"окно {window_index + 1}/{len(targets)}: {time.strftime('%d.%m %H:%M', time.gmtime(targets[window_index]))} UTC"
+                  f"{'' if jump is not None else ' — номер не найден, продолжаю подряд'}", flush=True)
         if now - last_log >= LOG_EVERY_SEC:
             span = (now - last_log) / 60
             print(f"{(now - started) / 60:.0f} мин: {window['requests'] / span:.1f} запросов/мин, "
@@ -242,7 +315,7 @@ def collect_matches(key: str, calls: int, max_minutes: float, out: Path, tag: st
         window["requests"] += 1
         try:
             result = http_json(f"{STEAM_URL}?key={key}&start_at_match_seq_num={seq}&matches_requested=100")["result"]
-        except (urllib.error.URLError, OSError, ValueError, KeyError) as error:
+        except Exception as error:  # любая ошибка сети — не повод ронять сбор (запуск №9 упал на 163-й мин, BUGLOG №33)
             # в лог — только тип и код ошибки: адрес запроса содержит ключ
             code = getattr(error, "code", "")
             errors, calm = errors + 1, 0
@@ -268,6 +341,9 @@ def collect_matches(key: str, calls: int, max_minutes: float, out: Path, tag: st
         matches = result.get("matches") or []
         if not matches:
             print("Steam отдал пустой список — дошли до свежих матчей", flush=True)
+            if targets and window_index + 1 < len(targets):
+                window_deadline = time.monotonic()  # сразу к следующему окну
+                continue
             break
         seq = matches[-1]["match_seq_num"] + 1
         for match in matches:
@@ -281,7 +357,8 @@ def collect_matches(key: str, calls: int, max_minutes: float, out: Path, tag: st
     minutes = (time.monotonic() - started) / 60
     stats = {"steam_requests": requests, "steam_429": limits, "matches": kept, "minutes": round(minutes, 1),
              "matches_per_hour": round(kept / max(minutes, 0.01) * 60), "final_pause_sec": round(pause, 2),
-             "parts": saver.parts, "matches_bytes": saver.bytes, "all_saved": saved}
+             "parts": saver.parts, "matches_bytes": saver.bytes, "all_saved": saved,
+             "windows": len(targets), "window_jumps": jumps}
     print(f"итог: матчей {kept} за {minutes:.0f} мин ({stats['matches_per_hour']} в час), запросов {requests}, "
           f"429: {limits}, частей {saver.parts}, {saver.bytes // 1024} КБ, всё сохранено: {saved}", flush=True)
     return stats
@@ -333,7 +410,7 @@ def collect_ranks(max_minutes: float, out: Path, tag: str, files: list[Path]) ->
         requests += 1
         try:
             page, headers = http_json_headers(f"{OPENDOTA}/publicMatches?less_than_match_id={cursor}")
-        except (urllib.error.URLError, OSError, ValueError) as error:
+        except Exception as error:  # любая ошибка сети — не повод ронять сбор рангов (BUGLOG №33)
             code = getattr(error, "code", "")
             left = day_left(getattr(error, "headers", None)) if code == 429 else left
             print(f"запрос {requests}: ошибка {type(error).__name__} {code}, остаток лимита на сутки {left}", flush=True)
@@ -397,6 +474,8 @@ def main() -> None:
     parser.add_argument("--state", help="для matches: папка с next_seq.txt или последним файлом матчей прошлого запуска")
     parser.add_argument("--release", help="релиз GitHub, куда сразу выкладывать части (на раннере Actions)")
     parser.add_argument("--tag", help="тег запуска (общий для matches и ranks); по умолчанию — текущее время UTC")
+    parser.add_argument("--windows", type=int, default=0,
+                        help="для matches: окна по последним суткам (0 — продолжать подряд с прошлого запуска)")
     args = parser.parse_args()
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -406,7 +485,7 @@ def main() -> None:
         if not key:
             sys.exit("нет STEAM_API_KEY")
         stats = collect_matches(key, args.calls, args.max_minutes, out, tag,
-                                Path(args.state) if args.state else None, args.release)
+                                Path(args.state) if args.state else None, args.release, args.windows)
     else:
         if not args.matches:
             sys.exit("для ranks нужен --matches")

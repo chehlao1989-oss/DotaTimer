@@ -76,10 +76,12 @@ def test_opendota_limit_by_header_only():
 
 
 def test_collection_schedule():
-    """№6: 2 запуска в сутки (вариант Б автора), 290 мин на матчи и 20 на ранги."""
+    """№6: расписание каждый час + сторож 11 ч (реально 2 сбора в сутки), на main 290 мин и 12 окон, ранги 20 мин."""
+    import tools.collect_guard as guard
     workflow = (ROOT / ".github" / "workflows" / "stats.yml").read_text(encoding="utf-8")
-    assert 'cron: "17 11,23 * * *"' in workflow
-    assert "matches --out raw --state state --release data-raw --tag \"$TAG\" --max-minutes 290" in workflow
+    assert 'cron: "17 * * * *"' in workflow and "collect_guard.py --min-hours 11" in workflow
+    assert guard.MIN_HOURS == 11
+    assert "github.ref_name == 'main' && '290'" in workflow and "github.ref_name == 'main' && '12'" in workflow
     assert "--max-minutes 20" in workflow and "timeout-minutes: 350" in workflow
 
 

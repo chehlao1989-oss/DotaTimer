@@ -1,13 +1,15 @@
-# Постоянный сбор сырых матчей и рангов (docs/RECOMMENDER_SPEC.md, раздел 2; лимиты — docs/DATA_SOURCES.md).
-# Запуск 2 раза в сутки (вариант Б автора); каждый запуск продолжает с последнего сохранённого матча (next_seq.txt в релизе).
-# Матчи выкладываются в релиз «data-raw» частями каждые 15 минут: matches-<тег>-pNN.parquet,
-# потом ranks-<тег>.parquet и run-<тег>.json (цифры запуска для отчёта). В историю репозитория данные не попадают.
+# Сбор сырых матчей и рангов (docs/RECOMMENDER_SPEC.md, раздел 2; лимиты — docs/DATA_SOURCES.md).
+# Расписание — каждый час, но настоящий сбор только если с прошлого успешного прошло ≥ 11 ч (сторож, DECISIONS №6):
+# реальных сборов 2 в сутки, а пропуск запуска GitHub стоит час, а не полсуток (BUGLOG №32).
+# Сбор «окнами по суткам»: 12 прыжков к матчам разных часов последних суток (BUGLOG №24).
+# Матчи выкладываются частями каждые 15 минут (matches-<тег>-pNN.parquet), потом ranks-<тег>.parquet и run-<тег>.json.
+# Пробный запуск на ветке collector-freshness: 18 мин, 3 окна, отдельный релиз data-raw-trial, без рангов.
 name: Статистика матчей
 
 on:
   schedule:
-    - cron: "17 11,23 * * *"  # DECISIONS №6; 2 раза в сутки: 02:17 и 14:17 по Москве (не на :00 — BUGLOG №23)
-  workflow_dispatch: {}   # кнопка «Run workflow» для ручного запуска
+    - cron: "17 * * * *"  # DECISIONS №6; каждый час, сторож решает, собирать ли
+  workflow_dispatch: {}   # кнопка «Run workflow» — собирает всегда, без сторожа (на ветке — пробный режим)
 
 permissions:
   contents: write  # чтобы добавлять файлы в релиз
@@ -22,6 +24,10 @@ jobs:
     timeout-minutes: 350
     env:
       GH_TOKEN: ${{ github.token }}
+      MAIN: ${{ github.ref_name == 'main' }}
+      RELEASE: ${{ github.ref_name == 'main' && 'data-raw' || 'data-raw-trial' }}
+      MINUTES: ${{ github.ref_name == 'main' && '290' || '18' }}
+      WINDOWS: ${{ github.ref_name == 'main' && '12' || '3' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -29,41 +35,47 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Сторож (только по расписанию)
+        id: guard
+        if: github.event_name == 'schedule'
+        run: python tools/collect_guard.py --min-hours 11
+
       - name: Библиотеки сборщика
+        if: steps.guard.outputs.run != 'false'
         run: pip install -r requirements-collector.txt
 
-      - name: Откуда продолжить (последний сохранённый матч)
+      - name: Подготовка (релиз, тег, откуда продолжить)
+        if: steps.guard.outputs.run != 'false'
         run: |
           echo "TAG=$(date -u +%Y-%m-%d-%H%M)" >> "$GITHUB_ENV"
-          gh release view data-raw >/dev/null 2>&1 || gh release create data-raw --title "Сырые матчи" \
+          gh release view "$RELEASE" >/dev/null 2>&1 || gh release create "$RELEASE" --title "Сырые матчи ($RELEASE)" \
             --notes "Сырые сыгранные публичные матчи (Steam Web API) и их ранги (OpenDota). Части по 15 минут, по строке на игрока, без аккаунтов. Формат: docs/RECOMMENDER_SPEC.md, раздел 2." \
             --prerelease
           mkdir -p state
           gh release download data-raw -p next_seq.txt -D state || true
-          if [ ! -f state/next_seq.txt ]; then
-            latest=$(gh release view data-raw --json assets -q '.assets[].name' | grep '^matches-' | sort | tail -1 || true)
-            if [ -n "$latest" ]; then gh release download data-raw -p "$latest" -D state; fi
-          fi
           ls -la state
 
       - name: Собрать матчи (Steam)
         id: matches
+        if: steps.guard.outputs.run != 'false'
         env:
           STEAM_API_KEY: ${{ secrets.STEAM_API_KEY }}
-        run: python tools/collect_raw.py matches --out raw --state state --release data-raw --tag "$TAG" --max-minutes 290
+        run: python tools/collect_raw.py matches --out raw --state state --release "$RELEASE" --tag "$TAG" --max-minutes "$MINUTES" --windows "$WINDOWS"
 
       - name: Собрать ранги (OpenDota)
+        if: steps.guard.outputs.run != 'false' && github.ref_name == 'main'
         continue-on-error: true  # без рангов матчи всё равно нужны
         # число запросов — по остатку лимита из заголовка ответа OpenDota (лимит по IP раннера)
-        run: python tools/collect_raw.py ranks --matches "raw/matches-*.parquet" --out raw --release data-raw --tag "$TAG" --max-minutes 20
+        run: python tools/collect_raw.py ranks --matches "raw/matches-*.parquet" --out raw --release "$RELEASE" --tag "$TAG" --max-minutes 20
 
       - name: Довыложить файлы, если выгрузка по ходу не прошла
-        if: ${{ !cancelled() && hashFiles('raw/*.parquet') != '' }}
+        if: ${{ !cancelled() && steps.guard.outputs.run != 'false' && hashFiles('raw/*.parquet') != '' }}
         run: |
-          gh release upload data-raw raw/*.parquet raw/run-*.json --clobber
-          if [ "${{ steps.matches.outcome }}" = "success" ]; then gh release upload data-raw raw/next_seq.txt --clobber; fi
+          # только то, что есть: если сбор упал, файла итогов run-*.json нет (запуск №9, BUGLOG №33)
+          for f in raw/*.parquet raw/run-*.json; do if [ -e "$f" ]; then gh release upload "$RELEASE" "$f" --clobber; fi; done
+          if [ "${{ steps.matches.outcome }}" = "success" ] && [ "$MAIN" = "true" ]; then gh release upload "$RELEASE" raw/next_seq.txt --clobber; fi
 
       - name: Отчёт о запуске
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.guard.outputs.run != 'false' && github.ref_name == 'main' }}
         continue-on-error: true
         run: python tools/report.py --run "$GITHUB_RUN_NUMBER"
