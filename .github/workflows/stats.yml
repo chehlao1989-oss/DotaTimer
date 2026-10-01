@@ -3,13 +3,20 @@
 # реальных сборов 2 в сутки, а пропуск запуска GitHub стоит час, а не полсуток (BUGLOG №32).
 # Сбор «окнами по суткам»: 12 прыжков к матчам разных часов последних суток (BUGLOG №24).
 # Матчи выкладываются частями каждые 15 минут (matches-<тег>-pNN.parquet), потом ranks-<тег>.parquet и run-<тег>.json.
-# Пробный запуск на ветке collector-freshness: 18 мин, 3 окна, отдельный релиз data-raw-trial, без рангов.
+# Пробный запуск на ветке (не main): 18 мин, 3 окна, отдельный релиз data-raw-trial, без рангов.
+# Расписание GitHub ненадёжно (BUGLOG №37): основной будильник — внешний (cron-job.org) раз в час вызывает
+# workflow_dispatch через API с guard=true; расписание GitHub оставлено запасным. Сторож один для обоих.
 name: Статистика матчей
 
 on:
   schedule:
-    - cron: "17 * * * *"  # DECISIONS №6; каждый час, сторож решает, собирать ли
-  workflow_dispatch: {}   # кнопка «Run workflow» — собирает всегда, без сторожа (на ветке — пробный режим)
+    - cron: "17 * * * *"  # DECISIONS №6; запасное: каждый час, сторож решает, собирать ли
+  workflow_dispatch:      # кнопка «Run workflow» (guard не отмечен) — собирает всегда; будильник — с guard=true
+    inputs:
+      guard:
+        description: "Сторож: собирать, только если с прошлого сбора прошло ≥ 11 ч (для будильника)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write  # чтобы добавлять файлы в релиз
@@ -35,9 +42,9 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Сторож (только по расписанию)
+      - name: Сторож (расписание и будильник; ручная кнопка — без сторожа)
         id: guard
-        if: github.event_name == 'schedule'
+        if: github.event_name == 'schedule' || inputs.guard
         run: python tools/collect_guard.py --min-hours 11
 
       - name: Библиотеки сборщика
