@@ -10,7 +10,7 @@ from tests.test_threats import DATA, advisor, tagger
 def make():
     shown = []
     ctrl = ThreatsController(DATA, tagger(), advisor(), load_threat_config(), ThreatSettings(),
-                             lambda text, important, voice, *rest: shown.append((text, voice)), lambda: False)
+                             lambda text, important, voice, *rest, **extra: shown.append((text, voice)), lambda: False)
     return ctrl, shown
 
 
@@ -72,10 +72,23 @@ def test_item_hint_uses_hint_duration():
     """Подсказку по предмету держим дольше таймеров: 6 с автор не успевал прочитать (игра 01.10, BUGLOG №34)."""
     shown = []
     ctrl = ThreatsController(DATA, tagger(), advisor(), load_threat_config(), ThreatSettings(),
-                             lambda text, important, voice, *rest: shown.append(rest), lambda: False)
+                             lambda text, important, voice, *rest, **extra: shown.append(rest), lambda: False)
     ctrl.hint_duration = 12
     ctrl.on_game_state(0, True, "npc_dota_hero_sven", "radiant", True)
     ctrl.set_enemies(["alchemist", "medusa", "lion"])
     shown.clear()
     ctrl.on_inventory(InventorySnapshot("alchemist", ("heart",), (None, None, None), None), 1200)
     assert shown and shown[-1] == (12,)
+
+
+def test_item_hint_sends_icons():
+    """В подсказку уходят портрет врага и иконка предмета (оформление как у оповещений Доты, BUGLOG №35)."""
+    extras = []
+    ctrl = ThreatsController(DATA, tagger(), advisor(), load_threat_config(), ThreatSettings(),
+                             lambda text, important, voice, *rest, **extra: extras.append(extra), lambda: False)
+    ctrl.on_game_state(0, True, "npc_dota_hero_sven", "radiant", True)
+    ctrl.set_enemies(["alchemist", "medusa", "lion"])
+    extras.clear()
+    ctrl.on_inventory(InventorySnapshot("alchemist", ("heart",), (None, None, None), None), 1200)
+    assert extras[-1]["icons"] == [("heroes", "alchemist"), ("items", "heart")]
+    assert extras[-1]["highlights"] == ["Heart of Tarrasque"]

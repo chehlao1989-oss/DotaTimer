@@ -25,6 +25,7 @@ class OverlaySettings:
     scale: float = 1.0
     opacity: float = 0.9
     display_sec: float = 6.0
+    layout_version: int = 0  # схема расположения; старее overlay.LAYOUT_VERSION — место сбрасывается
 
 
 @dataclass

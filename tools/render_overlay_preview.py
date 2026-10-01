@@ -48,11 +48,15 @@ KILLFEED_REF = (0, 540, 380, 250)
 # автора 01.10) — зеркало MINIMAP_REF.
 FPS_REF = (215, 0, 215, 42)  # отступ от правого края, y, ширина, высота при высоте экрана 1080
 SHOP_REF = (290, 975, 290, 105)
+# Оповещение Доты о покупке («Pudge купил вард»): правые ~200 px, y ≈ 445–500 — оценка по скриншоту автора 01.10
+# (снимок обрезан сверху, ±15 px); стопка из нескольких покупок не замерена (BUGLOG №35).
+PURCHASE_REF = (200, 445, 200, 55)
 STEAM_SCREENS = Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")) / "Steam" / "userdata"
-SAMPLE_MESSAGES = [(ru.MSG_POWER_RUNE.format(sec=30), False),
-                   (ru.MSG_FIRST_POWER_RUNE_EARLY.format(time="6:00"), True),
+SAMPLE_MESSAGES = [(ru.MSG_POWER_RUNE.format(sec=30), False, {}),
+                   (ru.MSG_FIRST_POWER_RUNE_EARLY.format(time="6:00"), True, {}),
                    (ru.HINT_ITEM.format(hero="Phantom Assassin", item="Butterfly",
-                                        counters="Monkey King Bar, Bloodthorn, Silver Edge"), True)]
+                                        counters="Monkey King Bar, Bloodthorn, Silver Edge"), True,
+                    {"icons": [("heroes", "phantom_assassin"), ("items", "butterfly")], "highlights": ["Butterfly"]})]
 SAMPLE_THREATS = [ThreatRecommendation("axe", (RecItem("blade_mail", 1, "hero", 6.0, 900),
                                                RecItem("black_king_bar", 1, "hero", 4.0, 900))),
                   ThreatRecommendation("phantom_assassin", (RecItem("monkey_king_bar", 1, "hero", 9.0, 800),)),
@@ -85,6 +89,7 @@ def hud_zones(w: int, h: int) -> dict[str, QRect]:
         "миникарта справа": right((mx + mw, my, mw, mh)),
         "FPS": right(FPS_REF),
         "лавка": right(SHOP_REF),
+        "покупки Доты": right(PURCHASE_REF),
         "миникарта": QRect(round(mx * s), round(my * s), round(mw * s), round(mh * s)),
         "килфид и чат": QRect(round(kx * s), round(ky * s), round(kw * s), round(kh * s)),
         "верхняя панель": QRect(top[0].x, top[0].y, top[-1].x + top[-1].w - top[0].x, top[0].h),
@@ -135,9 +140,9 @@ def build_windows(w: int, h: int, images_dir: Path, overlay_settings: OverlaySet
 
     overlay_mod.DraggableOverlay.place = place
     from app.ui.threat_strip import ThreatStrip  # после подмены: полоска берёт overlay_font и place отсюда
-    messages = overlay_mod.Overlay(overlay_settings)
-    for text, important in SAMPLE_MESSAGES:
-        messages.show_message(text, important=important, duration_sec=3600)
+    messages = overlay_mod.Overlay(overlay_settings, images_dir)
+    for text, important, extra in SAMPLE_MESSAGES:
+        messages.show_message(text, important=important, duration_sec=3600, **extra)
     for frame in messages._frames():
         frame.setGraphicsEffect(None)  # эффект плавного угасания не рисуется через render() — снимаем для снимка
     strip = ThreatStrip(strip_settings, images_dir)

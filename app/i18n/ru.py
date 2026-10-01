@@ -13,6 +13,8 @@ def format_clock(seconds: int) -> str:
 # --- Уведомления таймеров (текст на оверлее) ---
 MSG_FIRST_POWER_RUNE_EARLY = "Руна силы на {time}, подтягивайтесь к реке"
 MSG_POWER_RUNE = "Руна силы через {sec} сек"
+# что в оповещениях выделять золотом, как в Доте: время «6:00» и «через 30 сек» (регулярное выражение)
+HIGHLIGHT_PATTERN = r"\d+:\d\d|\d+ сек"
 MSG_NIGHT = "Ночь через {sec} сек"
 MSG_DAY = "Рассвет через {sec} сек"
 MSG_TORMENTOR = "Терзатель появился {side}"

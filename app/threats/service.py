@@ -80,10 +80,10 @@ class ThreatsService(QObject):
         self._rebuild()
         threading.Thread(target=self._update_data, name="threats-data", daemon=True).start()
 
-    def _show_if_enabled(self, text, important, voice, *rest) -> None:
+    def _show_if_enabled(self, text, important, voice, *rest, **extra) -> None:
         """Пока угрозы переделываются, на экран ничего не выводим — только в лог."""
         if self.overlays_enabled:
-            self._show(text, important, voice, *rest)
+            self._show(text, important, voice, *rest, **extra)
         elif text:
             log.info("Угрозы (не показано): %s", text.replace("\n", " | "))
 

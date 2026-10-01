@@ -87,6 +87,7 @@ def main() -> None:
     hotkeys.start(settings.hotkeys)
     threats = ThreatsService(settings.threats, core.say, lambda: settings.mode == MODE_TURBO)
     strip = ThreatStrip(settings.strip, threats.cache.root / "images")
+    overlay.images_dir = threats.cache.root / "images"  # портрет врага и иконка предмета в подсказке
     strip.layout_finished.connect(lambda: save_settings(settings))
     threats.strip = strip
     threats.card_duration = settings.strip.full_card_sec

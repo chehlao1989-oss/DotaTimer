@@ -105,13 +105,13 @@ class TimerApp:
         return True
 
     def say(self, text: str | None, important: bool, voice_key: str | None,
-            duration_sec: float | None = None) -> None:
+            duration_sec: float | None = None, icons=(), highlights=()) -> None:
         """Сообщение вне расписания таймеров (угрозы): надпись всегда, голос — с учётом тишины и лимита.
         text=None — только голос (например, сменился совет на полоске угроз)."""
         if self.muted:
             return
         if text:
-            self.overlay.show_message(text, important, duration_sec)
+            self.overlay.show_message(text, important, duration_sec, icons, highlights)
         top = max(self.presets.priorities.values())
         if voice_key and self.manager.try_voice(top if important else 1, time.monotonic()):
             self.voice.play(voice_key)
