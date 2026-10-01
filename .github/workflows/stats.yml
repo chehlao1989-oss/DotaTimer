@@ -9,9 +9,7 @@ name: Статистика матчей
 on:
   schedule:
     - cron: "17 * * * *"  # DECISIONS №6; каждый час, сторож решает, собирать ли
-  workflow_dispatch: {}   # кнопка «Run workflow» — собирает всегда, без сторожа
-  push:
-    branches: [collector-freshness]  # пробный запуск ветки (убрать после слияния)
+  workflow_dispatch: {}   # кнопка «Run workflow» — собирает всегда, без сторожа (на ветке — пробный режим)
 
 permissions:
   contents: write  # чтобы добавлять файлы в релиз
