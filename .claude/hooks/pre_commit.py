@@ -1,7 +1,9 @@
 """Хук Claude Code перед командой `git commit` (docs/PROCESS.md, разделы 5–6).
 
-1. Запускает pytest. Если тесты падают — коммит блокируется (код выхода 2, причина уходит агенту).
-2. Если в коммит попадает код сборщика/расчёта или данные, а журналы (BUGLOG, DECISIONS, DATA_SOURCES)
+1. Коммит в main, который меняет сборщик (tools/collect_*) или .github/, блокируется: такие изменения — только
+   в ветке, с пробным запуском, и в main — слиянием этой ветки (BUGLOG №31, решение автора 01.10).
+2. Запускает pytest. Если тесты падают — коммит блокируется (код выхода 2, причина уходит агенту).
+3. Если в коммит попадает код сборщика/расчёта или данные, а журналы (BUGLOG, DECISIONS, DATA_SOURCES)
    не изменены — предупреждение (коммит не блокируется): знания должны попадать в журналы в том же коммите.
 
 Вход — JSON вызова инструмента на stdin (tool_input.command).
@@ -16,6 +18,14 @@ ROOT = Path(__file__).resolve().parents[2]
 PYTHON = ROOT / ".venv" / "Scripts" / "python.exe"
 WATCHED = ("tools/collect_raw.py", "tools/compute_recs.py", ".github/workflows/", "data/")
 JOURNALS = ("docs/BUGLOG.md", "docs/DECISIONS.md", "docs/DATA_SOURCES.md")
+PROTECTED = ("tools/collect_", ".github/")  # в main — только слиянием ветки после пробного запуска
+
+
+def protected_violation(files: set[str], branch: str, merging: bool) -> list[str]:
+    """Файлы сборщика/.github в обычном коммите в main — нарушение; в ветке или при слиянии — можно."""
+    if branch != "main" or merging:
+        return []
+    return sorted(f for f in files if f.startswith(PROTECTED))
 
 
 def is_commit(command: str) -> bool:
@@ -58,6 +68,13 @@ def main() -> None:
     command = (payload.get("tool_input") or {}).get("command") or ""
     if not is_commit(command):
         return
+    branch = (git_lines("rev-parse", "--abbrev-ref", "HEAD") or [""])[0]
+    merging = (ROOT / ".git" / "MERGE_HEAD").exists()
+    blocked = protected_violation(files_in_commit(command), branch, merging)
+    if blocked:
+        print("Коммит заблокирован: в main нельзя менять сборщик и .github обычным коммитом ("
+              + ", ".join(blocked) + "). Делай в ветке, пробный запуск, потом слияние (BUGLOG №31).", file=sys.stderr)
+        sys.exit(2)
     python = str(PYTHON) if PYTHON.exists() else sys.executable
     tests = subprocess.run([python, "-m", "pytest", "-q", "-x", "-p", "no:cacheprovider"], cwd=ROOT,
                            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=900)
