@@ -77,6 +77,7 @@ class RecsConfig:
     mechanic_first_b_significant: bool  # в первую группу пускать и ответ с значимо положительным B
     adaptation_top: int  # сколько лучших по A пускать в кандидаты без правила механик
     min_buy_share: float  # доля игр H в роли, в которых он покупает Y; реже — Y не кандидат (спека 6.4)
+    levels: list  # уровни контекста: L3, L2, L1, hero (решение по L1 — по замеру L1 против L2, 02.10)
 
 
 def load_config(path: Path = CONFIG_PATH) -> RecsConfig:
@@ -155,10 +156,14 @@ def build_item_meta(items: dict, tagger: MechanicsTagger, heroes: dict, cfg: Rec
 
 # ---------- подготовка игр ----------
 def prepare(con: duckdb.DuckDBPyConnection, matches_glob: str, ranks_glob: str | None, meta: ItemMeta,
-            heroes: dict, cfg: RecsConfig, where: str = "true") -> None:
+            heroes: dict, cfg: RecsConfig, where: str = "true", epoch: float | None = None,
+            drop_components: bool = True) -> None:
     """Таблица pg: одна строка на игру героя (корзина, ранг-группа, роль, класс, страта, вес, победа).
 
     where — фильтр по матчам (например, по start_time для проверки на отложенных днях).
+    epoch — для дневных сумм (tools/recs_state.py): вес 2^((start_time − epoch)/T½) вместо 0,5^((newest − start_time)/T½).
+    Вес по давности — показательный, поэтому одно умножение в конце даёт ровно то же: Σ·2^((epoch − newest)/T½).
+    drop_components=False — промежуточные предметы не убирать (решение — по сумме всех дней, recs_state).
     """
     # запуски сбора могут пересекаться: один и тот же матч берём один раз (DECISIONS №4)
     con.execute(f"CREATE OR REPLACE VIEW m AS SELECT * FROM read_parquet('{matches_glob}') WHERE {where} "
@@ -192,33 +197,15 @@ def prepare(con: duckdb.DuckDBPyConnection, matches_glob: str, ranks_glob: str |
                     ELSE
                     CASE WHEN duration < {edges_t[0]}*60 THEN 0 WHEN duration < {edges_t[1]}*60 THEN 1
                          WHEN duration < {edges_t[2]}*60 THEN 2 ELSE 3 END END AS stratum,
-               power(0.5, (newest - start_time) / {half_life}) AS wt,
+               {f"power(2.0, (start_time - {epoch}) / {half_life})" if epoch is not None
+                 else f"power(0.5, (newest - start_time) / {half_life})"} AS wt,
                (is_radiant = radiant_win) AS win, items
         FROM base
     """)
-    # класс героя: основной атрибут × роль, в которой его чаще всего играют (спека 5)
-    con.execute("CREATE OR REPLACE TABLE hero_attr(hero SMALLINT, attr VARCHAR)")
-    con.executemany("INSERT INTO hero_attr VALUES (?, ?)",
-                    [(h["id"], h.get("primary_attr") or "all") for h in heroes.values()])
-    con.execute("""
-        CREATE OR REPLACE TABLE hero_cls AS
-        WITH rc AS (SELECT hero, role, count(*) AS c FROM pg GROUP BY ALL)
-        SELECT rc.hero, coalesce(a.attr, 'all') || '-' || arg_max(rc.role, rc.c * 10 + r.k) AS cls,
-               arg_max(rc.role, rc.c * 10 + r.k) AS main_role
-        FROM rc LEFT JOIN hero_attr a USING (hero)
-        -- при равном числе игр роль выбирается по порядку core > offlane > support (BUGLOG №40)
-        JOIN (VALUES ('core', 3), ('offlane', 2), ('support', 1)) r(role, k) ON r.role = rc.role
-        GROUP BY rc.hero, a.attr
-    """)
+    static_tables(con, meta, heroes)
+    hero_classes(con, "SELECT hero, role, count(*) AS c FROM pg GROUP BY ALL")
     con.execute("CREATE OR REPLACE TABLE pg AS SELECT pg.*, hc.cls FROM pg JOIN hero_cls hc USING (hero)")
-
-    con.execute("CREATE OR REPLACE TABLE expand(z SMALLINT, y SMALLINT)")
-    if meta.expand:
-        con.executemany("INSERT INTO expand VALUES (?, ?)", meta.expand)
-    drop_unfinished_components(con, meta, cfg)
-    con.execute("CREATE OR REPLACE TABLE key_items(x SMALLINT)")
-    if meta.key_items:
-        con.executemany("INSERT INTO key_items VALUES (?)", [(x,) for x in sorted(meta.key_items)])
+    drop_unfinished_components(con, meta, cfg, delete=drop_components)
     # что засчитано каждому игроку: Y (ответы) и X (ключевые предметы)
     con.execute("""
         CREATE OR REPLACE TABLE owned_y AS
@@ -230,6 +217,33 @@ def prepare(con: duckdb.DuckDBPyConnection, matches_glob: str, ranks_glob: str |
         SELECT DISTINCT p.match_id, p.is_radiant, p.hero, t.z AS x
         FROM pg p, UNNEST(p.items) AS t(z) JOIN key_items k ON k.x = t.z
     """)
+
+
+def hero_classes(con: duckdb.DuckDBPyConnection, role_counts_sql: str) -> None:
+    """Класс героя: основной атрибут × роль, в которой его чаще всего играют (спека 5). role_counts_sql — (hero, role, c)."""
+    con.execute(f"""
+        CREATE OR REPLACE TABLE hero_cls AS
+        WITH rc AS ({role_counts_sql})
+        SELECT rc.hero, coalesce(a.attr, 'all') || '-' || arg_max(rc.role, rc.c * 10 + r.k) AS cls,
+               arg_max(rc.role, rc.c * 10 + r.k) AS main_role
+        FROM rc LEFT JOIN hero_attr a USING (hero)
+        -- при равном числе игр роль выбирается по порядку core > offlane > support (BUGLOG №40)
+        JOIN (VALUES ('core', 3), ('offlane', 2), ('support', 1)) r(role, k) ON r.role = rc.role
+        GROUP BY rc.hero, a.attr
+    """)
+
+
+def static_tables(con: duckdb.DuckDBPyConnection, meta: ItemMeta, heroes: dict) -> None:
+    """Справочные таблицы, не зависящие от матчей: атрибуты героев, дерево предметов, ключевые X, механики, правила."""
+    con.execute("CREATE OR REPLACE TABLE hero_attr(hero SMALLINT, attr VARCHAR)")
+    con.executemany("INSERT INTO hero_attr VALUES (?, ?)",
+                    [(h["id"], h.get("primary_attr") or "all") for h in heroes.values()])
+    con.execute("CREATE OR REPLACE TABLE expand(z SMALLINT, y SMALLINT)")
+    if meta.expand:
+        con.executemany("INSERT INTO expand VALUES (?, ?)", meta.expand)
+    con.execute("CREATE OR REPLACE TABLE key_items(x SMALLINT)")
+    if meta.key_items:
+        con.executemany("INSERT INTO key_items VALUES (?)", [(x,) for x in sorted(meta.key_items)])
     con.execute("CREATE OR REPLACE TABLE x_mech(x SMALLINT, mech VARCHAR)")
     mech_rows = [(x, m) for x, ms in meta.mechanic_of.items() for m in ms]
     if mech_rows:
@@ -249,7 +263,8 @@ def prepare(con: duckdb.DuckDBPyConnection, matches_glob: str, ranks_glob: str |
     """)
 
 
-def drop_unfinished_components(con: duckdb.DuckDBPyConnection, meta: ItemMeta, cfg: RecsConfig) -> None:
+def drop_unfinished_components(con: duckdb.DuckDBPyConnection, meta: ItemMeta, cfg: RecsConfig,
+                               delete: bool = True) -> None:
     """Промежуточный предмет (Sange, Kaya, Crystalys…) — ответ, только если с ним обычно и заканчивают игру.
 
     Для каждого Y-компонента: доля игроков, у которых в итоговом инвентаре лежит сам Y, среди всех, у кого есть
@@ -266,9 +281,10 @@ def drop_unfinished_components(con: duckdb.DuckDBPyConnection, meta: ItemMeta, c
             FROM pg p, UNNEST(p.items) AS t(z) JOIN expand e ON e.z = t.z JOIN comp c ON c.y = e.y
             GROUP BY ALL
         )
-        SELECT y, avg(itself) AS share, count(*) AS players FROM own GROUP BY y
+        SELECT y, avg(itself) AS share, count(*) AS players, sum(itself) AS itself FROM own GROUP BY y
     """)
-    con.execute(f"DELETE FROM expand WHERE y IN (SELECT y FROM component_share WHERE share < {cfg.component_final_share})")
+    if delete:
+        con.execute(f"DELETE FROM expand WHERE y IN (SELECT y FROM component_share WHERE share < {cfg.component_final_share})")
 
 
 # ---------- метрики по стратам (в DuckDB) ----------
@@ -307,7 +323,8 @@ def count_tables(con: duckdb.DuckDBPyConnection, level: str, rank_filter: str, p
     g = f"(SELECT * FROM pg WHERE {rank_filter})"
     con.execute(f"CREATE OR REPLACE TEMP TABLE {prefix}_ctx AS {CTX_SQL[level].replace('FROM pg p', f'FROM {g} p')}")
     con.execute(f"""CREATE OR REPLACE TABLE {prefix}_tot AS
-        SELECT bucket, role, {who} AS hero, stratum, sum(wt) AS n, sum(wt * win::INT) AS w FROM {g} GROUP BY ALL""")
+        SELECT bucket, role, {who} AS hero, stratum, sum(wt) AS n, sum(wt * win::INT) AS w, count(*) AS c
+        FROM {g} GROUP BY ALL""")
     con.execute(f"""CREATE OR REPLACE TABLE {prefix}_gx AS
         SELECT g.bucket, g.role, g.{who} AS hero, c.ctx, g.stratum, sum(g.wt) AS n, sum(g.wt * g.win::INT) AS w
         FROM {g} g JOIN {prefix}_ctx c ON c.match_id = g.match_id AND c.is_radiant = g.is_radiant GROUP BY ALL""")
@@ -539,33 +556,30 @@ def nest_answers(out: dict, group: str, rows: list, flags: list) -> None:
 
 
 # ---------- угрозы (спека 7: threat) ----------
-def threat_block(con: duckdb.DuckDBPyConnection, group: str, rank_filter: str, k_b: float, out: dict) -> None:
-    """Для героя E: доли ролей по нетворсу, сила в лейте, матчапы героев H против него.
+def threat_block(con: duckdb.DuckDBPyConnection, group: str, k_b: float, out: dict) -> None:
+    """Для героя E: доли ролей по нетворсу, сила в лейте, матчапы героев H против него — по суммам all_tot и all_mu.
 
     late: [WR(45+) − WR(<25) в п.п., игр 45+, игр <25] (для турбо — крайние страты турбо).
     vs: {H: [ΔWR(H против E) − WR(H) в п.п., стянутая к нулю с силой k_B, число игр]}.
     """
-    g = f"(SELECT * FROM pg WHERE {rank_filter})"
-    for bucket, hero, role, share in con.execute(f"""
-        WITH rw AS (SELECT bucket, hero, role, sum(wt) AS n FROM {g} GROUP BY bucket, hero, role)
+    for bucket, hero, role, share in con.execute("""
+        WITH rw AS (SELECT bucket, hero, role, sum(n) AS n FROM all_tot GROUP BY bucket, hero, role)
         SELECT bucket, hero, role, n / sum(n) OVER (PARTITION BY bucket, hero) FROM rw ORDER BY 1, 2, 3
     """).fetchall():
         cell = out.setdefault(bucket, {}).setdefault(group, {}).setdefault(str(hero), {})
         cell.setdefault("roles", {})[role] = round(share, 3)
-    for bucket, hero, late, n_late, n_early in con.execute(f"""
+    for bucket, hero, late, n_late, n_early in con.execute("""
         SELECT bucket, hero,
-               sum(wt * win::INT) FILTER (WHERE stratum = 3) / nullif(sum(wt) FILTER (WHERE stratum = 3), 0)
-               - sum(wt * win::INT) FILTER (WHERE stratum = 0) / nullif(sum(wt) FILTER (WHERE stratum = 0), 0),
-               sum(wt) FILTER (WHERE stratum = 3), sum(wt) FILTER (WHERE stratum = 0)
-        FROM {g} GROUP BY ALL
+               sum(w) FILTER (WHERE stratum = 3) / nullif(sum(n) FILTER (WHERE stratum = 3), 0)
+               - sum(w) FILTER (WHERE stratum = 0) / nullif(sum(n) FILTER (WHERE stratum = 0), 0),
+               sum(n) FILTER (WHERE stratum = 3), sum(n) FILTER (WHERE stratum = 0)
+        FROM all_tot GROUP BY ALL
     """).fetchall():
         if late is not None:
             out[bucket][group][str(hero)]["late"] = [round(late * 100, 2), int(round(n_late)), int(round(n_early))]
     for bucket, enemy, hero, delta, n in con.execute(f"""
-        WITH gg AS {g},
-        hw AS (SELECT bucket, hero, sum(wt * win::INT) / sum(wt) AS wr FROM gg GROUP BY ALL),
-        mu AS (SELECT gg.bucket, gg.hero, e.hero AS enemy, sum(gg.wt * gg.win::INT) / sum(gg.wt) AS wr, sum(gg.wt) AS n
-               FROM gg JOIN pg e ON e.match_id = gg.match_id AND e.is_radiant <> gg.is_radiant GROUP BY ALL)
+        WITH hw AS (SELECT bucket, hero, sum(w) / sum(n) AS wr FROM all_tot GROUP BY ALL),
+        mu AS (SELECT bucket, hero, enemy, sum(w) / sum(n) AS wr, sum(n) AS n FROM all_mu GROUP BY ALL)
         SELECT mu.bucket, mu.enemy, mu.hero, (mu.wr - hw.wr) * mu.n / (mu.n + {k_b}), mu.n
         FROM mu JOIN hw USING (bucket, hero) ORDER BY 1, 2, 3
     """).fetchall():
@@ -573,82 +587,151 @@ def threat_block(con: duckdb.DuckDBPyConnection, group: str, rank_filter: str, k
         cell.setdefault("vs", {})[str(hero)] = [round(delta * 100, 2), int(round(n))]
 
 
+# ---------- поставщики сумм: из игр (с нуля) или из хранилища дневных сумм (tools/recs_state.py) ----------
+class PgCounts:
+    """Суммы прямо из таблицы игр pg (расчёт с нуля); rank_filter — ранговая группа или 'true'."""
+
+    def __init__(self, con: duckdb.DuckDBPyConnection, rank_filter: str = "true"):
+        self.con, self.flt = con, rank_filter
+
+    def parts(self) -> list:
+        return self.con.execute(f"SELECT DISTINCT bucket, role FROM pg WHERE {self.flt} ORDER BY ALL").fetchall()
+
+    def counts(self, level: str, who: str, bucket: str, role: str, prefix: str) -> None:
+        count_tables(self.con, level, f"({self.flt}) AND bucket = '{bucket}' AND role = '{role}'", prefix, who)
+
+    def overall(self) -> None:
+        """all_tot(bucket, role, hero, stratum, n, w), all_gy(bucket, role, hero, y, n), all_mu(bucket, hero, enemy, n, w)."""
+        g = f"(SELECT * FROM pg WHERE {self.flt})"
+        self.con.execute(f"""CREATE OR REPLACE TABLE all_tot AS SELECT bucket, role, hero, stratum, sum(wt) AS n,
+                             sum(wt * win::INT) AS w FROM {g} GROUP BY ALL""")
+        self.con.execute(f"""CREATE OR REPLACE TABLE all_gy AS SELECT p.bucket, p.role, p.hero, o.y, sum(p.wt) AS n
+                             FROM {g} p JOIN owned_y o USING (match_id, is_radiant, hero) GROUP BY ALL""")
+        self.con.execute(f"""CREATE OR REPLACE TABLE all_mu AS SELECT g.bucket, g.hero, e.hero AS enemy, sum(g.wt) AS n,
+                             sum(g.wt * g.win::INT) AS w FROM {g} g
+                             JOIN pg e ON e.match_id = g.match_id AND e.is_radiant <> g.is_radiant GROUP BY ALL""")
+
+
+def level_from_counts(con: duckdb.DuckDBPyConnection, provider, level: str, dst: str, cfg: RecsConfig,
+                      who: str = "hero", min_ctx: float = 0.0) -> None:
+    """Метрики уровня по кускам «режим × роль» (память меньше в ~6 раз, DECISIONS №16): суммы от поставщика → формулы.
+    Промежуточные предметы, которые обычно доделывают (DECISIONS №14), выпадают из Y здесь (для расчёта с нуля их уже
+    нет в дереве предметов, для дневных сумм — решение по сумме всех дней)."""
+    for i, (bucket, role) in enumerate(provider.parts()):
+        provider.counts(level, who, bucket, role, "cnt")
+        for t in ("cnt_gy", "cnt_gxy"):
+            con.execute(f"DELETE FROM {t} WHERE y IN (SELECT y FROM component_share "
+                        f"WHERE share < {cfg.component_final_share})")
+        metrics_from_counts(con, "met_part", "cnt", cfg.min_buy_share, min_ctx)
+        con.execute(f"CREATE OR REPLACE TABLE {dst} AS SELECT * FROM met_part" if i == 0
+                    else f"INSERT INTO {dst} SELECT * FROM met_part")
+    for t in ("met_part", "cnt_tot", "cnt_gx", "cnt_gy", "cnt_gxy"):
+        con.execute(f"DROP TABLE IF EXISTS {t}")
+
+
 # ---------- главное ----------
 LEVELS = ("L3", "L2", "L1", "hero")
 CLASS_LEVELS = ("L3", "L2", "hero")
 
 
-def compute(matches_glob: str, ranks_glob: str | None, items: dict, abilities: dict, hero_abilities: dict,
-            heroes: dict, cfg: RecsConfig, log=print, where: str = "true", con=None) -> dict:
-    roles = {v["name"].removeprefix("npc_dota_hero_"): tuple(v.get("roles") or ()) for v in heroes.values()}
-    tagger = MechanicsTagger(load_mechanics_config(), items, abilities, hero_abilities, roles)
-    meta = build_item_meta(items, tagger, heroes, cfg)
+def setup_connection(con: duckdb.DuckDBPyConnection | None, cfg: RecsConfig) -> duckdb.DuckDBPyConnection:
     con = con or duckdb.connect()
     # память: на 378 809 матчах без ограничения было 11,4 ГБ (замер 30.09), у раннера GitHub 16 ГБ
     con.execute(f"SET memory_limit = '{cfg.duckdb_memory_limit}'")
     con.execute("SET preserve_insertion_order = false")
     con.execute(f"SET threads = {cfg.duckdb_threads}")  # память растёт с числом потоков (BUGLOG №22)
     con.execute(f"SET temp_directory = '{(Path(tempfile.gettempdir()) / 'dotatimer_duckdb').as_posix()}'")
-    flags = [EXPERIENCE_FLAG] + [r.id for r in tagger.rules]
+    return con
+
+
+def item_meta(items: dict, abilities: dict, hero_abilities: dict, heroes: dict, cfg: RecsConfig) -> tuple:
+    roles = {v["name"].removeprefix("npc_dota_hero_"): tuple(v.get("roles") or ()) for v in heroes.values()}
+    tagger = MechanicsTagger(load_mechanics_config(), items, abilities, hero_abilities, roles)
+    return build_item_meta(items, tagger, heroes, cfg), [EXPERIENCE_FLAG] + [r.id for r in tagger.rules]
+
+
+def compute(matches_glob: str, ranks_glob: str | None, items: dict, abilities: dict, hero_abilities: dict,
+            heroes: dict, cfg: RecsConfig, log=print, where: str = "true", con=None) -> dict:
+    """Расчёт с нуля по всем матчам (эталон для инкрементального расчёта tools/recs_state.py)."""
+    meta, flags = item_meta(items, abilities, hero_abilities, heroes, cfg)
+    con = setup_connection(con, cfg)
     t0 = time.time()
     prepare(con, matches_glob, ranks_glob, meta, heroes, cfg, where)
     total, rows, ranked, first, last = con.execute("""
         SELECT count(DISTINCT match_id), count(*), count(DISTINCT match_id) FILTER (WHERE rank_group IS NOT NULL),
                min(start_time), max(start_time) FROM pg
     """).fetchone()
-    by_bucket = dict(con.execute("SELECT bucket, count(DISTINCT match_id) FROM pg GROUP BY ALL").fetchall())
-    patch = con.execute("SELECT mode(patch) FROM pg").fetchone()[0]
+    info = {"matches": total, "ranked": ranked, "first_start": first, "last_start": last,
+            "by_bucket": dict(con.execute("SELECT bucket, count(DISTINCT match_id) FROM pg GROUP BY ALL").fetchall()),
+            "patch": con.execute("SELECT mode(patch) FROM pg").fetchone()[0]}
     log(f"матчей {total}, строк {rows}, с рангом {ranked} ({ranked / max(total, 1):.0%}), "
         f"подготовка {time.time() - t0:.0f} с")
-    # ранговые группы — только если включены (DECISIONS №17: пока ранг у 17% матчей, выборки в группах малы)
+    # ранговые группы — только если включены (DECISIONS №17)
     groups = {"all": "true", **({g: f"rank_group = '{g}'" for g in cfg.rank_groups} if cfg.store_rank_groups else {})}
-    result = {"meta": {"matches": total, "by_bucket": by_bucket, "ranked_share": round(ranked / max(total, 1), 3),
-                       "patch": patch, "first_start": first, "last_start": last, "generated_at": int(time.time()),
-                       "half_life_days": cfg.half_life_days, "k": {},
+    return finish(con, {g: PgCounts(con, flt) for g, flt in groups.items()}, meta, flags, cfg, info, log, t0)
+
+
+def finish(con: duckdb.DuckDBPyConnection, providers: dict, meta: ItemMeta, flags: list, cfg: RecsConfig, info: dict,
+           log=print, t0: float | None = None) -> dict:
+    """Общая часть расчёта по суммам: метрики уровней, стягивание, ответы, угрозы, покупки. Таблицы hero_cls,
+    component_share и справочные (static_tables) уже есть; providers — {ранговая группа: поставщик сумм}."""
+    t0 = t0 or time.time()
+    total = info["matches"]
+    result = {"meta": {"matches": total, "by_bucket": info["by_bucket"],
+                       "ranked_share": round(info["ranked"] / max(total, 1), 3),
+                       "patch": info["patch"], "first_start": info["first_start"], "last_start": info["last_start"],
+                       "generated_at": int(time.time()), "half_life_days": cfg.half_life_days, "k": {},
                        "row_format": ROW_FORMAT, "conf_codes": CONF_CODES, "flags": flags,
                        "broad_rules": meta.broad_rules,
                        "hero_class": {str(h): [c, r] for h, c, r in con.execute("SELECT * FROM hero_cls").fetchall()}},
               "item": {}, "item_hero": {}, "hero": {}, "item_class": {}, "hero_class": {}, "threat": {}, "buys": {}}
-    for group, flt in groups.items():
-        for lvl in LEVELS:
-            level_metrics_parts(con, lvl, flt, f"met_{lvl}", min_buy_share=cfg.min_buy_share,
-                          min_ctx=cfg.conf_mid if lvl == "L1" else 0)
+    for group, provider in providers.items():
+        for lvl in cfg_levels(cfg):
+            level_from_counts(con, provider, lvl, f"met_{lvl}", cfg, min_ctx=cfg.conf_mid if lvl == "L1" else 0)
         eb = {"A": eb_spread(con, "met_L2", "A", cfg.k_a_default, cfg.eb_min_games),
               "B": eb_spread(con, "met_L2", "B", cfg.k_b_default, cfg.eb_min_games)}
         k = {m: eb[m]["k"] for m in eb}
         result["meta"]["k"][group] = {m: {"tau2": round(e["tau2"], 7), "k": round(e["k"], 1),
                                           "estimated": e["estimated"]} for m, e in eb.items()}
         smooth(con, "met_L2", "s_L2", eb, PRIOR_L2, "met_L3")
-        smooth(con, "met_L1", "s_L1", eb, PRIOR_L1, "s_L2")
-        smooth(con, "met_hero", "s_hero", eb)
         nest_answers(result["item"], group, rank_answers(con, "s_L2", "L2", cfg, eb), flags)
-        nest_answers(result["item_hero"], group, rank_answers(con, "s_L1", "L1", cfg, eb, only_confident=True), flags)
+        if "L1" in cfg_levels(cfg):
+            smooth(con, "met_L1", "s_L1", eb, PRIOR_L1, "s_L2")
+            nest_answers(result["item_hero"], group, rank_answers(con, "s_L1", "L1", cfg, eb, only_confident=True), flags)
+        smooth(con, "met_hero", "s_hero", eb)
         nest_answers(result["hero"], group, rank_answers(con, "s_hero", "hero", cfg, eb), flags)
         # запасной вариант: класс героя (атрибут × типичная роль)
         for lvl in CLASS_LEVELS:
-            level_metrics_parts(con, lvl, flt, f"met_c{lvl}", who="cls", min_buy_share=cfg.min_buy_share)
+            level_from_counts(con, provider, lvl, f"met_c{lvl}", cfg, who="cls")
         smooth(con, "met_cL2", "s_cL2", eb, PRIOR_L2, "met_cL3")
         smooth(con, "met_chero", "s_chero", eb)
         nest_answers(result["item_class"], group, rank_answers(con, "s_cL2", "L2", cfg, eb), flags)
         nest_answers(result["hero_class"], group, rank_answers(con, "s_chero", "hero", cfg, eb), flags)
-        threat_block(con, group, flt, k["B"], result["threat"])
-        cells = {lvl: con.execute(f"SELECT count(*) FROM met_{lvl}").fetchone()[0] for lvl in LEVELS}
+        provider.overall()
+        threat_block(con, group, k["B"], result["threat"])
+        cells = {lvl: con.execute(f"SELECT count(*) FROM met_{lvl}").fetchone()[0] for lvl in cfg_levels(cfg)}
         log(f"[{group}] ячеек: " + ", ".join(f"{lvl} {c}" for lvl, c in cells.items())
             + f"; k_A={k['A']:.0f}, k_B={k['B']:.0f}; {time.time() - t0:.0f} с")
+    providers["all"].overall()
     # что герой H вообще покупает в роли (≥ min_buy_share игр): отсев в программе (спека 6.4) и сверка 8.1
     for bucket, role, hero, ys in con.execute(f"""
-        WITH t AS (SELECT bucket, role, hero, sum(wt) AS n FROM pg GROUP BY ALL),
-        o AS (SELECT p.bucket, p.role, p.hero, o.y, sum(p.wt) AS k FROM pg p JOIN owned_y o USING (match_id, is_radiant, hero)
-              GROUP BY ALL)
+        WITH t AS (SELECT bucket, role, hero, sum(n) AS n FROM all_tot GROUP BY ALL),
+        o AS (SELECT bucket, role, hero, y, sum(n) AS k FROM all_gy
+              WHERE y NOT IN (SELECT y FROM component_share WHERE share < {cfg.component_final_share}) GROUP BY ALL)
         SELECT o.bucket, o.role, o.hero, list(o.y ORDER BY o.y) FROM o JOIN t USING (bucket, role, hero)
         WHERE o.k >= {cfg.min_buy_share} * t.n GROUP BY ALL
     """).fetchall():
         result["buys"].setdefault(bucket, {}).setdefault(role, {})[str(hero)] = [int(y) for y in ys]
     result["meta"]["components"] = {  # доля «заканчивают с ним самим»; ниже порога — не ответ (DECISIONS №14)
         meta.names.get(int(y), str(y)): [round(share, 3), int(players), share >= cfg.component_final_share]
-        for y, share, players in con.execute("SELECT y, share, players FROM component_share ORDER BY share").fetchall()}
+        for y, share, players in con.execute("SELECT y, share, players FROM component_share ORDER BY share, y").fetchall()}
     result["meta"]["seconds"] = round(time.time() - t0)
     return result
+
+
+def cfg_levels(cfg: RecsConfig) -> tuple:
+    """Уровни контекста, которые считаем (L1 — по решению о нём, recs_config: levels)."""
+    return tuple(lvl for lvl in LEVELS if lvl in cfg.levels)
 
 
 def load_cache(cache: Path, name: str):
