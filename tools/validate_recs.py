@@ -322,6 +322,8 @@ def main() -> None:
     parser.add_argument("--holdout-days", type=int, default=3)
     parser.add_argument("--report", default="recs_report.md")
     args = parser.parse_args()
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")  # при выводе в файл Windows берёт cp1251, а в отчёте есть «≤»
     refs = load_refs(Path(args.cache))
     items, _abilities, _hero_abilities, heroes = refs
     cfg = load_config()
