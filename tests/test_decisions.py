@@ -156,3 +156,10 @@ def test_checks_run_on_github():
     workflow = (ROOT / ".github" / "workflows" / "checks.yml").read_text(encoding="utf-8")
     assert "workflow_dispatch:" in workflow and "tools/validate_recs.py" in workflow
     assert "gh release upload recs-report" in workflow
+
+
+def test_recs_incremental_on_github():
+    """№23: пересчёт советов на GitHub — по хранилищу дневных сумм (tools/recs_state.py), хранилище — в релизе."""
+    workflow = (ROOT / ".github" / "workflows" / "recs.yml").read_text(encoding="utf-8")
+    assert "tools/recs_state.py --release data-raw" in workflow and "gh release upload \"$STATE_RELEASE\" state.tar.gz" in workflow
+    assert "compute_recs.py --raw raw" not in workflow  # расчёт с нуля по всему сырью — только в проверках (checks.yml)

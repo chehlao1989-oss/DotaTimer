@@ -31,4 +31,4 @@ def test_workflow_uses_guard_and_does_not_cancel():
     workflow = (ROOT / ".github" / "workflows" / "recs.yml").read_text(encoding="utf-8")
     assert "cancel-in-progress: false" in workflow
     assert "if: github.event_name == 'workflow_run'\n        run: python tools/recs_guard.py" in workflow
-    assert workflow.count("if: steps.guard.outputs.run != 'false'") == 5
+    assert workflow.count("if: steps.guard.outputs.run != 'false'") == 6
