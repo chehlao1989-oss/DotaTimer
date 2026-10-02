@@ -1,0 +1,64 @@
+# Проверки советов 8.1–8.4 (docs/RECOMMENDER_SPEC.md, раздел 8; критерии — DECISIONS №21) на GitHub, а не на компьютере
+# автора (решение автора 02.10, BUGLOG №39: на компьютере — обрыв по пределу 30 мин фоновых команд).
+# Запуск — кнопкой «Run workflow». Итог — файлы в релизе «recs-report»: checks.log (цифры), recs_report.md/.html (8.4).
+name: Проверки советов
+
+on:
+  workflow_dispatch:
+    inputs:
+      holdout_days:
+        description: "Сколько последних дней отложить для проверки 8.2"
+        default: "1"
+
+permissions:
+  contents: write  # чтобы выкладывать отчёт в релиз
+
+concurrency:
+  group: checks
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      GH_TOKEN: ${{ github.token }}
+      HOLDOUT_DAYS: ${{ inputs.holdout_days || '1' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Библиотеки
+        run: pip install -r requirements-collector.txt pytest  # pytest — для синтетического теста 8.3
+
+      - name: Сырые матчи из релиза data-raw
+        run: |
+          mkdir -p raw
+          gh release download data-raw -p "matches-*.parquet" -p "ranks-*.parquet" -D raw
+          ls raw | wc -l && du -sh raw
+
+      - name: Справочники и иконки OpenDota (для отчёта 8.4)
+        run: |
+          python -c "from pathlib import Path; from app.threats.data import DataCache, DataUpdater, GameData; c = DataCache(Path('cache')); u = DataUpdater(c); u.refresh_core(); print('иконок', u.refresh_images(GameData.from_cache(c)))"
+
+      - name: Расчёт советов (с нуля, по всем матчам)
+        run: python -u tools/compute_recs.py --raw raw --out recs.zip --cache cache
+
+      - name: Проверки 8.1–8.4
+        run: |
+          mkdir -p report
+          set -o pipefail  # иначе ошибка проверок теряется за tee
+          python -u tools/validate_recs.py --raw raw --recs recs.zip --cache cache --holdout-days "$HOLDOUT_DAYS" \
+            --report report/recs_report.md | tee report/checks.log
+          cat report/checks.log >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Выложить отчёт в релиз recs-report
+        if: ${{ !cancelled() && hashFiles('report/*') != '' }}
+        run: |
+          gh release view recs-report >/dev/null 2>&1 || gh release create recs-report --title "Проверки советов" \
+            --notes "Итоги проверок 8.1–8.4 (tools/validate_recs.py): checks.log — цифры, recs_report.html — таблица с иконками." \
+            --prerelease
+          gh release upload recs-report report/* --clobber
