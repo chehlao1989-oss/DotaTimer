@@ -52,6 +52,7 @@ jobs:
       - name: Проверки 8.1–8.4
         run: |
           mkdir -p report
+          set -o pipefail  # иначе ошибка проверок теряется за tee
           python -u tools/validate_recs.py --raw raw --recs recs.zip --cache cache --holdout-days "$HOLDOUT_DAYS" \
             --report report/recs_report.md | tee report/checks.log
           cat report/checks.log >> "$GITHUB_STEP_SUMMARY"
