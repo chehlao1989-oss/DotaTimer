@@ -1,18 +1,19 @@
-"""Инкрементальный расчёт советов (решение автора 02.10): суммы по дням хранятся, после сбора пересчитываются
-только дни, в которые пришли новые матчи; общий итог = старый итог − старые суммы дня + новые суммы дня.
+"""Инкрементальный расчёт советов (решение автора 02.10, DECISIONS №23): суммы по играм хранятся, после сбора
+к ним прибавляются суммы только по новым матчам — из новых файлов сырья, без повторов (уже посчитанные номера матчей
+хранятся). Файлы сырья после выкладки не меняются, поэтому вычитать ничего не нужно.
 
 Почему это даёт ровно то же, что расчёт с нуля (tools/compute_recs.py: compute): формулы A и B зависят только от
-сумм весов игр и побед по стратам (count_tables), а вес по давности показательный — в днях хранится вес
+сумм весов игр и побед по стратам (count_tables), а вес по давности показательный — в суммах хранится вес
 2^((start_time − epoch)/T½), и одно умножение на 2^((epoch − newest)/T½) в конце даёт вес 0,5^((newest − start_time)/T½).
 Сырые матчи остаются (DECISIONS №1): хранилище можно пересобрать с нуля в любой момент.
 
-Хранилище (папка или релиз «recs-state»):
-  manifest.json            — эпоха, отпечаток справочников и настроек, дни (матчей, ранги, патчи, время), файлы сырья;
-  total/<таблица>.parquet  — суммы по всем дням: tot, gy, comp, gx_<уровень>, gxy_<уровень>;
-  days/<день>/<таблица>.parquet — суммы последних KEEP_DAYS дней (их ещё может дополнить следующий сбор).
-Если меняются справочники или настройки расчёта, или новые матчи пришли в «замороженный» день, — пересборка с нуля.
+Хранилище (папка; на GitHub — state.tar.gz в релизе «recs-state»):
+  manifest.json            — эпоха, отпечаток справочников и настроек, посчитанные файлы сырья, сведения о матчах;
+  total/<таблица>.parquet  — суммы: tot, gy, comp, gx_<уровень>, gxy_<уровень> (без L1 — state_config);
+  seen.parquet             — номера уже посчитанных матчей (повторы между запусками сбора не считаются дважды).
+Пересборка с нуля — если изменились справочники или настройки расчёта или файл сырья пропал / изменился.
 
-Запуск: python tools/recs_state.py --raw raw --state state --out recs.zip [--cache …]
+Запуск: python tools/recs_state.py --raw raw --state state --out recs.zip [--release data-raw] [--cache …]
 """
 import argparse
 import dataclasses
@@ -35,10 +36,11 @@ from tools.compute_recs import (RecsConfig, cfg_levels, count_tables, finish, he
                                 load_config, load_refs, prepare, setup_connection, static_tables, write_recs)
 
 DAY = 86400
-# Дни, которые ещё может дополнить следующий сбор: окна сбора — последние сутки (DECISIONS №6), запуск идёт до 5 ч,
-# поэтому матчи дня D приходят до D+2 (оценка). Старше — «заморожены»: их суммы уже в итоге, отдельно не храним.
-KEEP_DAYS = 3
-VERSION = 1
+VERSION = 2
+# Сколько файлов сырья обрабатывать за раз: при пересборке с нуля память ограничена куском, а не всем сырьём
+# (один день ≈ 20 частей по 15 мин ≈ 240 тыс. матчей — замер 02.10).
+FILES_PER_BATCH = 20
+PARQUET = "(FORMAT parquet, COMPRESSION zstd)"  # zstd на 14% меньше snappy (замер 02.10: день 325 → 280 МБ)
 KEYS = {"tot": ["bucket", "role", "hero", "stratum"], "gy": ["bucket", "role", "hero", "y", "stratum"],
         "gx": ["bucket", "role", "hero", "ctx", "stratum"], "gxy": ["bucket", "role", "hero", "ctx", "y", "stratum"],
         "comp": ["y"]}
@@ -48,7 +50,7 @@ VALUES = {"tot": ["n", "w", "c"], "gy": ["n", "w"], "gx": ["n", "w"], "gxy": ["n
 def state_config(cfg: RecsConfig) -> RecsConfig:
     """Настройки для хранилища: без L1 (X у героя E). Один день L1 — 55 млн строк против 13 млн у остальных уровней
     вместе (замер 02.10), итог L1 рос бы без предела; по решению автора L1 либо убирается, либо считается отдельно
-    по окну 14 дней — в обоих случаях не в дневных суммах (DECISIONS №23)."""
+    по окну 14 дней — в обоих случаях не в хранилище сумм (DECISIONS №23)."""
     return dataclasses.replace(cfg, levels=[lvl for lvl in cfg.levels if lvl != "L1"])
 
 
@@ -61,15 +63,11 @@ def kind_of(table: str) -> str:
 
 
 def fingerprint(meta, cfg: RecsConfig, levels: tuple) -> str:
-    """Отпечаток всего, от чего зависят дневные суммы: изменился — пересборка с нуля."""
+    """Отпечаток всего, от чего зависят суммы: изменился — пересборка с нуля."""
     data = {"expand": meta.expand, "key_items": sorted(meta.key_items), "mechanic_of": meta.mechanic_of,
             "components": sorted(meta.components), "edges": cfg.duration_edges, "half_life": cfg.half_life_days,
             "levels": list(levels), "version": VERSION}
     return hashlib.sha256(json.dumps(data, sort_keys=True, default=str).encode()).hexdigest()[:16]
-
-
-def day_of(ts: float) -> str:
-    return datetime.fromtimestamp(ts, timezone.utc).strftime("%Y-%m-%d")
 
 
 def day_start(day: str) -> int:
@@ -80,68 +78,65 @@ def raw_files(raw: Path) -> dict:
     return {p.name: p.stat().st_size for p in sorted(raw.glob("matches-*.parquet"))}
 
 
-def file_days(path: Path) -> list:
-    lo, hi = duckdb.connect().execute(f"SELECT min(start_time), max(start_time) FROM read_parquet('{path.as_posix()}')"
-                                      ).fetchone()
-    if lo is None:
-        return []
-    return [day_of(t) for t in range(day_start(day_of(lo)), int(hi) + 1, DAY)]
-
-
-def build_day(con: duckdb.DuckDBPyConnection, raw: Path, ranks_glob: str | None, day: str, out: Path, meta, heroes,
-              cfg: RecsConfig, epoch: float, levels: tuple) -> dict:
-    """Суммы одного дня игр → out/<таблица>.parquet. Возвращает сведения о дне (матчей, ранги, патчи, время)."""
-    lo = day_start(day)
-    prepare(con, (raw / "matches-*.parquet").as_posix(), ranks_glob, meta, heroes, cfg,
-            where=f"start_time >= {lo} AND start_time < {lo + DAY}", epoch=epoch, drop_components=False)
-    out.mkdir(parents=True, exist_ok=True)
-    for i, lvl in enumerate(levels):
-        count_tables(con, lvl, "true", "d", "hero")
-        if i == 0:
-            for kind in ("tot", "gy"):
-                con.execute(f"COPY (SELECT * FROM d_{kind} ORDER BY bucket, role) TO '{(out / f'{kind}.parquet').as_posix()}'")
-        for kind in ("gx", "gxy"):
-            con.execute(f"COPY (SELECT * FROM d_{kind} ORDER BY bucket, role) TO '{(out / f'{kind}_{lvl}.parquet').as_posix()}'")
-    con.execute(f"COPY (SELECT y, itself, players FROM component_share) TO '{(out / 'comp.parquet').as_posix()}'")
-    matches, ranked, first, last = con.execute(
-        "SELECT count(DISTINCT match_id), count(DISTINCT match_id) FILTER (WHERE rank_group IS NOT NULL), "
-        "min(start_time), max(start_time) FROM pg").fetchone()
-    return {"matches": matches, "ranked": ranked, "first": first, "last": last,
-            "by_bucket": dict(con.execute("SELECT bucket, count(DISTINCT match_id) FROM pg GROUP BY ALL").fetchall()),
-            "patches": {str(k): v for k, v in con.execute("SELECT patch, count(*) FROM pg GROUP BY ALL").fetchall()}}
-
-
-def merge(con: duckdb.DuckDBPyConnection, state: Path, table: str, old: Path | None, new: Path | None) -> None:
-    """total = total − старые суммы дня + новые. Строки, где суммы обнулились, убираются (вес любой игры ≥ 1:
-    эпоха не позже самого раннего дня)."""
+def add_to_total(con: duckdb.DuckDBPyConnection, state: Path, table: str, new_table: str) -> None:
+    """total = total + суммы новых матчей (по ключам)."""
     kind = kind_of(table)
     keys, vals = ", ".join(KEYS[kind]), VALUES[kind]
     total = state / "total" / f"{table}.parquet"
-    parts = []
+    parts = [f"SELECT {keys}, {', '.join(vals)} FROM {new_table}"]
     if total.exists():
         parts.append(f"SELECT {keys}, {', '.join(vals)} FROM read_parquet('{total.as_posix()}')")
-    if old is not None and (old / f"{table}.parquet").exists():
-        parts.append(f"SELECT {keys}, {', '.join(f'-{v}' for v in vals)} FROM read_parquet('{(old / f'{table}.parquet').as_posix()}')")
-    if new is not None and (new / f"{table}.parquet").exists():
-        parts.append(f"SELECT {keys}, {', '.join(vals)} FROM read_parquet('{(new / f'{table}.parquet').as_posix()}')")
-    if not parts:
-        return
-    alive = "sum(players) <> 0" if kind == "comp" else "abs(sum(n)) > 0.5"
     order = "y" if kind == "comp" else "bucket, role"
     tmp = total.with_suffix(".tmp.parquet")
     total.parent.mkdir(parents=True, exist_ok=True)
     con.execute(f"""COPY (SELECT {keys}, {', '.join(f'sum({v}) AS {v}' for v in vals)}
-                          FROM ({' UNION ALL '.join(parts)}) GROUP BY ALL HAVING {alive} ORDER BY {order})
-                    TO '{tmp.as_posix()}'""")
+                          FROM ({' UNION ALL '.join(parts)}) GROUP BY ALL ORDER BY {order}) TO '{tmp.as_posix()}' {PARQUET}""")
     tmp.replace(total)
+
+
+def add_batch(con: duckdb.DuckDBPyConnection, batch: Path, state: Path, manifest: dict, meta, heroes,
+              cfg: RecsConfig, levels: tuple) -> int:
+    """Прибавить к хранилищу суммы по матчам из файлов папки batch, которых ещё нет в seen. Возвращает число матчей."""
+    glob = (batch / "matches-*.parquet").as_posix()
+    if manifest.get("epoch") is None:  # эпоха — начало самого раннего дня первой порции (дальше не меняется)
+        first = duckdb.connect().execute(f"SELECT min(start_time) FROM read_parquet('{glob}')").fetchone()[0]
+        manifest["epoch"] = int(first) // DAY * DAY
+    seen = state / "seen.parquet"
+    where = f"match_id NOT IN (SELECT match_id FROM read_parquet('{seen.as_posix()}'))" if seen.exists() else "true"
+    prepare(con, glob, None, meta, heroes, cfg, where=where, epoch=manifest["epoch"], drop_components=False)
+    matches, first, last = con.execute("SELECT count(DISTINCT match_id), min(start_time), max(start_time) FROM pg").fetchone()
+    if not matches:
+        return 0
+    for i, lvl in enumerate(levels):
+        count_tables(con, lvl, "true", "d", "hero")
+        if i == 0:
+            add_to_total(con, state, "tot", "d_tot")
+            add_to_total(con, state, "gy", "d_gy")
+        add_to_total(con, state, f"gx_{lvl}", "d_gx")
+        add_to_total(con, state, f"gxy_{lvl}", "d_gxy")
+    add_to_total(con, state, "comp", "(SELECT y, itself, players FROM component_share)")
+    old = f"UNION ALL SELECT match_id FROM read_parquet('{seen.as_posix()}')" if seen.exists() else ""
+    tmp = seen.with_suffix(".tmp.parquet")
+    con.execute(f"COPY (SELECT DISTINCT match_id FROM (SELECT match_id FROM pg {old}) ORDER BY match_id) "
+                f"TO '{tmp.as_posix()}' {PARQUET}")
+    tmp.replace(seen)
+    info = manifest.setdefault("info", {"matches": 0, "ranked": 0, "by_bucket": {}, "patches": {}, "first": first,
+                                        "last": last})
+    info["matches"] += matches
+    info["first"], info["last"] = min(info["first"], first), max(info["last"], last)
+    for k, v in con.execute("SELECT bucket, count(DISTINCT match_id) FROM pg GROUP BY ALL").fetchall():
+        info["by_bucket"][k] = info["by_bucket"].get(k, 0) + v
+    for k, v in con.execute("SELECT patch, count(*) FROM pg GROUP BY ALL").fetchall():
+        info["patches"][str(k)] = info["patches"].get(str(k), 0) + v
+    return matches
 
 
 def update(raw: Path, state: Path, refs: tuple, cfg: RecsConfig, log=print, listing: dict | None = None,
            fetch=None) -> dict:
-    """Довести хранилище до текущего сырья: пересчитать дни с новыми файлами, обновить итог. Возвращает manifest.
+    """Довести хранилище до текущего сырья: прибавить суммы по новым файлам. Возвращает manifest.
 
     listing — {файл: размер} всего сырья (по умолчанию — файлы в папке raw); fetch(имена) — докачать в raw только
-    нужное: новые файлы и файлы пересчитываемых дней (на GitHub — из релиза data-raw, чтобы не качать всё сырьё).
+    новые файлы (на GitHub — из релиза data-raw, чтобы не качать всё сырьё).
     """
     cfg = state_config(cfg)
     items, abilities, hero_abilities, heroes = refs
@@ -152,54 +147,39 @@ def update(raw: Path, state: Path, refs: tuple, cfg: RecsConfig, log=print, list
     manifest = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
     files = listing if listing is not None else raw_files(raw)
     fetch = fetch or (lambda names: None)
-    days_of = {f: manifest.get("files", {}).get(f, {}).get("days") for f in files}
-    changed = [f for f in files if manifest.get("files", {}).get(f, {}).get("size") != files[f]]
-    fetch(changed)
-    for f in changed:
-        days_of[f] = file_days(raw / f)
-    all_days = sorted({d for ds in days_of.values() for d in ds or []})
-    touched = sorted({d for f in changed for d in days_of[f]})
-    rebuild = (manifest.get("version") != VERSION or manifest.get("fingerprint") != stamp or not all_days
-               or set(manifest.get("files", {})) - set(files)  # пропал файл сырья
-               or any(d in manifest.get("days", {}) and not (state / "days" / d).exists() for d in touched)
-               or min(all_days) < manifest.get("epoch_day", "9999"))
+    done = manifest.get("files", {})
+    rebuild = (manifest.get("version") != VERSION or manifest.get("fingerprint") != stamp
+               or any(files.get(f) != size for f, size in done.items()))  # файл пропал или изменился
     if rebuild:
-        log(f"пересборка хранилища с нуля: дней {len(all_days)}")
+        log(f"пересборка хранилища с нуля: файлов сырья {len(files)}")
         shutil.rmtree(state, ignore_errors=True)
-        manifest = {"version": VERSION, "fingerprint": stamp, "epoch_day": all_days[0] if all_days else None, "days": {}}
-        touched = all_days
-    fetch([f for f in files if set(days_of[f] or []) & set(touched)])  # все файлы, где есть матчи пересчитываемых дней
-    epoch = day_start(manifest["epoch_day"])
-    ranks = list(raw.glob("ranks-*.parquet"))
-    ranks_glob = (raw / "ranks-*.parquet").as_posix() if ranks else None
+        manifest, done = {"version": VERSION, "fingerprint": stamp, "files": {}}, {}
+    new = sorted(f for f in files if f not in done)
     con = setup_connection(None, cfg)
     t0 = time.time()
-    for day in touched:
-        t1 = time.time()
-        new_dir = state / "days" / f"{day}.new"
-        shutil.rmtree(new_dir, ignore_errors=True)
-        info = build_day(con, raw, ranks_glob, day, new_dir, meta, heroes, cfg, epoch, levels)
-        old_dir = state / "days" / day
-        for table in table_names(levels):
-            merge(con, state, table, old_dir if old_dir.exists() else None, new_dir)
-        shutil.rmtree(old_dir, ignore_errors=True)
-        new_dir.replace(old_dir)
-        manifest["days"][day] = info
-        log(f"день {day}: матчей {info['matches']}, {time.time() - t1:.0f} с")
-    newest = max(manifest["days"])
-    for day in list(manifest["days"]):  # заморозить старые дни: их суммы уже в итоге
-        if day_start(day) < day_start(newest) - (KEEP_DAYS - 1) * DAY:
-            shutil.rmtree(state / "days" / day, ignore_errors=True)
-    manifest["files"] = {f: {"size": files[f], "days": days_of[f]} for f in files}
-    manifest["updated_seconds"] = round(time.time() - t0)
     state.mkdir(parents=True, exist_ok=True)
+    added = 0
+    for i in range(0, len(new), FILES_PER_BATCH):
+        names = new[i:i + FILES_PER_BATCH]
+        fetch(names)
+        batch = state.parent / f"{state.name}.batch"
+        shutil.rmtree(batch, ignore_errors=True)
+        batch.mkdir(parents=True)
+        for name in names:
+            shutil.copyfile(raw / name, batch / name)
+        added += add_batch(con, batch, state, manifest, meta, heroes, cfg, levels)
+        shutil.rmtree(batch, ignore_errors=True)
+        manifest["files"].update({name: files[name] for name in names})
+        path.write_text(json.dumps(manifest, ensure_ascii=False, indent=1), encoding="utf-8")
+    manifest["updated_seconds"] = round(time.time() - t0)
     path.write_text(json.dumps(manifest, ensure_ascii=False, indent=1), encoding="utf-8")
-    log(f"хранилище: дней пересчитано {len(touched)}, всего дней {len(manifest['days'])}, {time.time() - t0:.0f} с")
+    log(f"хранилище: новых файлов {len(new)}, новых матчей {added}, всего матчей {manifest.get('info', {}).get('matches', 0)}, "
+        f"{time.time() - t0:.0f} с")
     return manifest
 
 
 class StateCounts:
-    """Суммы из хранилища: итог по всем дням, умноженный на 2^((epoch − newest)/T½) — веса как в расчёте с нуля."""
+    """Суммы из хранилища: итог по всем матчам, умноженный на 2^((epoch − newest)/T½) — веса как в расчёте с нуля."""
 
     def __init__(self, con: duckdb.DuckDBPyConnection, state: Path, scale: float):
         self.con, self.total, self.scale = con, state / "total", scale
@@ -232,16 +212,16 @@ class StateCounts:
 
 
 def compute_from_state(state: Path, refs: tuple, cfg: RecsConfig, log=print) -> dict:
-    """Советы по хранилищу дневных сумм — те же, что compute() по всем матчам."""
+    """Советы по хранилищу сумм — те же, что compute() по всем матчам."""
     cfg = state_config(cfg)
     if cfg.store_rank_groups:
         raise ValueError("ранговые группы в хранилище дневных сумм не поддерживаются (DECISIONS №17: не храним)")
     items, abilities, hero_abilities, heroes = refs
     meta, flags = item_meta(items, abilities, hero_abilities, heroes, cfg)
     manifest = json.loads((state / "manifest.json").read_text(encoding="utf-8"))
-    days = manifest["days"].values()
-    newest = max(d["last"] for d in days)
-    scale = 2.0 ** ((day_start(manifest["epoch_day"]) - newest) / (cfg.half_life_days * DAY))
+    info0 = manifest["info"]
+    newest = info0["last"]
+    scale = 2.0 ** ((manifest["epoch"] - newest) / (cfg.half_life_days * DAY))
     con = setup_connection(None, cfg)
     t0 = time.time()
     static_tables(con, meta, heroes)
@@ -249,18 +229,12 @@ def compute_from_state(state: Path, refs: tuple, cfg: RecsConfig, log=print) -> 
     hero_classes(con, f"SELECT hero, role, sum(c) AS c FROM read_parquet('{(total / 'tot.parquet').as_posix()}') GROUP BY ALL")
     con.execute(f"""CREATE OR REPLACE TABLE component_share AS SELECT y, itself / players AS share, players, itself
                     FROM read_parquet('{(total / 'comp.parquet').as_posix()}')""")
-    patches = {}
-    by_bucket = {}
-    for d in days:
-        for k, v in d["patches"].items():
-            patches[k] = patches.get(k, 0) + v
-        for k, v in d["by_bucket"].items():
-            by_bucket[k] = by_bucket.get(k, 0) + v
+    patches = info0["patches"]
     patch = max(sorted(patches), key=lambda k: patches[k]) if patches else None
-    info = {"matches": sum(d["matches"] for d in days), "ranked": sum(d["ranked"] for d in days),
-            "first_start": min(d["first"] for d in days), "last_start": newest, "by_bucket": by_bucket,
+    info = {"matches": info0["matches"], "ranked": info0["ranked"], "first_start": info0["first"], "last_start": newest,
+            "by_bucket": info0["by_bucket"],
             "patch": int(patch) if patch is not None and patch.lstrip("-").isdigit() else patch}
-    log(f"хранилище: матчей {info['matches']}, дней {len(manifest['days'])}")
+    log(f"хранилище: матчей {info['matches']}")
     return finish(con, {"all": StateCounts(con, state, scale)}, meta, flags, cfg, info, log, t0)
 
 
@@ -287,7 +261,7 @@ def release_fetcher(raw: Path, repo: str, release: str, log=print) -> tuple[dict
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Инкрементальный расчёт советов по дневным суммам")
+    parser = argparse.ArgumentParser(description="Инкрементальный расчёт советов по хранилищу сумм")
     parser.add_argument("--release", help="брать сырьё из релиза (например data-raw), докачивая только нужное")
     parser.add_argument("--raw", default="raw")
     parser.add_argument("--state", default="state")
