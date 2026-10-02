@@ -157,6 +157,8 @@ def check_holdout(matches_glob: str, ranks_glob: str | None, refs: tuple, cfg, d
     level_metrics_parts(con, "hero", "true", "test_hero", min_buy_share=cfg.min_buy_share)
     level_metrics_parts(con, "L2", "true", "test_L2", min_buy_share=cfg.min_buy_share)
     thresholds = a_thresholds(con, cfg.z90)
+    level_metrics_parts(con, "L1", "true", "test_L1", min_buy_share=cfg.min_buy_share)
+    l1_vs_l2 = compare_l1_l2(con, train, cfg.z90)
     con.execute("CREATE TABLE train(bucket VARCHAR, role VARCHAR, hero SMALLINT, ctx VARCHAR, y SMALLINT, b DOUBLE, "
                 "a DOUBLE)")
     if rows:
@@ -180,7 +182,53 @@ def check_holdout(matches_glob: str, ranks_glob: str | None, refs: tuple, cfg, d
     return {"cutoff": cutoff, "high_rows": len(rows), "checked": checked, "agree": agree, "share": share(agree, checked),
             "b_significant": b_sig, "share_b_significant": share(b_sig_agree, b_sig),
             "a_checked": a_checked, "share_a": share(a_agree, a_checked),
-            "a_significant": a_sig, "share_a_significant": share(a_sig_agree, a_sig), "thresholds": thresholds}
+            "a_significant": a_sig, "share_a_significant": share(a_sig_agree, a_sig), "thresholds": thresholds,
+            "l1_vs_l2": l1_vs_l2}
+
+
+def compare_l1_l2(con: duckdb.DuckDBPyConnection, train: dict, z: float, top: int = TOP) -> dict:
+    """Что лучше предсказывает A на отложенных днях в ситуации «у героя E предмет X»: совет L1 (связка E+X,
+    со сглаживанием) или совет L2 (X у любого врага). Решение автора 02.10: L1 оставляем, только если он лучше на 3+ п.п.
+
+    Берутся связки (H, E:X), у которых в обучении есть и ответы L1, и ответы L2 для X. Факт — сырой A в контексте
+    E:X на отложенных днях (таблица test_L1). Показатели для каждого источника:
+    знак A топ-3 совпал там, где A значим на проверке; первый совет = лучший по факту A среди предметов,
+    у которых факт есть; средний фактический A первого совета (п.п.).
+    """
+    rows = []
+    for bucket, groups in train["item_hero"].items():
+        l2_all = train["item"].get(bucket, {}).get("all", {})
+        for role, by_hero in groups.get("all", {}).items():
+            for hero, by_ctx in by_hero.items():
+                for ctx, l1_rows in by_ctx.items():
+                    l2_rows = l2_all.get(role, {}).get(hero, {}).get(ctx.split(":")[1])
+                    if not l1_rows or not l2_rows:
+                        continue
+                    for src, src_rows in (("L1", l1_rows), ("L2", l2_rows)):
+                        for rank, r in enumerate(src_rows[:top], 1):
+                            rows.append((src, bucket, role, int(hero), ctx, int(r[0]), rank, r[2]))
+    con.execute("CREATE OR REPLACE TABLE adv(src VARCHAR, bucket VARCHAR, role VARCHAR, hero SMALLINT, ctx VARCHAR, "
+                "y SMALLINT, rnk INT, a DOUBLE)")
+    if rows:
+        con.executemany("INSERT INTO adv VALUES (?, ?, ?, ?, ?, ?, ?, ?)", rows)
+    result = {}
+    for src, sig_n, sig_agree, ctxs, best_hit, mean_a in con.execute(f"""
+        WITH best AS (SELECT bucket, role, hero, ctx, arg_max(y, A) AS y_best FROM test_L1 WHERE A IS NOT NULL
+                      GROUP BY ALL),
+        j AS (SELECT a.*, s.A AS ta, s.vA AS tva FROM adv a
+              JOIN test_L1 s USING (bucket, role, hero, ctx, y))
+        SELECT j.src,
+               count(*) FILTER (WHERE j.a <> 0 AND abs(j.ta) > {z} * sqrt(greatest(j.tva, 0))),
+               count(*) FILTER (WHERE j.a <> 0 AND abs(j.ta) > {z} * sqrt(greatest(j.tva, 0)) AND sign(j.a) = sign(j.ta)),
+               count(*) FILTER (WHERE j.rnk = 1),
+               count(*) FILTER (WHERE j.rnk = 1 AND j.y = b.y_best),
+               avg(j.ta) FILTER (WHERE j.rnk = 1) * 100
+        FROM j JOIN best b USING (bucket, role, hero, ctx) GROUP BY j.src ORDER BY j.src
+    """).fetchall():
+        result[src] = {"sig": sig_n, "share_sig": sig_agree / sig_n if sig_n else None, "firsts": ctxs,
+                       "share_best": best_hit / ctxs if ctxs else None, "mean_a_first": mean_a}
+    result["links"] = len({(r[1], r[2], r[3], r[4]) for r in rows})
+    return result
 
 
 A_THRESHOLDS_PP = (0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 5.0)
@@ -388,6 +436,13 @@ def main() -> None:
           f"(нужно от 80%); знак A всех: {_pct(hold['share_a'])} из {hold['a_checked']}\n"
           f"  B (только вето): знак совпал {_pct(hold['share'])} из {hold['checked']}, где значим — "
           f"{_pct(hold['share_b_significant'])} из {hold['b_significant']} (вернуть в порядок — от 70%, DECISIONS №20)")
+    cmp = hold["l1_vs_l2"]
+    print(f"  L1 (E с X) против L2 (X у любого врага), связок {cmp['links']} — факт: A в связке на отложенных днях:")
+    for src in ("L1", "L2"):
+        c = cmp.get(src)
+        if c:
+            print(f"    {src}: знак A топ-3 где значим — {_pct(c['share_sig'])} из {c['sig']}; первый совет = лучший "
+                  f"по факту — {_pct(c['share_best'])} из {c['firsts']}; средний факт A первого — {c['mean_a_first']:+.2f} п.п.")
     print("  порог «настоящего контр-предмета» (герой против героя; A значим на обучении и ≥ порога):")
     for t in hold["thresholds"]:
         print(f"    A ≥ {t['pp']:.1f} п.п.: советов {t['checked']}, знак A повторился {_pct(t['share'])}, "
