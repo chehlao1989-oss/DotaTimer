@@ -157,8 +157,10 @@ def check_holdout(matches_glob: str, ranks_glob: str | None, refs: tuple, cfg, d
     level_metrics_parts(con, "hero", "true", "test_hero", min_buy_share=cfg.min_buy_share)
     level_metrics_parts(con, "L2", "true", "test_L2", min_buy_share=cfg.min_buy_share)
     thresholds = a_thresholds(con, cfg.z90)
-    level_metrics_parts(con, "L1", "true", "test_L1", min_buy_share=cfg.min_buy_share)
-    l1_vs_l2 = compare_l1_l2(con, train, cfg.z90)
+    l1_vs_l2 = {"links": 0}  # L1 убран (DECISIONS №24); сравнение — только если его вернут в recs_config: levels
+    if "L1" in cfg.levels:
+        level_metrics_parts(con, "L1", "true", "test_L1", min_buy_share=cfg.min_buy_share)
+        l1_vs_l2 = compare_l1_l2(con, train, cfg.z90)
     con.execute("CREATE TABLE train(bucket VARCHAR, role VARCHAR, hero SMALLINT, ctx VARCHAR, y SMALLINT, b DOUBLE, "
                 "a DOUBLE)")
     if rows:
@@ -437,12 +439,13 @@ def main() -> None:
           f"  B (только вето): знак совпал {_pct(hold['share'])} из {hold['checked']}, где значим — "
           f"{_pct(hold['share_b_significant'])} из {hold['b_significant']} (вернуть в порядок — от 70%, DECISIONS №20)")
     cmp = hold["l1_vs_l2"]
-    print(f"  L1 (E с X) против L2 (X у любого врага), связок {cmp['links']} — факт: A в связке на отложенных днях:")
-    for src in ("L1", "L2"):
-        c = cmp.get(src)
-        if c:
-            print(f"    {src}: знак A топ-3 где значим — {_pct(c['share_sig'])} из {c['sig']}; первый совет = лучший "
-                  f"по факту — {_pct(c['share_best'])} из {c['firsts']}; средний факт A первого — {c['mean_a_first']:+.2f} п.п.")
+    if cmp["links"]:
+        print(f"  L1 (E с X) против L2 (X у любого врага), связок {cmp['links']} — факт: A в связке на отложенных днях:")
+        for src in ("L1", "L2"):
+            c = cmp.get(src)
+            if c:
+                print(f"    {src}: знак A топ-3 где значим — {_pct(c['share_sig'])} из {c['sig']}; первый совет = лучший "
+                      f"по факту — {_pct(c['share_best'])} из {c['firsts']}; средний факт A первого — {c['mean_a_first']:+.2f} п.п.")
     print("  порог «настоящего контр-предмета» (герой против героя; A значим на обучении и ≥ порога):")
     for t in hold["thresholds"]:
         print(f"    A ≥ {t['pp']:.1f} п.п.: советов {t['checked']}, знак A повторился {_pct(t['share'])}, "

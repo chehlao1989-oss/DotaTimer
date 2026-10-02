@@ -99,9 +99,15 @@ def test_adaptation_not_fooled_by_game_length(result):
     assert abs(rows["black_king_bar"][2]) < 8  # BKB чаще в долгих играх, но не «против Heart»
 
 
-def test_hero_level_and_meta(result):
-    rows = answers(result, "item_hero", f"{ENEMY}:{HEART}")
-    assert "skadi" in rows
+def test_hero_level_and_meta(result, tmp_path):
+    assert result["item_hero"] == {}  # L1 убран (DECISIONS №24)
+    import dataclasses
+    folder = tmp_path / "raw"
+    folder.mkdir()
+    make_matches(folder / "matches-test.parquet")
+    with_l1 = compute(str(folder / "matches-*.parquet"), None, ITEMS, {}, {}, HEROES,
+                      dataclasses.replace(metrics_config(), levels=["L3", "L2", "L1", "hero"]), log=lambda *_: None)
+    assert "skadi" in answers(with_l1, "item_hero", f"{ENEMY}:{HEART}")  # если L1 вернут — он считается
     assert result["meta"]["matches"] == 6000
     assert result["meta"]["ranked_share"] == 0
 
