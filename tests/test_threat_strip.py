@@ -117,3 +117,18 @@ def test_messages_never_overflow_window(qapp):
     frames = [f for f in overlay._frames() if f.isVisible()]
     assert frames and sum(f.sizeHint().height() + 6 for f in frames) <= overlay.height() - 12
     overlay.close()
+
+
+def test_enemy_without_counter_not_drawn(qapp, tmp_path):
+    """DECISIONS №22: враг без «настоящего контр-предмета» на полоске не рисуется; если таких все — полоски нет."""
+    from app.ui.outlined_label import OutlinedLabel
+    from app.ui.threat_strip import ThreatStrip
+    strip = ThreatStrip(StripSettings(), tmp_path)
+    strip.update_recommendations([ThreatRecommendation("axe", ())], {"axe": "Axe"})
+    assert not strip.isVisible()
+    strip.update_recommendations([ThreatRecommendation("axe", ()),
+                                  ThreatRecommendation("sniper", (RecItem("blink", 1, "mechanic", None, 0),))],
+                                 {"axe": "Axe", "sniper": "Sniper"})
+    names = [w.text() for w in strip.findChildren(OutlinedLabel) if w.isVisible()]
+    assert "Sniper" in names and "Axe" not in names
+    strip.close()

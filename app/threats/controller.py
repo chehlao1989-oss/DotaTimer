@@ -176,8 +176,7 @@ class ThreatsController:
             lines.append(ru.CARD_LINE.format(hero=threat.hero.localized, reason=reason))
             if self.card_items is not None:
                 items = self.card_items(threat.hero.name)
-                if items:
-                    lines.append(ru.CARD_COUNTERS.format(items=items))
+                lines.append(ru.CARD_COUNTERS.format(items=items) if items else ru.CARD_NO_ANSWER)
                 continue
             suggestions = self.suggestions_vs_hero(threat.hero.name)
             if suggestions:

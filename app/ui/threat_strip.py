@@ -92,7 +92,7 @@ class ThreatStrip(DraggableOverlay):
                     self._highlight.add(key)
                     QTimer.singleShot(HIGHLIGHT_MS, lambda k=key: self._unhighlight(k))
         self._render()
-        if recs and self.settings.visible and not self.isVisible():
+        if any(r.items for r in recs) and self.settings.visible and not self.isVisible():
             self.show()
 
     def clear(self) -> None:
@@ -132,7 +132,8 @@ class ThreatStrip(DraggableOverlay):
         self._clear()
         self._row.setContentsMargins(spacing, spacing, spacing, spacing)
         self._row.setSpacing(spacing * 2)
-        recs = self._recs or ([] if not self._layout_mode else [ThreatRecommendation("", ())])
+        # враг без «настоящего контр-предмета» на полоске не рисуется (DECISIONS №22)
+        recs = [r for r in self._recs if r.items] or ([] if not self._layout_mode else [ThreatRecommendation("", ())])
         for rec in recs:
             column = QVBoxLayout()
             column.setSpacing(round(4 * f))
