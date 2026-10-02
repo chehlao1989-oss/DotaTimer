@@ -1,5 +1,7 @@
 # Расчёт советов после каждого сбора (docs/RECOMMENDER_SPEC.md, разделы 3–7): сырые матчи из релиза data-raw →
 # tools/compute_recs.py → recs.zip в релиз «recs». Программа скачивает recs.zip раз в сутки (app/threats/recs_file.py).
+# Сбор запускается каждый час (будильник, BUGLOG №37), а собирает 2 раза в сутки: сторож расчёта считает, только если
+# в data-raw есть данные новее recs.zip (BUGLOG №38). Ручная кнопка считает всегда.
 name: Расчёт советов
 
 on:
@@ -13,7 +15,7 @@ permissions:
 
 concurrency:
   group: recs
-  cancel-in-progress: true  # считаем по самым свежим данным
+  cancel-in-progress: false  # не отменять идущий расчёт: выход сторожа сбора через минуты после сбора отменял настоящий (BUGLOG №38)
 
 jobs:
   compute:
@@ -29,22 +31,32 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Сторож расчёта (есть ли данные новее recs.zip; ручная кнопка — без сторожа)
+        id: guard
+        if: github.event_name == 'workflow_run'
+        run: python tools/recs_guard.py
+
       - name: Библиотеки
+        if: steps.guard.outputs.run != 'false'
         run: pip install -r requirements-collector.txt
 
       - name: Сырые матчи из релиза data-raw
+        if: steps.guard.outputs.run != 'false'
         run: |
           mkdir -p raw
           gh release download data-raw -p "matches-*.parquet" -p "ranks-*.parquet" -D raw
           ls raw | wc -l && du -sh raw
 
       - name: Справочники OpenDota (герои, предметы, способности — 5 запросов)
+        if: steps.guard.outputs.run != 'false'
         run: python -c "from pathlib import Path; from app.threats.data import DataCache, DataUpdater; DataUpdater(DataCache(Path('cache'))).refresh_core()"
 
       - name: Расчёт советов
+        if: steps.guard.outputs.run != 'false'
         run: python tools/compute_recs.py --raw raw --out recs.zip --cache cache
 
       - name: Выложить recs.zip в релиз recs
+        if: steps.guard.outputs.run != 'false'
         run: |
           gh release view recs >/dev/null 2>&1 || gh release create recs --title "Советы" \
             --notes "Готовые советы по предметам (recs.zip, по героям). Считаются после каждого сбора из релиза data-raw. Формат: app/threats/recs_file.py." \
