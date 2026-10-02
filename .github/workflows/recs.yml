@@ -2,6 +2,8 @@
 # tools/compute_recs.py → recs.zip в релиз «recs». Программа скачивает recs.zip раз в сутки (app/threats/recs_file.py).
 # Сбор запускается каждый час (будильник, BUGLOG №37), а собирает 2 раза в сутки: сторож расчёта считает, только если
 # в data-raw есть данные новее recs.zip (BUGLOG №38). Ручная кнопка считает всегда.
+# Расчёт инкрементальный (DECISIONS №23): хранилище дневных сумм — state.tar.gz в релизе «recs-state»; пересчитываются
+# только дни с новыми матчами, сырьё докачивается только для них (tools/recs_state.py). Проба ветки — в релизы *-trial.
 name: Расчёт советов
 
 on:
@@ -9,6 +11,8 @@ on:
     workflows: ["Статистика матчей"]
     types: [completed]
   workflow_dispatch: {}   # кнопка «Run workflow» для ручного запуска
+  push:
+    branches: [recs-incremental]  # проба ветки (в релизы recs-trial / recs-state-trial); при слиянии убрать
 
 permissions:
   contents: write  # чтобы выкладывать recs.zip в релиз
@@ -24,6 +28,8 @@ jobs:
     timeout-minutes: 120
     env:
       GH_TOKEN: ${{ github.token }}
+      RECS_RELEASE: ${{ github.ref_name == 'main' && 'recs' || 'recs-trial' }}
+      STATE_RELEASE: ${{ github.ref_name == 'main' && 'recs-state' || 'recs-state-trial' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -40,25 +46,37 @@ jobs:
         if: steps.guard.outputs.run != 'false'
         run: pip install -r requirements-collector.txt
 
-      - name: Сырые матчи из релиза data-raw
+      - name: Хранилище дневных сумм из релиза
         if: steps.guard.outputs.run != 'false'
         run: |
-          mkdir -p raw
-          gh release download data-raw -p "matches-*.parquet" -p "ranks-*.parquet" -D raw
-          ls raw | wc -l && du -sh raw
+          gh release download "$STATE_RELEASE" -p state.tar.gz || echo "хранилища нет — соберу с нуля"
+          if [ -f state.tar.gz ]; then tar xzf state.tar.gz && du -sh state; fi
 
       - name: Справочники OpenDota (герои, предметы, способности — 5 запросов)
         if: steps.guard.outputs.run != 'false'
         run: python -c "from pathlib import Path; from app.threats.data import DataCache, DataUpdater; DataUpdater(DataCache(Path('cache'))).refresh_core()"
 
-      - name: Расчёт советов
-        if: steps.guard.outputs.run != 'false'
-        run: python tools/compute_recs.py --raw raw --out recs.zip --cache cache
-
-      - name: Выложить recs.zip в релиз recs
+      - name: Расчёт советов (инкрементальный; сырьё докачивается только для пересчитываемых дней)
         if: steps.guard.outputs.run != 'false'
         run: |
-          gh release view recs >/dev/null 2>&1 || gh release create recs --title "Советы" \
+          set -o pipefail  # иначе ошибка расчёта теряется за tee
+          python -u tools/recs_state.py --release data-raw --raw raw --state state --out recs.zip --cache cache | tee recs.log
+          grep -E "замер|день |хранилище|пересборка|скачано" recs.log >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Выложить recs.zip в релиз
+        if: steps.guard.outputs.run != 'false'
+        run: |
+          gh release view "$RECS_RELEASE" >/dev/null 2>&1 || gh release create "$RECS_RELEASE" --title "Советы ($RECS_RELEASE)" \
             --notes "Готовые советы по предметам (recs.zip, по героям). Считаются после каждого сбора из релиза data-raw. Формат: app/threats/recs_file.py." \
             --prerelease
-          gh release upload recs recs.zip --clobber
+          gh release upload "$RECS_RELEASE" recs.zip --clobber
+
+      - name: Выложить хранилище дневных сумм
+        if: steps.guard.outputs.run != 'false'
+        run: |
+          tar czf state.tar.gz state && ls -la state.tar.gz
+          echo "архив хранилища: $(du -h state.tar.gz | cut -f1)" >> "$GITHUB_STEP_SUMMARY"
+          gh release view "$STATE_RELEASE" >/dev/null 2>&1 || gh release create "$STATE_RELEASE" --title "Хранилище дневных сумм ($STATE_RELEASE)" \
+            --notes "Суммы по дням для инкрементального расчёта советов (tools/recs_state.py, DECISIONS №23). Можно удалить — соберётся с нуля из data-raw." \
+            --prerelease
+          gh release upload "$STATE_RELEASE" state.tar.gz --clobber

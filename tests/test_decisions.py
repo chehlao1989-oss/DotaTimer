@@ -149,3 +149,10 @@ def test_b_is_veto_only():
     """№20: λ = 0 — B только вето, пока знак B на свежих данных не совпадает в ≥ 70%."""
     config = json.loads((ROOT / "data" / "recs_config.json").read_text(encoding="utf-8"))
     assert config["lam"] == 0.0 and config["veto_b"] == 2.0
+
+
+def test_recs_incremental_on_github():
+    """№23: пересчёт советов на GitHub — по хранилищу дневных сумм (tools/recs_state.py), хранилище — в релизе."""
+    workflow = (ROOT / ".github" / "workflows" / "recs.yml").read_text(encoding="utf-8")
+    assert "tools/recs_state.py --release data-raw" in workflow and "gh release upload \"$STATE_RELEASE\" state.tar.gz" in workflow
+    assert "compute_recs.py --raw raw" not in workflow  # расчёт с нуля по всему сырью — только в проверках (checks.yml)
