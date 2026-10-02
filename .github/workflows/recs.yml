@@ -79,4 +79,4 @@ jobs:
           gh release view "$STATE_RELEASE" >/dev/null 2>&1 || gh release create "$STATE_RELEASE" --title "Хранилище дневных сумм ($STATE_RELEASE)" \
             --notes "Суммы по дням для инкрементального расчёта советов (tools/recs_state.py, DECISIONS №23). Можно удалить — соберётся с нуля из data-raw." \
             --prerelease
-          gh release upload "$STATE_RELEASE" state.tar.gz --clobber
+          gh release upload "$STATE_RELEASE" state.tar.gz recs.log --clobber  # журнал — замеры времени (DECISIONS №23)
