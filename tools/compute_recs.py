@@ -77,6 +77,7 @@ class RecsConfig:
     mechanic_first_b_significant: bool  # в первую группу пускать и ответ с значимо положительным B
     adaptation_top: int  # сколько лучших по A пускать в кандидаты без правила механик
     min_buy_share: float  # доля игр H в роли, в которых он покупает Y; реже — Y не кандидат (спека 6.4)
+    counter_min_a_pp: float | None  # совет — только если A значим и не меньше этого, п.п. (DECISIONS №22)
     levels: list  # уровни контекста: L3, L2, L1, hero (решение по L1 — по замеру L1 против L2, 02.10)
 
 
@@ -515,6 +516,9 @@ def rank_answers(con: duckdb.DuckDBPyConnection, table: str, level: str, cfg: Re
                      if cfg.mechanic_first_b_significant else "")
             first_key = f"(rule IS NULL OR (a_s <= {cfg.mechanic_first_min_a}{works})), "
     confident = "AND conf <> 'low'" if only_confident else ""
+    # «настоящий контр-предмет»: A значим и не меньше порога, иначе «явного ответа нет» (DECISIONS №22); None — без порога
+    counter = ("" if cfg.counter_min_a_pp is None else
+               f"AND a_s - {cfg.z90} * sqrt(greatest(coalesce(va_s, 0), 0)) > 0 AND a_s * 100 >= {cfg.counter_min_a_pp}")
     return con.execute(f"""
         WITH t0 AS (SELECT t.*, coalesce({", ".join(rules)}) AS rule0, coalesce({", ".join(broads)}) AS broad0
                     FROM {table} t {" ".join(joins)}),
@@ -534,6 +538,7 @@ def rank_answers(con: duckdb.DuckDBPyConnection, table: str, level: str, cfg: Re
             SELECT * FROM s
             WHERE (rule IS NOT NULL OR ra <= {cfg.adaptation_top})
               AND NOT (b_s IS NOT NULL AND vb_s IS NOT NULL AND (b_s + {cfg.z90} * sqrt(greatest(vb_s, 0))) * 100 < -{cfg.veto_b})
+              {counter}
               {confident}
         ),
         r AS (SELECT *, row_number() OVER (PARTITION BY bucket, role, hero, ctx

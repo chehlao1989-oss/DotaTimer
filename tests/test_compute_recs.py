@@ -63,12 +63,18 @@ def make_matches(path, n=6000, seed=7):
     pq.write_table(pa.Table.from_pylist(rows, schema=MATCH_SCHEMA), path)
 
 
+def metrics_config():
+    """Настройки без порога «настоящего контр-предмета»: тесты формул A и B смотрят и на слабые советы (DECISIONS №22)."""
+    import dataclasses
+    return dataclasses.replace(load_config(), counter_min_a_pp=None)
+
+
 @pytest.fixture(scope="module")
 def result(tmp_path_factory):
     folder = tmp_path_factory.mktemp("raw")
     make_matches(folder / "matches-test.parquet")
     make_matches(folder / "matches-test-copy.parquet", n=100)  # повтор первых 100 матчей — не должен считаться дважды
-    return compute(str(folder / "matches-*.parquet"), None, ITEMS, {}, {}, HEROES, load_config(), log=lambda *_: None)
+    return compute(str(folder / "matches-*.parquet"), None, ITEMS, {}, {}, HEROES, metrics_config(), log=lambda *_: None)
 
 
 def answers(result, level, ctx):
@@ -245,7 +251,7 @@ def test_mechanic_answers_first(tmp_path):
     folder = tmp_path / "raw"
     folder.mkdir()
     make_matches(folder / "matches-test.parquet", n=2000)
-    base = load_config()
+    base = metrics_config()
     args = (str(folder / "matches-*.parquet"), None, ITEMS, {}, {}, HEROES)
     first = compute(*args, base, log=lambda *_: None)
     plain = compute(*args, dataclasses.replace(base, mechanic_first=False), log=lambda *_: None)
@@ -268,6 +274,17 @@ def test_compute_is_reproducible(result, tmp_path):
     folder.mkdir()
     make_matches(folder / "matches-test.parquet")
     make_matches(folder / "matches-test-copy.parquet", n=100)
-    again = compute(str(folder / "matches-*.parquet"), None, ITEMS, {}, {}, HEROES, load_config(), log=lambda *_: None)
+    again = compute(str(folder / "matches-*.parquet"), None, ITEMS, {}, {}, HEROES, metrics_config(), log=lambda *_: None)
     strip = lambda r: {**r, "meta": {k: v for k, v in r["meta"].items() if k not in ("generated_at", "seconds")}}  # noqa: E731
     assert strip(again) == strip(result)
+
+
+def test_counter_threshold_keeps_only_real_counters(tmp_path):
+    """DECISIONS №22: совет — только если A значим и ≥ порога. Vessel против Heart (A ≈ +40 п.п.) остаётся;
+    BKB (берут в долгих играх, не против Heart) и Skadi (помогает выиграть, но берут не чаще — только B) уходят."""
+    folder = tmp_path / "raw"
+    folder.mkdir()
+    make_matches(folder / "matches-test.parquet")
+    res = compute(str(folder / "matches-*.parquet"), None, ITEMS, {}, {}, HEROES, load_config(), log=lambda *_: None)
+    rows = answers(res, "item", str(HEART))
+    assert "spirit_vessel" in rows and "black_king_bar" not in rows and "skadi" not in rows
