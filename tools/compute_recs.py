@@ -177,7 +177,8 @@ def prepare(con: duckdb.DuckDBPyConnection, matches_glob: str, ranks_glob: str |
         WITH base AS (
             SELECT m.*, r.rank_tier,
                    CASE WHEN game_mode = 23 THEN 'turbo' ELSE 'normal' END AS bucket,
-                   row_number() OVER (PARTITION BY m.match_id, is_radiant ORDER BY net_worth DESC) AS nw_place,
+                   -- при равном нетворсе — по номеру героя: иначе роль доставалась случайно и расчёт не повторялся (BUGLOG №40)
+                   row_number() OVER (PARTITION BY m.match_id, is_radiant ORDER BY net_worth DESC, hero_id) AS nw_place,
                    max(start_time) OVER () AS newest
             FROM m LEFT JOIN r USING (match_id)
         )
@@ -202,8 +203,12 @@ def prepare(con: duckdb.DuckDBPyConnection, matches_glob: str, ranks_glob: str |
     con.execute("""
         CREATE OR REPLACE TABLE hero_cls AS
         WITH rc AS (SELECT hero, role, count(*) AS c FROM pg GROUP BY ALL)
-        SELECT rc.hero, coalesce(a.attr, 'all') || '-' || arg_max(rc.role, rc.c) AS cls, arg_max(rc.role, rc.c) AS main_role
-        FROM rc LEFT JOIN hero_attr a USING (hero) GROUP BY rc.hero, a.attr
+        SELECT rc.hero, coalesce(a.attr, 'all') || '-' || arg_max(rc.role, rc.c * 10 + r.k) AS cls,
+               arg_max(rc.role, rc.c * 10 + r.k) AS main_role
+        FROM rc LEFT JOIN hero_attr a USING (hero)
+        -- при равном числе игр роль выбирается по порядку core > offlane > support (BUGLOG №40)
+        JOIN (VALUES ('core', 3), ('offlane', 2), ('support', 1)) r(role, k) ON r.role = rc.role
+        GROUP BY rc.hero, a.attr
     """)
     con.execute("CREATE OR REPLACE TABLE pg AS SELECT pg.*, hc.cls FROM pg JOIN hero_cls hc USING (hero)")
 
@@ -238,7 +243,7 @@ def prepare(con: duckdb.DuckDBPyConnection, matches_glob: str, ranks_glob: str |
     # у одного Y против контекста может быть несколько правил: узкое важнее широкого
     con.execute("""
         CREATE OR REPLACE TABLE ans1 AS
-        SELECT kind, ctx, y, arg_min(rule, (rule IN (SELECT rule FROM broad))::INT * 1000 + 0) AS rule,
+        SELECT kind, ctx, y, arg_min(rule, (rule IN (SELECT rule FROM broad))::INT::VARCHAR || rule) AS rule,  -- узкое, затем по имени (BUGLOG №40)
                bool_and(rule IN (SELECT rule FROM broad)) AS broad
         FROM ans GROUP BY ALL
     """)
@@ -292,22 +297,39 @@ def level_metrics(con: duckdb.DuckDBPyConnection, level: str, rank_filter: str, 
     совет всё равно отсеется в программе, а без этого фильтра таблицы на миллионе матчей не помещаются в память).
     min_ctx — контекст берём, только если игр H с ним не меньше (для L1: в ответ идут связки от средней уверенности).
     """
+    count_tables(con, level, rank_filter, "cnt", who)
+    metrics_from_counts(con, dst, "cnt", min_buy_share, min_ctx)
+
+
+def count_tables(con: duckdb.DuckDBPyConnection, level: str, rank_filter: str, prefix: str, who: str = "hero") -> None:
+    """Суммы весов игр и побед — {prefix}_tot / _gx / _gy / _gxy (по страте). Это всё, что нужно формулам A и B,
+    и суммы складываются: их можно считать по дням и хранить (инкрементальный расчёт, решение автора 02.10)."""
+    g = f"(SELECT * FROM pg WHERE {rank_filter})"
+    con.execute(f"CREATE OR REPLACE TEMP TABLE {prefix}_ctx AS {CTX_SQL[level].replace('FROM pg p', f'FROM {g} p')}")
+    con.execute(f"""CREATE OR REPLACE TABLE {prefix}_tot AS
+        SELECT bucket, role, {who} AS hero, stratum, sum(wt) AS n, sum(wt * win::INT) AS w FROM {g} GROUP BY ALL""")
+    con.execute(f"""CREATE OR REPLACE TABLE {prefix}_gx AS
+        SELECT g.bucket, g.role, g.{who} AS hero, c.ctx, g.stratum, sum(g.wt) AS n, sum(g.wt * g.win::INT) AS w
+        FROM {g} g JOIN {prefix}_ctx c ON c.match_id = g.match_id AND c.is_radiant = g.is_radiant GROUP BY ALL""")
+    con.execute(f"""CREATE OR REPLACE TABLE {prefix}_gy AS
+        SELECT g.bucket, g.role, g.{who} AS hero, o.y, g.stratum, sum(g.wt) AS n, sum(g.wt * g.win::INT) AS w
+        FROM {g} g JOIN owned_y o ON o.match_id = g.match_id AND o.is_radiant = g.is_radiant AND o.hero = g.hero
+        GROUP BY ALL""")
+    con.execute(f"""CREATE OR REPLACE TABLE {prefix}_gxy AS
+        SELECT g.bucket, g.role, g.{who} AS hero, c.ctx, o.y, g.stratum, sum(g.wt) AS n, sum(g.wt * g.win::INT) AS w
+        FROM {g} g JOIN {prefix}_ctx c ON c.match_id = g.match_id AND c.is_radiant = g.is_radiant
+        JOIN owned_y o ON o.match_id = g.match_id AND o.is_radiant = g.is_radiant AND o.hero = g.hero
+        GROUP BY ALL""")
+    con.execute(f"DROP TABLE IF EXISTS {prefix}_ctx")
+
+
+def metrics_from_counts(con: duckdb.DuckDBPyConnection, dst: str, prefix: str, min_buy_share: float = 0.0,
+                        min_ctx: float = 0.0) -> None:
+    """Формулы A и B (см. level_metrics) по суммам {prefix}_tot / _gx / _gy / _gxy."""
     con.execute(f"""
         CREATE OR REPLACE TABLE {dst} AS
-        WITH g AS (SELECT * FROM pg WHERE {rank_filter}),
-        ctx AS ({CTX_SQL[level]}),
-        tot AS (SELECT bucket, role, {who} AS hero, stratum, sum(wt) AS n, sum(wt * win::INT) AS w
-                FROM g GROUP BY ALL),
-        gx AS (SELECT g.bucket, g.role, g.{who} AS hero, c.ctx, g.stratum, sum(g.wt) AS n, sum(g.wt * g.win::INT) AS w
-               FROM g JOIN ctx c ON c.match_id = g.match_id AND c.is_radiant = g.is_radiant GROUP BY ALL),
-        gy AS (SELECT g.bucket, g.role, g.{who} AS hero, o.y, g.stratum, sum(g.wt) AS n, sum(g.wt * g.win::INT) AS w
-               FROM g JOIN owned_y o ON o.match_id = g.match_id AND o.is_radiant = g.is_radiant AND o.hero = g.hero
-               GROUP BY ALL),
-        gxy AS (SELECT g.bucket, g.role, g.{who} AS hero, c.ctx, o.y, g.stratum, sum(g.wt) AS n,
-                       sum(g.wt * g.win::INT) AS w
-                FROM g JOIN ctx c ON c.match_id = g.match_id AND c.is_radiant = g.is_radiant
-                JOIN owned_y o ON o.match_id = g.match_id AND o.is_radiant = g.is_radiant AND o.hero = g.hero
-                GROUP BY ALL),
+        WITH tot AS (SELECT * FROM {prefix}_tot), gx AS (SELECT * FROM {prefix}_gx),
+        gy AS (SELECT * FROM {prefix}_gy), gxy AS (SELECT * FROM {prefix}_gxy),
         ok_y AS (SELECT y1.bucket, y1.role, y1.hero, y1.y
                  FROM (SELECT bucket, role, hero, y, sum(n) AS n FROM gy GROUP BY ALL) y1
                  JOIN (SELECT bucket, role, hero, sum(n) AS n FROM tot GROUP BY ALL) t1 USING (bucket, role, hero)
@@ -488,7 +510,7 @@ def rank_answers(con: duckdb.DuckDBPyConnection, table: str, level: str, cfg: Re
             SELECT *, a_s / {sd_a} + {cfg.lam} * coalesce(b_s, 0) / {sd_b} AS S,
                    CASE WHEN vA IS NULL OR vA > {tau_a} THEN 'low' WHEN n >= {cfg.conf_high} THEN 'high'
                         WHEN n >= {cfg.conf_mid} THEN 'mid' ELSE 'low' END AS conf,
-                   row_number() OVER (PARTITION BY bucket, role, hero, ctx ORDER BY a_s DESC) AS ra
+                   row_number() OVER (PARTITION BY bucket, role, hero, ctx ORDER BY round(a_s, 9) DESC, y) AS ra
             FROM t WHERE a_s IS NOT NULL
         ),
         f AS (
@@ -498,7 +520,7 @@ def rank_answers(con: duckdb.DuckDBPyConnection, table: str, level: str, cfg: Re
               {confident}
         ),
         r AS (SELECT *, row_number() OVER (PARTITION BY bucket, role, hero, ctx
-                                           ORDER BY {first_key}S DESC) AS rs FROM f)
+                                           ORDER BY {first_key}round(S, 9) DESC, y) AS rs FROM f)
         SELECT bucket, role, hero, ctx, y, S, a_s, b_s, conf, n, rule FROM r WHERE rs <= {cfg.top_n}
         ORDER BY bucket, role, hero, ctx, rs
     """).fetchall()

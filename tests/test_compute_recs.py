@@ -259,3 +259,15 @@ def test_mechanic_answers_first(tmp_path):
         assert s_values == sorted(s_values, reverse=True)
     plain_rows = plain["item"]["normal"]["all"]["core"][str(HERO)][str(HEART)]
     assert sorted(r[1] for r in rows) == sorted(r[1] for r in plain_rows)  # S тот же, меняется только порядок
+
+
+def test_compute_is_reproducible(result, tmp_path):
+    """Те же данные — тот же результат до последней цифры (BUGLOG №40: ничьи по нетворсу и в сортировке советов
+    решались случайно, два расчёта на одних данных расходились в 20 468 значениях из 225 608)."""
+    folder = tmp_path / "raw"
+    folder.mkdir()
+    make_matches(folder / "matches-test.parquet")
+    make_matches(folder / "matches-test-copy.parquet", n=100)
+    again = compute(str(folder / "matches-*.parquet"), None, ITEMS, {}, {}, HEROES, load_config(), log=lambda *_: None)
+    strip = lambda r: {**r, "meta": {k: v for k, v in r["meta"].items() if k not in ("generated_at", "seconds")}}  # noqa: E731
+    assert strip(again) == strip(result)
