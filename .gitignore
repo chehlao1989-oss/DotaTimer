@@ -38,3 +38,6 @@ stats.json
 
 # Временные файлы DuckDB при расчёте (tools/compute_recs.py)
 .tmp/
+
+# Сырые матчи, скачанные для проверок (tools/validate_recs.py) — в репозиторий не кладём
+raw/
