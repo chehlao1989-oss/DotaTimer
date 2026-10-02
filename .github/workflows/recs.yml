@@ -11,8 +11,6 @@ on:
     workflows: ["Статистика матчей"]
     types: [completed]
   workflow_dispatch: {}   # кнопка «Run workflow» для ручного запуска
-  push:
-    branches: [recs-incremental]  # проба ветки (в релизы recs-trial / recs-state-trial); при слиянии убрать
 
 permissions:
   contents: write  # чтобы выкладывать recs.zip в релиз
