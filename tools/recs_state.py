@@ -15,6 +15,7 @@
 Запуск: python tools/recs_state.py --raw raw --state state --out recs.zip [--cache …]
 """
 import argparse
+import dataclasses
 import hashlib
 import json
 import os
@@ -42,6 +43,13 @@ KEYS = {"tot": ["bucket", "role", "hero", "stratum"], "gy": ["bucket", "role", "
         "gx": ["bucket", "role", "hero", "ctx", "stratum"], "gxy": ["bucket", "role", "hero", "ctx", "y", "stratum"],
         "comp": ["y"]}
 VALUES = {"tot": ["n", "w", "c"], "gy": ["n", "w"], "gx": ["n", "w"], "gxy": ["n", "w"], "comp": ["itself", "players"]}
+
+
+def state_config(cfg: RecsConfig) -> RecsConfig:
+    """Настройки для хранилища: без L1 (X у героя E). Один день L1 — 55 млн строк против 13 млн у остальных уровней
+    вместе (замер 02.10), итог L1 рос бы без предела; по решению автора L1 либо убирается, либо считается отдельно
+    по окну 14 дней — в обоих случаях не в дневных суммах (DECISIONS №23)."""
+    return dataclasses.replace(cfg, levels=[lvl for lvl in cfg.levels if lvl != "L1"])
 
 
 def table_names(levels: tuple) -> list:
@@ -128,17 +136,25 @@ def merge(con: duckdb.DuckDBPyConnection, state: Path, table: str, old: Path | N
     tmp.replace(total)
 
 
-def update(raw: Path, state: Path, refs: tuple, cfg: RecsConfig, log=print) -> dict:
-    """Довести хранилище до текущего сырья: пересчитать дни с новыми файлами, обновить итог. Возвращает manifest."""
+def update(raw: Path, state: Path, refs: tuple, cfg: RecsConfig, log=print, listing: dict | None = None,
+           fetch=None) -> dict:
+    """Довести хранилище до текущего сырья: пересчитать дни с новыми файлами, обновить итог. Возвращает manifest.
+
+    listing — {файл: размер} всего сырья (по умолчанию — файлы в папке raw); fetch(имена) — докачать в raw только
+    нужное: новые файлы и файлы пересчитываемых дней (на GitHub — из релиза data-raw, чтобы не качать всё сырьё).
+    """
+    cfg = state_config(cfg)
     items, abilities, hero_abilities, heroes = refs
     meta, _flags = item_meta(items, abilities, hero_abilities, heroes, cfg)
     levels = cfg_levels(cfg)
     stamp = fingerprint(meta, cfg, levels)
     path = state / "manifest.json"
     manifest = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
-    files = raw_files(raw)
+    files = listing if listing is not None else raw_files(raw)
+    fetch = fetch or (lambda names: None)
     days_of = {f: manifest.get("files", {}).get(f, {}).get("days") for f in files}
     changed = [f for f in files if manifest.get("files", {}).get(f, {}).get("size") != files[f]]
+    fetch(changed)
     for f in changed:
         days_of[f] = file_days(raw / f)
     all_days = sorted({d for ds in days_of.values() for d in ds or []})
@@ -152,6 +168,7 @@ def update(raw: Path, state: Path, refs: tuple, cfg: RecsConfig, log=print) -> d
         shutil.rmtree(state, ignore_errors=True)
         manifest = {"version": VERSION, "fingerprint": stamp, "epoch_day": all_days[0] if all_days else None, "days": {}}
         touched = all_days
+    fetch([f for f in files if set(days_of[f] or []) & set(touched)])  # все файлы, где есть матчи пересчитываемых дней
     epoch = day_start(manifest["epoch_day"])
     ranks = list(raw.glob("ranks-*.parquet"))
     ranks_glob = (raw / "ranks-*.parquet").as_posix() if ranks else None
@@ -216,6 +233,7 @@ class StateCounts:
 
 def compute_from_state(state: Path, refs: tuple, cfg: RecsConfig, log=print) -> dict:
     """Советы по хранилищу дневных сумм — те же, что compute() по всем матчам."""
+    cfg = state_config(cfg)
     if cfg.store_rank_groups:
         raise ValueError("ранговые группы в хранилище дневных сумм не поддерживаются (DECISIONS №17: не храним)")
     items, abilities, hero_abilities, heroes = refs
@@ -246,8 +264,31 @@ def compute_from_state(state: Path, refs: tuple, cfg: RecsConfig, log=print) -> 
     return finish(con, {"all": StateCounts(con, state, scale)}, meta, flags, cfg, info, log, t0)
 
 
+def release_fetcher(raw: Path, repo: str, release: str, log=print) -> tuple[dict, callable]:
+    """Список файлов матчей в релизе и функция, которая докачивает выбранные (только отсутствующие или другого размера)."""
+    import urllib.request
+    request = urllib.request.Request(f"https://api.github.com/repos/{repo}/releases/tags/{release}",
+                                     headers={"User-Agent": "DotaTimer-recs", "Accept": "application/vnd.github+json"})
+    if os.environ.get("GH_TOKEN"):
+        request.add_header("Authorization", f"Bearer {os.environ['GH_TOKEN']}")
+    with urllib.request.urlopen(request, timeout=60) as response:
+        assets = {a["name"]: a for a in json.loads(response.read())["assets"]
+                  if a["name"].startswith("matches-") and a["name"].endswith(".parquet")}
+    raw.mkdir(parents=True, exist_ok=True)
+
+    def fetch(names) -> None:
+        todo = [n for n in names if not (raw / n).exists() or (raw / n).stat().st_size != assets[n]["size"]]
+        for n in todo:
+            urllib.request.urlretrieve(assets[n]["browser_download_url"], raw / n)
+        if todo:
+            log(f"скачано файлов сырья: {len(todo)}, {sum(assets[n]['size'] for n in todo) / 2**20:.0f} МБ")
+
+    return {n: a["size"] for n, a in assets.items()}, fetch
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Инкрементальный расчёт советов по дневным суммам")
+    parser.add_argument("--release", help="брать сырьё из релиза (например data-raw), докачивая только нужное")
     parser.add_argument("--raw", default="raw")
     parser.add_argument("--state", default="state")
     parser.add_argument("--out", default="recs.zip")
@@ -256,8 +297,14 @@ def main() -> None:
     cfg = load_config()
     refs = load_refs(Path(args.cache))
     t0 = time.time()
-    update(Path(args.raw), Path(args.state), refs, cfg)
+    listing, fetch = (release_fetcher(Path(args.raw), os.environ.get("GITHUB_REPOSITORY", "chehlao1989-oss/DotaTimer"),
+                                      args.release) if args.release else (None, None))
+    manifest = update(Path(args.raw), Path(args.state), refs, cfg, listing=listing, fetch=fetch)
+    t1 = time.time()
     result = compute_from_state(Path(args.state), refs, cfg)
+    size = sum(f.stat().st_size for f in Path(args.state).rglob("*") if f.is_file())
+    print(f"замер: хранилище обновлено за {manifest['updated_seconds']} с, советы по нему — {time.time() - t1:.0f} с; "
+          f"размер хранилища {size / 2**20:.0f} МБ")
     write_recs(result, Path(args.out), cfg)
     print(f"{args.out}: {Path(args.out).stat().st_size // 1024} КБ, матчей {result['meta']['matches']}, "
           f"всего {time.time() - t0:.0f} с")

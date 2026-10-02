@@ -4,7 +4,7 @@ import pyarrow.parquet as pq
 
 from tests.test_compute_recs import HEROES, ITEMS, make_matches
 from tools.compute_recs import compute, load_config
-from tools.recs_state import compute_from_state, update
+from tools.recs_state import compute_from_state, state_config, update
 
 DAY = 86400
 START = 1780000000  # 2026-05-28 20:26 UTC: с разбросом до 10 ч матчи ложатся на 5 разных дней
@@ -55,7 +55,9 @@ def test_incremental_equals_from_scratch(tmp_path):
     assert not any("пересборка" in line for line in logs), logs  # путь «итог − старое + новое», а не пересборка
     assert len(manifest["days"]) == 5  # 3 дня × 2 порции со сдвигом и переходом через полночь
     incremental = compute_from_state(state, refs, cfg, log=lambda *_: None)
-    scratch = compute(str(raw / "matches-*.parquet"), None, ITEMS, {}, {}, HEROES, cfg, log=lambda *_: None)
+    # хранилище — без L1 (DECISIONS №23): эталон с нуля считаем с теми же уровнями
+    scratch = compute(str(raw / "matches-*.parquet"), None, ITEMS, {}, {}, HEROES, state_config(cfg),
+                      log=lambda *_: None)
     fa, fb = dict(flat(scratch)), dict(flat(incremental))
     skip = ("generated_at", "seconds")
     assert set(k for k in fa if k[-1] not in skip) == set(k for k in fb if k[-1] not in skip)
