@@ -48,12 +48,12 @@ def test_incremental_equals_from_scratch(tmp_path):
     state = tmp_path / "state"
     update(raw, state, refs, cfg, log=lambda *_: None)
     spread(base, raw / "matches-b.parquet", 2000, 3000, DAY)
-    # повтор — только матчи последних дней первой порции: эти дни ещё не заморожены, их суммы вычитаются и считаются заново
+    # повтор части первой порции (пересечение запусков сбора): уже посчитанные матчи не прибавляются второй раз
     spread(base, raw / "matches-c.parquet", 1500, 2000, 0, only_day=2)
     logs = []
     manifest = update(raw, state, refs, cfg, log=logs.append)
-    assert not any("пересборка" in line for line in logs), logs  # путь «итог − старое + новое», а не пересборка
-    assert len(manifest["days"]) == 5  # 3 дня × 2 порции со сдвигом и переходом через полночь
+    assert not any("пересборка" in line for line in logs), logs  # путь «итог + новые матчи», а не пересборка
+    assert manifest["info"]["matches"] == 3000 and len(manifest["files"]) == 3  # повторы из matches-c не посчитаны
     incremental = compute_from_state(state, refs, cfg, log=lambda *_: None)
     # хранилище — без L1 (DECISIONS №23): эталон с нуля считаем с теми же уровнями
     scratch = compute(str(raw / "matches-*.parquet"), None, ITEMS, {}, {}, HEROES, state_config(cfg),
