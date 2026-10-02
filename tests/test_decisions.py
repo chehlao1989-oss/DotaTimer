@@ -149,3 +149,10 @@ def test_b_is_veto_only():
     """№20: λ = 0 — B только вето, пока знак B на свежих данных не совпадает в ≥ 70%."""
     config = json.loads((ROOT / "data" / "recs_config.json").read_text(encoding="utf-8"))
     assert config["lam"] == 0.0 and config["veto_b"] == 2.0
+
+
+def test_checks_run_on_github():
+    """№21, BUGLOG №39: тяжёлые проверки 8.1–8.4 — отдельный запуск на GitHub по кнопке, отчёт — в релиз recs-report."""
+    workflow = (ROOT / ".github" / "workflows" / "checks.yml").read_text(encoding="utf-8")
+    assert "workflow_dispatch:" in workflow and "tools/validate_recs.py" in workflow
+    assert "gh release upload recs-report" in workflow
