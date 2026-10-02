@@ -451,7 +451,8 @@ def main() -> None:
     synthetic = subprocess.run([sys.executable, "-m", "pytest", "-q", str(ROOT / "tests" / "test_compute_recs.py"), "-k",
                                 "skadi_only_against_heart or not_fooled_by_game_length"], capture_output=True, text=True)
     print(f"8.3 синтетический тест (спека 9.2: B находит «Y помогает только против X», A не реагирует на длительность): "
-          f"{'пройден' if synthetic.returncode == 0 else 'НЕ ПРОЙДЕН'} — {synthetic.stdout.strip().splitlines()[-1]}")
+          f"{'пройден' if synthetic.returncode == 0 else 'НЕ ПРОЙДЕН'} — "
+          f"{(synthetic.stdout.strip() or synthetic.stderr.strip() or '(нет вывода)').splitlines()[-1]}")
     Path(args.report).write_text(report_markdown(recs, heroes, items=items), encoding="utf-8")
     html_path = Path(args.report).with_suffix(".html")
     rules = {r["id"]: r["title_ru"] for r in json.loads((ROOT / "data" / "mechanics.json").read_text(encoding="utf-8"))["rules"]}
