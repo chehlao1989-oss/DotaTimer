@@ -149,9 +149,14 @@ def check_holdout(matches_glob: str, ranks_glob: str | None, refs: tuple, cfg, d
     con = duckdb.connect()
     roles = {v["name"].removeprefix("npc_dota_hero_"): tuple(v.get("roles") or ()) for v in heroes.values()}
     tagger = MechanicsTagger(load_mechanics_config(), items, abilities, hero_abilities, roles)
-    prepare(con, matches_glob, ranks_glob, build_item_meta(items, tagger, heroes, cfg), heroes, cfg,
-            where=f"start_time >= {cutoff}")
+    meta = build_item_meta(items, tagger, heroes, cfg)
+    # для порога «настоящего контр-предмета» (решение автора 02.10): сырые A по парам «герой против героя»
+    prepare(con, matches_glob, ranks_glob, meta, heroes, cfg, where=f"start_time < {cutoff}")
+    level_metrics_parts(con, "hero", "true", "train_hero", min_buy_share=cfg.min_buy_share)
+    prepare(con, matches_glob, ranks_glob, meta, heroes, cfg, where=f"start_time >= {cutoff}")
+    level_metrics_parts(con, "hero", "true", "test_hero", min_buy_share=cfg.min_buy_share)
     level_metrics_parts(con, "L2", "true", "test_L2", min_buy_share=cfg.min_buy_share)
+    thresholds = a_thresholds(con, cfg.z90)
     con.execute("CREATE TABLE train(bucket VARCHAR, role VARCHAR, hero SMALLINT, ctx VARCHAR, y SMALLINT, b DOUBLE, "
                 "a DOUBLE)")
     if rows:
@@ -175,7 +180,37 @@ def check_holdout(matches_glob: str, ranks_glob: str | None, refs: tuple, cfg, d
     return {"cutoff": cutoff, "high_rows": len(rows), "checked": checked, "agree": agree, "share": share(agree, checked),
             "b_significant": b_sig, "share_b_significant": share(b_sig_agree, b_sig),
             "a_checked": a_checked, "share_a": share(a_agree, a_checked),
-            "a_significant": a_sig, "share_a_significant": share(a_sig_agree, a_sig)}
+            "a_significant": a_sig, "share_a_significant": share(a_sig_agree, a_sig), "thresholds": thresholds}
+
+
+A_THRESHOLDS_PP = (0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 5.0)
+
+
+def a_thresholds(con: duckdb.DuckDBPyConnection, z: float) -> list[dict]:
+    """Порог «настоящего контр-предмета»: совет, если на обучающих днях A значим (A − z·√vA > 0) и A ≥ порога.
+
+    Для каждого порога: сколько таких советов, у какой доли знак A повторился на отложенных днях (всех и где A
+    значим на проверке), и у какой доли пар «герой против героя» (обычный режим) остаётся хоть один совет.
+    A — сырые по ячейке (без сглаживания), в п.п.; пары — по обучающей части.
+    """
+    out = []
+    pairs = con.execute("SELECT count(*) FROM (SELECT DISTINCT role, hero, ctx FROM train_hero WHERE bucket = 'normal')"
+                        ).fetchone()[0]
+    for thr in A_THRESHOLDS_PP:
+        good = f"t.A - {z} * sqrt(greatest(t.vA, 0)) > 0 AND t.A * 100 >= {thr}"
+        n, agree, sig, sig_agree = con.execute(f"""
+            SELECT count(*) FILTER (WHERE s.A IS NOT NULL AND s.A <> 0),
+                   count(*) FILTER (WHERE s.A > 0),
+                   count(*) FILTER (WHERE abs(s.A) > {z} * sqrt(greatest(s.vA, 0))),
+                   count(*) FILTER (WHERE s.A > {z} * sqrt(greatest(s.vA, 0)))
+            FROM train_hero t JOIN test_hero s USING (bucket, role, hero, ctx, y) WHERE {good}
+        """).fetchone()
+        kept = con.execute(f"""SELECT count(*) FROM (SELECT DISTINCT role, hero, ctx FROM train_hero t
+                               WHERE bucket = 'normal' AND {good})""").fetchone()[0]
+        out.append({"pp": thr, "checked": n, "share": agree / n if n else None, "significant": sig,
+                    "share_significant": sig_agree / sig if sig else None, "pairs": pairs,
+                    "pairs_kept": kept, "share_pairs": kept / pairs if pairs else None})
+    return out
 
 
 # ---------- 8.3 ----------
@@ -353,6 +388,11 @@ def main() -> None:
           f"(нужно от 80%); знак A всех: {_pct(hold['share_a'])} из {hold['a_checked']}\n"
           f"  B (только вето): знак совпал {_pct(hold['share'])} из {hold['checked']}, где значим — "
           f"{_pct(hold['share_b_significant'])} из {hold['b_significant']} (вернуть в порядок — от 70%, DECISIONS №20)")
+    print("  порог «настоящего контр-предмета» (герой против героя; A значим на обучении и ≥ порога):")
+    for t in hold["thresholds"]:
+        print(f"    A ≥ {t['pp']:.1f} п.п.: советов {t['checked']}, знак A повторился {_pct(t['share'])}, "
+              f"где значим на проверке — {_pct(t['share_significant'])} из {t['significant']}; "
+              f"пар с советом {t['pairs_kept']} из {t['pairs']} = {_pct(t['share_pairs'])}")
     synthetic = subprocess.run([sys.executable, "-m", "pytest", "-q", str(ROOT / "tests" / "test_compute_recs.py"), "-k",
                                 "skadi_only_against_heart or not_fooled_by_game_length"], capture_output=True, text=True)
     print(f"8.3 синтетический тест (спека 9.2: B находит «Y помогает только против X», A не реагирует на длительность): "
