@@ -1,8 +1,10 @@
 """Проверки советов до интерфейса (docs/RECOMMENDER_SPEC.md, раздел 8).
 
-8.1 Вики-эталон: против героя E хотя бы один предмет из вики-списка E попадает в топ-3 советов (таблица hero).
-8.2 Отложенные дни: считаем всё без последних N дней, проверяем на них знак B у советов с высокой уверенностью.
-8.3 Отчёт автору: Markdown-таблица топ-3 для выбранных героев против выбранных героев и предметов.
+8.1 Вики — проверка здравого смысла: против E хотя бы один вики-предмет E в топ-3 советов (по достижимым парам) + разбор расхождений.
+8.2 Отложенные дни: считаем всё без последних N дней; главное — знак A там, где он значим на проверке; B — отдельно (вето).
+8.3 Синтетический тест (спека 9.2): на искусственном наборе B находит «Y помогает только против X», A не реагирует на длительность.
+8.4 Таблица автору: Markdown/HTML топ-3 для выбранных героев против выбранных героев и предметов.
+Критерии — DECISIONS №21.
 
 Запуск:
   python tools/validate_recs.py --raw raw --recs recs.zip --report docs/recs_report.md [--holdout-days 3]
@@ -11,6 +13,7 @@ import argparse
 import gzip
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -88,13 +91,41 @@ def check_benchmark(recs: dict, benchmark: dict, candidates: set, bucket: str = 
             if wiki & buys:
                 pairs_reach += 1
                 hits_reach += hit
-            if not hit:
-                misses.append((int(hero_id), enemy["hero_id"], top))
+                if not hit:  # расхождение по достижимой паре: вики-предмет герой покупает, а в топ-3 его нет
+                    misses.append({"hero": int(hero_id), "enemy": enemy["hero_id"], "role": role, "top": rows[:TOP],
+                                   "wiki": sorted(wiki & buys), "rows": rows})
     share = lambda h, n: h / n if n else None  # noqa: E731
     return {"pairs": pairs, "hits": hits, "share": share(hits, pairs),
             "pairs_confident": pairs_conf, "hits_confident": hits_conf, "share_confident": share(hits_conf, pairs_conf),
             "pairs_reachable": pairs_reach, "hits_reachable": hits_reach, "share_reachable": share(hits_reach, pairs_reach),
             "misses": misses}
+
+
+def disagreements(misses: list[dict], limit: int = 10) -> list[dict]:
+    """Самые заметные расхождения с вики (DECISIONS №21): по достижимым парам, где у вики-предмета больше всего игр.
+
+    Кто прав — решают данные, а не вики: если против врага вики-предмет берут не чаще обычного (A ≤ 0) — данные
+    вики не подтверждают; если A > 0, но ниже наших советов — оба правы, наши советы против этого врага берут чаще;
+    если вики-предмета среди ответов нет — его отсёк фильтр (мало игр, промежуточный, сапоги — DECISIONS №14).
+    """
+    out = []
+    for m in misses:
+        by_item = {r[0]: (pos, r) for pos, r in enumerate(m["rows"], 1)}
+        found = [(by_item[w][1][5], w, by_item[w]) for w in m["wiki"] if w in by_item]
+        best = max(found) if found else None
+        top = m["top"][0]
+        if best is None:
+            verdict = "вики-предмета нет среди ответов (отсечён фильтром: мало игр, промежуточный или сапоги)"
+            wiki_row, pos = None, None
+        else:
+            _n, _w, (pos, wiki_row) = best
+            if wiki_row[2] <= 0:
+                verdict = "данные вики не подтверждают: против этого врага предмет берут не чаще обычного (A ≤ 0)"
+            else:
+                verdict = "оба правы: вики-предмет берут чаще (A > 0), но наши советы — ещё чаще (A выше)"
+        weight = wiki_row[5] if wiki_row else 0
+        out.append({**m, "wiki_row": wiki_row, "wiki_pos": pos, "first": top, "verdict": verdict, "weight": weight})
+    return sorted(out, key=lambda d: -d["weight"])[:limit]
 
 
 # ---------- 8.2 ----------
@@ -301,18 +332,34 @@ def main() -> None:
                   and not k.startswith("recipe") and v.get("qual") != "consumable" and not v.get("tier")
                   and ((v.get("created") and v["cost"] >= cfg.candidate_min_cost) or k in cfg.extra_candidates)}
     bench = check_benchmark(recs, json.loads(BENCHMARK_PATH.read_text(encoding="utf-8")), candidates)
-    print(f"8.1 вики-эталон по достижимым парам: {bench['hits_reachable']}/{bench['pairs_reachable']} = "
-          f"{_pct(bench['share_reachable'])} (нужно от 80%); все пары {_pct(bench['share'])}, "
-          f"с уверенностью не ниже средней {_pct(bench['share_confident'])}")
+    # критерии — DECISIONS №21 (решение автора 02.10)
+    print(f"8.1 вики (здравый смысл) по достижимым парам: {bench['hits_reachable']}/{bench['pairs_reachable']} = "
+          f"{_pct(bench['share_reachable'])} (нужно от 50%); все пары {_pct(bench['share'])}, "
+          f"с уверенностью не ниже средней {_pct(bench['share_confident'])}; расхождений {len(bench['misses'])}")
+    title = lambda h: heroes.get(str(h), {}).get("localized_name", h)  # noqa: E731
+    item_title = lambda k: items.get(k, {}).get("dname", k) if isinstance(items.get(k), dict) else k  # noqa: E731
+    for n, d in enumerate(disagreements(bench["misses"]), 1):
+        first, wiki = d["first"], d["wiki_row"]
+        wiki_text = (f"{item_title(wiki[0])} — место {d['wiki_pos']}, A {wiki[2]:+.1f}, B {wiki[3]:+.1f}, игр {wiki[5]}"
+                     if wiki else ", ".join(item_title(w) for w in d["wiki"]))
+        print(f"  {n}. {title(d['hero'])} ({d['role']}) против {title(d['enemy'])}: наш первый — {item_title(first[0])} "
+              f"(A {first[2]:+.1f}, B {first[3]:+.1f}, игр {first[5]}); вики — {wiki_text}. {d['verdict']}")
     matches, ranks = raw_globs(Path(args.raw))
     hold = check_holdout(matches, ranks, refs, cfg, args.holdout_days, log=lambda *_: None)
-    print(f"8.2 отложенные {args.holdout_days} дн.: знак B совпал {hold['agree']}/{hold['checked']} = "
-          f"{_pct(hold['share'])} (нужно от 70%; советов с высокой уверенностью {hold['high_rows']})")
+    print(f"8.2 отложенные {args.holdout_days} дн. (советов с высокой уверенностью {hold['high_rows']}):\n"
+          f"  главное — знак A там, где значим на проверке: {_pct(hold['share_a_significant'])} из {hold['a_significant']} "
+          f"(нужно от 80%); знак A всех: {_pct(hold['share_a'])} из {hold['a_checked']}\n"
+          f"  B (только вето): знак совпал {_pct(hold['share'])} из {hold['checked']}, где значим — "
+          f"{_pct(hold['share_b_significant'])} из {hold['b_significant']} (вернуть в порядок — от 70%, DECISIONS №20)")
+    synthetic = subprocess.run([sys.executable, "-m", "pytest", "-q", str(ROOT / "tests" / "test_compute_recs.py"), "-k",
+                                "skadi_only_against_heart or not_fooled_by_game_length"], capture_output=True, text=True)
+    print(f"8.3 синтетический тест (спека 9.2: B находит «Y помогает только против X», A не реагирует на длительность): "
+          f"{'пройден' if synthetic.returncode == 0 else 'НЕ ПРОЙДЕН'} — {synthetic.stdout.strip().splitlines()[-1]}")
     Path(args.report).write_text(report_markdown(recs, heroes, items=items), encoding="utf-8")
     html_path = Path(args.report).with_suffix(".html")
     rules = {r["id"]: r["title_ru"] for r in json.loads((ROOT / "data" / "mechanics.json").read_text(encoding="utf-8"))["rules"]}
     html_path.write_text(report_html(recs, heroes, items, Path(args.cache) / "images", rules), encoding="utf-8")
-    print(f"8.3 отчёт: {args.report}, {html_path}")
+    print(f"8.4 таблица для автора: {args.report}, {html_path}")
 
 
 def _pct(v) -> str:
