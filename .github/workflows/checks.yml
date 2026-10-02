@@ -9,8 +9,6 @@ on:
       holdout_days:
         description: "Сколько последних дней отложить для проверки 8.2"
         default: "1"
-  push:
-    branches: [checks-workflow]  # проба ветки: кнопка работает только для файлов основной ветки; при слиянии убрать
 
 permissions:
   contents: write  # чтобы выкладывать отчёт в релиз
