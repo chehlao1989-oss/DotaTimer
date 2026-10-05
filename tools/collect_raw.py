@@ -44,7 +44,7 @@ ANCHOR_TRIES = 10  # DECISIONS №7; сколько настоящих матч�
 PAUSE_START_SEC, PAUSE_MIN_SEC, PAUSE_MAX_SEC = 3.0, 1.0, 10.0  # DECISIONS №2
 PAUSE_UP_FACTOR, PAUSE_DOWN_FACTOR, CALM_CALLS = 1.5, 0.9, 20  # DECISIONS №2
 RETRY_AFTER_DEFAULT_SEC, ERROR_PAUSE_SEC, MAX_ERRORS_IN_ROW = 20.0, 10, 20  # DECISIONS №2, №3
-WINDOW_SPAN_HOURS = 24  # окна сбора — по последним суткам (BUGLOG №24)
+WINDOW_STEP_HOURS = 2  # окна — через 2 ч на сетке часов UTC: 12 окон = сутки; соседние запуски — чётные/нечётные часы (BUGLOG №24, №42)
 WINDOW_MIN_AGE_HOURS = 1  # самое свежее окно — не ближе часа к настоящему (матчи должны доиграться)
 SEEK_TOLERANCE_SEC, SEEK_TRIES = 600, 8  # поиск номера матча по времени: точность и число шагов
 LONG_WAIT_SEC = 300  # DECISIONS №3; после MAX_ERRORS_IN_ROW ошибок подряд ждём и продолжаем (до конца отведённого времени)
@@ -212,16 +212,39 @@ class PartSaver:
         return True
 
 
-def window_targets(run_start: float, windows: int, span_hours: float = WINDOW_SPAN_HOURS) -> list[float]:
-    """Моменты (unix-время) начала окон сбора: равномерно по последним span_hours часам, от свежих к старым.
+def window_targets(run_start: float, windows: int, parity: int) -> list[float]:
+    """Моменты (unix-время) начала окон сбора: на постоянной сетке часов UTC через час, только часы чётности parity
+    (0 — чётные, 1 — нечётные), от свежих к старым; 12 окон — последние сутки (BUGLOG №24).
 
-    Не ближе WINDOW_MIN_AGE_HOURS к настоящему (матчи должны доиграться). Запуски во вторую половину суток (UTC ≥ 12)
-    сдвинуты на полшага: два запуска в сутки вместе покрывают каждый час (BUGLOG №24, ветка collector-freshness).
+    Не ближе WINDOW_MIN_AGE_HOURS к настоящему (матчи должны доиграться). Соседние запуски берут разную чётность
+    (next_window_parity), поэтому их окна не пересекаются при любом времени старта: раньше окна отсчитывались от
+    старта, и запуски через 16–17 ч совпадали окнами — 22% повторов (BUGLOG №42).
     """
-    step = span_hours * 3600 / windows
-    offset = step / 2 if time.gmtime(run_start).tm_hour >= 12 else 0.0
-    newest = run_start - WINDOW_MIN_AGE_HOURS * 3600
-    return [newest - offset - k * step for k in range(windows)]
+    newest = int(run_start - WINDOW_MIN_AGE_HOURS * 3600) // 3600 * 3600
+    if (newest // 3600) % 2 != parity:
+        newest -= 3600
+    return [float(newest - k * WINDOW_STEP_HOURS * 3600) for k in range(windows)]
+
+
+def next_window_parity(release: str | None, run_start: float) -> int:
+    """Чётность часов для окон: противоположная прошлому успешному запуску (его run-*.json в релизе).
+    Если прошлой нет (первый запуск по новой схеме или релиз недоступен) — по часу старта."""
+    fallback = int(run_start // 3600) % 2
+    if not release:
+        return fallback
+    try:
+        from tools.collect_guard import release_assets
+        runs = sorted((a for a in release_assets(os.environ.get("GITHUB_REPOSITORY", "chehlao1989-oss/DotaTimer"), release)
+                       if a["name"].startswith("run-") and a["name"].endswith(".json")), key=lambda a: a["name"])
+        if not runs:
+            return fallback
+        with urllib.request.urlopen(urllib.request.Request(runs[-1]["browser_download_url"],
+                                                           headers={"User-Agent": "DotaTimer-collector"}), timeout=60) as r:
+            previous = json.loads(r.read()).get("window_parity")
+        return fallback if previous not in (0, 1) else 1 - previous
+    except Exception as error:  # выбор чётности не должен ронять сбор
+        print(f"чётность окон: прошлый запуск не прочитан ({type(error).__name__}) — по часу старта", flush=True)
+        return fallback
 
 
 def _page_point(page: list[dict]) -> tuple[int, float, int] | None:
@@ -268,11 +291,14 @@ def seq_for_time(target: float, tolerance_sec: float = SEEK_TOLERANCE_SEC, tries
 def collect_matches(key: str, calls: int, max_minutes: float, out: Path, tag: str, state: Path | None = None,
                     release: str | None = None, windows: int = 0) -> dict:
     patches = http_json(f"{OPENDOTA}/constants/patch")
-    targets = window_targets(time.time(), windows) if windows else []
+    run_start = time.time()
+    parity = next_window_parity(release, run_start) if windows else None
+    targets = window_targets(run_start, windows, parity) if windows else []
     seq = None
     if targets:  # окна по суткам: свежие данные за все часы (BUGLOG №24); продолжение прошлого запуска не нужно
         seq = seq_for_time(targets[0])
-        print(f"старт: окна по суткам — {len(targets)} шт., первое {time.strftime('%d.%m %H:%M', time.gmtime(targets[0]))} UTC",
+        print(f"старт: окна — {len(targets)} шт., {'нечётные' if parity else 'чётные'} часы UTC, первое "
+              f"{time.strftime('%d.%m %H:%M', time.gmtime(targets[0]))} UTC",
               flush=True)
     if seq is None:
         seq = resume_seq_num(state)
@@ -358,7 +384,8 @@ def collect_matches(key: str, calls: int, max_minutes: float, out: Path, tag: st
     stats = {"steam_requests": requests, "steam_429": limits, "matches": kept, "minutes": round(minutes, 1),
              "matches_per_hour": round(kept / max(minutes, 0.01) * 60), "final_pause_sec": round(pause, 2),
              "parts": saver.parts, "matches_bytes": saver.bytes, "all_saved": saved,
-             "windows": len(targets), "window_jumps": jumps}
+             "windows": len(targets), "window_jumps": jumps, "window_parity": parity,
+             "window_targets": [time.strftime("%Y-%m-%d %H:%M", time.gmtime(t)) for t in targets]}
     print(f"итог: матчей {kept} за {minutes:.0f} мин ({stats['matches_per_hour']} в час), запросов {requests}, "
           f"429: {limits}, частей {saver.parts}, {saver.bytes // 1024} КБ, всё сохранено: {saved}", flush=True)
     return stats

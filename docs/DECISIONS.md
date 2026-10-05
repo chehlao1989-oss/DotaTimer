@@ -31,10 +31,10 @@ next_seq.txt в релизе обновляется только после вы
 Где в коде: tools/collect_raw.py: OPENDOTA_PAUSE_SEC, OPENDOTA_MINUTE_WAIT_SEC, OPENDOTA_DAY_RESERVE, collect_ranks
 
 ### №6 Сбор: расписание каждый час + сторож — настоящий сбор, если с прошлого успешного ≥ 11 ч (2 в сутки) по 290 + 20 мин, окнами по суткам
-Сторож (по расписанию и для будильника) выходит за секунды, если свежайший run-*.json моложе 11 ч: пропуск запуска стоит час, а не полсуток. Основной будильник — внешний (cron-job.org → workflow_dispatch с guard=true, раз в час), расписание GitHub — запасное (BUGLOG №37). Ручная кнопка (guard не отмечен) собирает всегда. Сбор — 12 окон по последним суткам (BUGLOG №24).
+Сторож (по расписанию и для будильника) выходит за секунды, если свежайший run-*.json моложе 11 ч: пропуск запуска стоит час, а не полсуток. Основной будильник — внешний (cron-job.org → workflow_dispatch с guard=true, раз в час), расписание GitHub — запасное (BUGLOG №37). Ручная кнопка (guard не отмечен) собирает всегда. Сбор — 12 окон по последним суткам (BUGLOG №24) на сетке часов UTC через 2 ч, чётность часов — противоположная прошлому сбору (BUGLOG №42, ветка collector-parity).
 Замер/источник: вариант Б автора 30.09; запуски по расписанию 30.09 14:00 и 01.10 02:17 пропущены/задержаны на 3 ч (BUGLOG №23, №32 — сдвиг на :17 лечил симптом); схема — решение автора 01.10; пробный запуск ветки — в DATA_SOURCES.md. Дата: 01.10.2026
 Не менять без: решения автора.
-Где в коде: .github/workflows/stats.yml: cron, inputs.guard, MINUTES, WINDOWS; tools/collect_guard.py: MIN_HOURS; tools/collect_raw.py: window_targets, seq_for_time
+Где в коде: .github/workflows/stats.yml: cron, inputs.guard, MINUTES, WINDOWS; tools/collect_guard.py: MIN_HOURS; tools/collect_raw.py: window_targets, next_window_parity, WINDOW_STEP_HOURS, seq_for_time
 
 ### №7 Стартовый матч: настоящий матч ~1,8 млн номеров назад, до 10 попыток
 Замер/источник: запуск №4 упал с 404 (BUGLOG №10). Дата: 29.09.2026
