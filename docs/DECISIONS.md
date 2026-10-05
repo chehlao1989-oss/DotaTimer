@@ -139,6 +139,6 @@ next_seq.txt в релизе обновляется только после вы
 
 ### №25 Сборка: PyInstaller, папка с программой (onedir), без консоли; проверка — самопроверка exe
 Данные — data/ внутри сборки; настройки, кеш, голос, логи — %APPDATA%\DotaTimer. Сбор и расчёт статистики (duckdb, pyarrow) в сборку не входят. Зависимости программы — requirements-app.txt, сборки — requirements-build.txt (PyInstaller 6.22.3).
-Замер/источник: план фазы 3 (ок автора 05.10); CLAUDE.md (onedir). Сборка на компьютере автора 05.10: 85 с, папка 285 МБ (PySide6 114 МБ, OpenCV 112 МБ); DotaTimer.exe --selftest без Python в PATH — 16 из 16 пунктов «ок» (библиотеки, данные, окна, приём пакета GSI). Дата: 05.10.2026
+Замер/источник: план фазы 3 (ок автора 05.10); CLAUDE.md (onedir). Сборка на компьютере автора 05.10: 85 с, папка 285 МБ (PySide6 114 МБ, OpenCV 112 МБ); DotaTimer.exe --selftest без Python в PATH — 16 из 16 пунктов «ок» (библиотеки, данные, окна, приём пакета GSI). Сборка на GitHub (windows-latest, проба ветки build-exe, https://github.com/chehlao1989-oss/DotaTimer/actions/runs/37298797205): библиотеки 33 с, сборка 48 с, самопроверка 3 с — пройдена; zip 114 МБ. Дата: 05.10.2026
 Не менять без: решения автора (размер можно уменьшить отдельно, если он мешает).
 Где в коде: packaging/DotaTimer.spec, packaging/launcher.py, tools/make_icon.py, app/main.py: selftest; app/__init__.py: __version__
