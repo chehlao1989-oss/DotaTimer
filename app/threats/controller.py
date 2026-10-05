@@ -194,34 +194,43 @@ class ThreatsController:
             return
         # подсказка — по любому врагу, по которому кликнули (раньше только по двум угрозам, BUGLOG №30)
         for hint in self.tracker.update(snapshot.hero, snapshot.items, clock, set(self.enemies)):
-            text = self.hint_text(hint)
-            log.info("Подсказка: %s", text.replace("\n", " | "))
-            self.show(text, True, None, self.hint_duration, **self.hint_extras(hint))  # без голоса (автор, 30.09)
+            self._show_hint(hint)  # без голоса (автор, 30.09)
 
     def manual_item(self, hero: str, item: str, clock: int | None) -> None:
         """«Вижу у врага предмет» (горячая клавиша). Считается угрозой, раз пользователь сам отметил."""
         threats = {t.hero.name for t in self.threats} | {hero}
         known = set(self.tracker.enemies[hero].items) if hero in self.tracker.enemies else set()
         for hint in self.tracker.update(hero, known | {item}, clock or 0, threats):
-            text = self.hint_text(hint)
-            log.info("Подсказка: %s", text.replace("\n", " | "))
-            self.show(text, True, None, self.hint_duration, **self.hint_extras(hint))
+            self._show_hint(hint)
+
+    def _show_hint(self, hint: ItemHint) -> None:
+        text = self.hint_text(hint)
+        if text is None:  # «явного ответа нет» не показываем (решение автора 05.10), только в журнал
+            log.info("Подсказка не показана, явного ответа нет: %s — %s", hint.hero, hint.item)
+            return
+        log.info("Подсказка: %s", text.replace("\n", " | "))
+        self.show(text, True, None, self.hint_duration, **self.hint_extras(hint))
 
     def hint_extras(self, hint: ItemHint) -> dict:
         """Оформление подсказки как оповещения Доты: портрет врага и иконка предмета, предмет золотом."""
         return {"icons": [("heroes", hint.hero), ("items", hint.item)], "highlights": [self.item_title(hint.item)]}
 
-    def hint_text(self, hint: ItemHint) -> str:
+    def hint_text(self, hint: ItemHint) -> str | None:
+        """Текст подсказки; None — явного ответа нет (такие подсказки не показываются, решение автора 05.10)."""
         enemy = self.data.hero_by_name(hint.hero)
         if self.item_counters is not None:
             keys = self.item_counters(hint.hero, hint.item)
-            counters = ", ".join(self.item_title(k) for k in keys) if keys else ru.HINT_NO_COUNTERS
+            if not keys:
+                return None
+            counters = ", ".join(self.item_title(k) for k in keys)
             template = ru.HINT_ITEM if hint.kind == KIND_ITEM else ru.HINT_BUILDING
             return template.format(hero=self.hero_title(hint.hero), item=self.item_title(hint.item),
                                    component=self.item_title(hint.component or ""), counters=counters)
         suggestions = self.advisor.suggest(list(hint.rules), self.my_hero_id(), self.bucket(),
                                            enemy_hero_id=enemy.id if enemy else None, enemy_item=hint.item,
                                            owned=self.own_items, limit=self.config.suggestions_per_hint)
+        if not suggestions:
+            return None
         counters = self.format_suggestions(suggestions, self.item_title(hint.item))
         template = ru.HINT_ITEM if hint.kind == KIND_ITEM else ru.HINT_BUILDING
         return template.format(hero=self.hero_title(hint.hero), item=self.item_title(hint.item),

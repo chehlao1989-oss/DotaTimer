@@ -92,3 +92,16 @@ def test_item_hint_sends_icons():
     ctrl.on_inventory(InventorySnapshot("alchemist", ("heart",), (None, None, None), None), 1200)
     assert extras[-1]["icons"] == [("heroes", "alchemist"), ("items", "heart")]
     assert extras[-1]["highlights"] == ["Heart of Tarrasque"]
+
+
+def test_no_hint_without_counter():
+    """Подсказку «явного ответа нет» не показываем (решение автора 05.10): на экран ничего, только журнал."""
+    shown = []
+    ctrl = ThreatsController(DATA, tagger(), advisor(), load_threat_config(), ThreatSettings(),
+                             lambda text, important, voice, *rest, **extra: shown.append(text), lambda: False)
+    ctrl.item_counters = lambda hero, item: []
+    ctrl.on_game_state(0, True, "npc_dota_hero_sven", "radiant", True)
+    ctrl.set_enemies(["alchemist", "medusa", "lion"])
+    shown.clear()
+    ctrl.on_inventory(InventorySnapshot("alchemist", ("heart",), (None, None, None), None), 1200)
+    assert shown == []
