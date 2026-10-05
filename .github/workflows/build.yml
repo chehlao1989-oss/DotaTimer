@@ -10,8 +10,6 @@ on:
         description: "Выложить релиз v<версия> на GitHub (виден всем)"
         type: boolean
         default: false
-  push:
-    branches: [build-exe]  # проба ветки: сборка и самопроверка без релиза; при слиянии убрать
 
 permissions:
   contents: write  # чтобы выложить релиз
