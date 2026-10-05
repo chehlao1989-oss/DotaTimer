@@ -153,10 +153,13 @@ def check_holdout(matches_glob: str, ranks_glob: str | None, refs: tuple, cfg, d
     # для порога «настоящего контр-предмета» (решение автора 02.10): сырые A по парам «герой против героя»
     prepare(con, matches_glob, ranks_glob, meta, heroes, cfg, where=f"start_time < {cutoff}")
     level_metrics_parts(con, "hero", "true", "train_hero", min_buy_share=cfg.min_buy_share)
+    level_metrics_parts(con, "ally", "true", "train_ally", min_buy_share=cfg.min_buy_share)
     prepare(con, matches_glob, ranks_glob, meta, heroes, cfg, where=f"start_time >= {cutoff}")
     level_metrics_parts(con, "hero", "true", "test_hero", min_buy_share=cfg.min_buy_share)
+    level_metrics_parts(con, "ally", "true", "test_ally", min_buy_share=cfg.min_buy_share)
     level_metrics_parts(con, "L2", "true", "test_L2", min_buy_share=cfg.min_buy_share)
     thresholds = a_thresholds(con, cfg.z90)
+    ally = ally_holdout(con, cfg.z90, cfg.counter_min_a_pp or 0.0)
     l1_vs_l2 = {"links": 0}  # L1 убран (DECISIONS №24); сравнение — только если его вернут в recs_config: levels
     if "L1" in cfg.levels:
         level_metrics_parts(con, "L1", "true", "test_L1", min_buy_share=cfg.min_buy_share)
@@ -185,7 +188,24 @@ def check_holdout(matches_glob: str, ranks_glob: str | None, refs: tuple, cfg, d
             "b_significant": b_sig, "share_b_significant": share(b_sig_agree, b_sig),
             "a_checked": a_checked, "share_a": share(a_agree, a_checked),
             "a_significant": a_sig, "share_a_significant": share(a_sig_agree, a_sig), "thresholds": thresholds,
-            "l1_vs_l2": l1_vs_l2}
+            "l1_vs_l2": l1_vs_l2, "ally": ally}
+
+
+def ally_holdout(con: duckdb.DuckDBPyConnection, z: float, min_pp: float) -> dict:
+    """Учёт союзников: пары «H реже берёт Y, когда в команде S» (на обучении A значим и ≤ −min_pp) — повторяется ли
+    знак A на отложенных днях: всех и там, где A значим на проверке (цель — как у A, от 80%, план автора 05.10)."""
+    n, agree, sig, sig_agree, pairs = con.execute(f"""
+        WITH t AS (SELECT * FROM train_ally WHERE ctx <> CAST(hero AS VARCHAR) AND A + {z} * sqrt(greatest(vA, 0)) < 0
+                   AND A * 100 <= -{min_pp})
+        SELECT count(*) FILTER (WHERE s.A IS NOT NULL AND s.A <> 0), count(*) FILTER (WHERE s.A < 0),
+               count(*) FILTER (WHERE abs(s.A) > {z} * sqrt(greatest(s.vA, 0))),
+               count(*) FILTER (WHERE s.A < -{z} * sqrt(greatest(s.vA, 0))),
+               (SELECT count(*) FROM t)
+        FROM t JOIN test_ally s USING (bucket, role, hero, ctx, y)
+    """).fetchone()
+    share = lambda h, k: h / k if k else None  # noqa: E731
+    return {"pairs": pairs, "checked": n, "share": share(agree, n), "significant": sig,
+            "share_significant": share(sig_agree, sig)}
 
 
 def compare_l1_l2(con: duckdb.DuckDBPyConnection, train: dict, z: float, top: int = TOP) -> dict:
@@ -446,6 +466,10 @@ def main() -> None:
             if c:
                 print(f"    {src}: знак A топ-3 где значим — {_pct(c['share_sig'])} из {c['sig']}; первый совет = лучший "
                       f"по факту — {_pct(c['share_best'])} из {c['firsts']}; средний факт A первого — {c['mean_a_first']:+.2f} п.п.")
+    al = hold["ally"]
+    print(f"  союзники (H реже берёт Y, когда в команде S; A значим и ≤ −порога): пар {al['pairs']}; знак A повторился "
+          f"{_pct(al['share'])} из {al['checked']}, где значим на проверке — {_pct(al['share_significant'])} "
+          f"из {al['significant']} (нужно от 80%)")
     print("  порог «настоящего контр-предмета» (герой против героя; A значим на обучении и ≥ порога):")
     for t in hold["thresholds"]:
         print(f"    A ≥ {t['pp']:.1f} п.п.: советов {t['checked']}, знак A повторился {_pct(t['share'])}, "

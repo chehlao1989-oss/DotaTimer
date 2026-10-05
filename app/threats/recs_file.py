@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
 RECS_URL = "https://github.com/chehlao1989-oss/DotaTimer/releases/download/recs/recs.zip"
 MAX_AGE_SEC = 24 * 3600
 TIMEOUT_SEC = 120
-HERO_TABLES = ("item", "item_hero", "hero")
+HERO_TABLES = ("item", "item_hero", "hero", "ally")  # ally — «Y обычно берёт союзник S»
 
 
 def download_recs(path: Path, url: str = RECS_URL, max_age: float = MAX_AGE_SEC) -> bool:

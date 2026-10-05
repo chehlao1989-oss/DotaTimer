@@ -31,25 +31,27 @@ ITEMS = {
                       "abilities": [{"type": "active", "description": "Reduces Health Restoration by 70%."}]},
     "urn_of_shadows": {"id": 92, "cost": 840, "created": True, "qual": "rare", "components": []},
 }
-HEROES = {str(h): {"id": h, "name": f"npc_dota_hero_h{h}", "roles": []} for h in (1, 2, 3, 4, 5, 10, 11, 12, 13, 14)}
+HEROES = {str(h): {"id": h, "name": f"npc_dota_hero_h{h}", "roles": []} for h in (1, 2, 3, 4, 5, 6, 10, 11, 12, 13, 14)}
+ALLY = 6  # союзник, с которым H реже берёт Vessel (make_matches(ally=True))
 
 
-def make_matches(path, n=6000, seed=7):
+def make_matches(path, n=6000, seed=7, ally=False):
     rng = random.Random(seed)
     rows = []
     for m in range(n):
         long = rng.random() < 0.5
         duration = (50 if long else 20) * 60
         x = rng.random() < (0.7 if long else 0.2)
+        with_ally = ally and rng.random() < 0.5  # союзник ALLY вместо героя 5: тогда Vessel обычно берёт он
         has = {
             BKB: rng.random() < (0.7 if long else 0.2),  # зависит только от длительности
-            VESSEL: rng.random() < (0.6 if x else 0.2),  # адаптация к Heart
+            VESSEL: rng.random() < (0.05 if with_ally else 0.6 if x else 0.2),  # адаптация к Heart; с союзником — реже
             SKADI: rng.random() < 0.3,
         }
         win = rng.random() < 0.5 + (0.15 if (has[SKADI] and x) else 0.0)
         for slot in range(10):
             radiant = slot < 5
-            hero = [1, 2, 3, 4, 5][slot] if radiant else [10, 11, 12, 13, 14][slot - 5]
+            hero = [1, 2, 3, 4, ALLY if with_ally else 5][slot] if radiant else [10, 11, 12, 13, 14][slot - 5]
             items = []
             if hero == HERO:
                 items = [i for i, on in has.items() if on]
@@ -294,3 +296,16 @@ def test_counter_threshold_keeps_only_real_counters(tmp_path):
     res = compute(str(folder / "matches-*.parquet"), None, ITEMS, {}, {}, HEROES, load_config(), log=lambda *_: None)
     rows = answers(res, "item", str(HEART))
     assert "spirit_vessel" in rows and "black_king_bar" not in rows and "skadi" not in rows
+
+
+def test_ally_level_finds_item_left_to_ally(tmp_path):
+    """Учёт союзников (вариант Б автора 05.10): когда в команде союзник ALLY, игроки на H реже берут Vessel —
+    в таблице ally у H против контекста ALLY есть Vessel с A ≤ −3 п.п.; без такой связи строк нет."""
+    folder = tmp_path / "raw"
+    folder.mkdir()
+    make_matches(folder / "matches-test.parquet", ally=True)
+    res = compute(str(folder / "matches-*.parquet"), None, ITEMS, {}, {}, HEROES, load_config(), log=lambda *_: None)
+    names = {v["id"]: k for k, v in ITEMS.items()}
+    rows = res["ally"]["normal"]["all"]["core"][str(HERO)][str(ALLY)]
+    assert [names[r[0]] for r in rows] == ["spirit_vessel"] and rows[0][2] <= -30  # A в п.п.: истинно около −35
+    assert str(HERO) not in res["ally"]["normal"]["all"]["core"][str(HERO)]  # сам себе не союзник

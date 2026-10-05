@@ -292,6 +292,10 @@ def drop_unfinished_components(con: duckdb.DuckDBPyConnection, meta: ItemMeta, c
 CTX_SQL = {
     "hero": "SELECT DISTINCT p.match_id, p.is_radiant, CAST(e.hero AS VARCHAR) AS ctx FROM pg p "
             "JOIN pg e ON e.match_id = p.match_id AND e.is_radiant <> p.is_radiant",
+    # союзник S в своей команде (учёт союзников, решение автора 05.10); сам H тоже попадает в контекст своей команды,
+    # но для него «есть / нет» не различается (A не определён) — такие строки отпадают сами
+    # «FROM pg e», а не «pg p»: count_tables сужает «pg p» до куска «режим × роль», а союзник может быть в любой роли
+    "ally": "SELECT DISTINCT e.match_id, e.is_radiant, CAST(e.hero AS VARCHAR) AS ctx FROM pg e",
     "L1": "SELECT DISTINCT p.match_id, p.is_radiant, CAST(ox.hero AS VARCHAR) || ':' || CAST(ox.x AS VARCHAR) AS ctx "
           "FROM pg p JOIN owned_x ox ON ox.match_id = p.match_id AND ox.is_radiant <> p.is_radiant",
     "L2": "SELECT DISTINCT p.match_id, p.is_radiant, CAST(ox.x AS VARCHAR) AS ctx FROM pg p "
@@ -548,6 +552,23 @@ def rank_answers(con: duckdb.DuckDBPyConnection, table: str, level: str, cfg: Re
     """).fetchall()
 
 
+def ally_answers(con: duckdb.DuckDBPyConnection, table: str, cfg: RecsConfig) -> list:
+    """«Y обычно берёт союзник S»: игроки на H заметно реже берут Y, когда S в команде — A значим и не больше
+    −counter_min_a_pp (тот же порог, что у контр-предметов, DECISIONS №22). Строки в формате rank_answers
+    (S = 0, B не считается); программа убирает такой Y из советов H (вариант Б автора 05.10)."""
+    if cfg.counter_min_a_pp is None:
+        return []
+    return con.execute(f"""
+        SELECT bucket, role, hero, ctx, y, 0.0 AS S, a_s, NULL::DOUBLE AS b_s,
+               CASE WHEN n >= {cfg.conf_high} THEN 'high' WHEN n >= {cfg.conf_mid} THEN 'mid' ELSE 'low' END AS conf,
+               n, NULL::VARCHAR AS rule
+        FROM {table}
+        WHERE a_s IS NOT NULL AND a_s + {cfg.z90} * sqrt(greatest(coalesce(va_s, 0), 0)) < 0
+          AND a_s * 100 <= -{cfg.counter_min_a_pp} AND ctx <> CAST(hero AS VARCHAR)
+        ORDER BY bucket, role, hero, ctx, round(a_s, 9), y
+    """).fetchall()
+
+
 def nest_answers(out: dict, group: str, rows: list, flags: list) -> None:
     """Строки из rank_answers → out[bucket][group][role][hero][ctx] = [[id Y, S, A п.п., B п.п., conf, игр, источник]].
 
@@ -635,7 +656,7 @@ def level_from_counts(con: duckdb.DuckDBPyConnection, provider, level: str, dst:
 
 
 # ---------- главное ----------
-LEVELS = ("L3", "L2", "L1", "hero")
+LEVELS = ("L3", "L2", "L1", "hero", "ally")
 CLASS_LEVELS = ("L3", "L2", "hero")
 
 
@@ -689,7 +710,8 @@ def finish(con: duckdb.DuckDBPyConnection, providers: dict, meta: ItemMeta, flag
                        "row_format": ROW_FORMAT, "conf_codes": CONF_CODES, "flags": flags,
                        "broad_rules": meta.broad_rules,
                        "hero_class": {str(h): [c, r] for h, c, r in con.execute("SELECT * FROM hero_cls").fetchall()}},
-              "item": {}, "item_hero": {}, "hero": {}, "item_class": {}, "hero_class": {}, "threat": {}, "buys": {}}
+              "item": {}, "item_hero": {}, "hero": {}, "item_class": {}, "hero_class": {}, "threat": {}, "buys": {},
+              "ally": {}}
     for group, provider in providers.items():
         for lvl in cfg_levels(cfg):
             level_from_counts(con, provider, lvl, f"met_{lvl}", cfg, min_ctx=cfg.conf_mid if lvl == "L1" else 0)
@@ -705,6 +727,9 @@ def finish(con: duckdb.DuckDBPyConnection, providers: dict, meta: ItemMeta, flag
             nest_answers(result["item_hero"], group, rank_answers(con, "s_L1", "L1", cfg, eb, only_confident=True), flags)
         smooth(con, "met_hero", "s_hero", eb)
         nest_answers(result["hero"], group, rank_answers(con, "s_hero", "hero", cfg, eb), flags)
+        if "ally" in cfg_levels(cfg):
+            smooth(con, "met_ally", "s_ally", eb)
+            nest_answers(result["ally"], group, ally_answers(con, "s_ally", cfg), flags)
         # запасной вариант: класс героя (атрибут × типичная роль)
         for lvl in CLASS_LEVELS:
             level_from_counts(con, provider, lvl, f"met_c{lvl}", cfg, who="cls")
