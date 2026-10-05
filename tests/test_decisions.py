@@ -163,3 +163,10 @@ def test_recs_incremental_on_github():
     workflow = (ROOT / ".github" / "workflows" / "recs.yml").read_text(encoding="utf-8")
     assert "tools/recs_state.py --release data-raw" in workflow and "gh release upload \"$STATE_RELEASE\" state.tar.gz" in workflow
     assert "compute_recs.py --raw raw" not in workflow  # расчёт с нуля по всему сырью — только в проверках (checks.yml)
+
+
+def test_build_on_github():
+    """№25: сборка exe на Windows по кнопке, самопроверка exe, релиз — только с галочкой publish."""
+    workflow = (ROOT / ".github" / "workflows" / "build.yml").read_text(encoding="utf-8")
+    assert "runs-on: windows-latest" in workflow and "packaging/DotaTimer.spec" in workflow
+    assert "--selftest" in workflow and "if: ${{ inputs.publish }}" in workflow

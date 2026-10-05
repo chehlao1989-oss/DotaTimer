@@ -1,0 +1,76 @@
+# Сборка DotaTimer.exe на Windows (фаза 3, DECISIONS №25): PyInstaller → самопроверка exe без Python в PATH → zip.
+# Кнопка «Run workflow»: zip — во вложениях запуска (Artifacts, 14 дней). С галочкой «publish» — ещё и релиз
+# v<версия из app/__init__.py> на GitHub с этим zip (выкладывает автор: релиз виден всем).
+name: Сборка программы
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Выложить релиз v<версия> на GitHub (виден всем)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write  # чтобы выложить релиз
+
+concurrency:
+  group: build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Библиотеки программы и PyInstaller
+        run: pip install -r requirements-build.txt
+
+      - name: Версия
+        run: |
+          $v = python -c "import app; print(app.__version__)"
+          "VERSION=$v" >> $env:GITHUB_ENV
+          "Версия: $v" >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Значок и сборка exe
+        run: |
+          python tools/make_icon.py packaging/dotatimer.ico
+          pyinstaller --noconfirm --clean packaging/DotaTimer.spec
+
+      - name: Самопроверка exe без Python в PATH
+        run: |
+          $env:QT_QPA_PLATFORM = "offscreen"
+          $env:PATH = "C:\Windows\System32;C:\Windows"
+          $report = Join-Path $PWD "selftest.txt"
+          $p = Start-Process -FilePath "dist\DotaTimer\DotaTimer.exe" -ArgumentList "--selftest", "`"$report`"" -Wait -PassThru
+          Get-Content $report -Encoding utf8
+          "### Самопроверка exe (код $($p.ExitCode))" >> $env:GITHUB_STEP_SUMMARY
+          Get-Content $report -Encoding utf8 | Add-Content -Path $env:GITHUB_STEP_SUMMARY -Encoding utf8
+          if ($p.ExitCode -ne 0) { exit 1 }
+
+      - name: Архив
+        run: |
+          Compress-Archive -Path dist\DotaTimer -DestinationPath "DotaTimer-$env:VERSION.zip"
+          $mb = [math]::Round((Get-Item "DotaTimer-$env:VERSION.zip").Length / 1MB)
+          "Архив: DotaTimer-$env:VERSION.zip, $mb МБ" >> $env:GITHUB_STEP_SUMMARY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DotaTimer-${{ env.VERSION }}
+          path: DotaTimer-${{ env.VERSION }}.zip
+          retention-days: 14
+
+      - name: Релиз на GitHub (только с галочкой publish)
+        if: ${{ inputs.publish }}
+        run: gh release create "v$env:VERSION" "DotaTimer-$env:VERSION.zip" --title "Dota таймер $env:VERSION" --notes-file docs/RELEASE_NOTES.md
