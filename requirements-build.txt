@@ -1,0 +1,4 @@
+# Сборка .exe (фаза 3): программа + PyInstaller — упаковывает программу вместе с Python в папку с DotaTimer.exe,
+# чтобы она запускалась на компьютере без Python (критерий готовности фазы 3 в docs/TZ.md).
+-r requirements-app.txt
+pyinstaller==6.22.3

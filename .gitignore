@@ -41,3 +41,6 @@ stats.json
 
 # Сырые матчи, скачанные для проверок (tools/validate_recs.py) — в репозиторий не кладём
 raw/
+
+# Значок для сборки рисует tools/make_icon.py
+packaging/dotatimer.ico

@@ -2,11 +2,13 @@
 
 Флаги:
   --minimized  запуститься свёрнутым в трей (для автозапуска с Windows)
+  --selftest F самопроверка собранной программы (библиотеки, данные, окна, приём GSI), итог — в файл F
 """
 import argparse
 import logging
 import sys
 import threading
+from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication, QMessageBox
@@ -58,10 +60,69 @@ def setup_logging() -> None:
     )
 
 
+def selftest(report: Path) -> int:
+    """Самопроверка собранной программы (фаза 3, сборка на GitHub): библиотеки, данные, окна, приём GSI.
+
+    Работает с временной папкой настроек (не трогает настройки пользователя), без диалогов и голоса.
+    Итог — построчно в файл report; код выхода 0 — всё в порядке, 1 — есть ошибки.
+    """
+    import json
+    import os
+    import tempfile
+    import urllib.request
+    os.environ["APPDATA"] = tempfile.mkdtemp(prefix="dotatimer-selftest-")
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    lines, failed = [], False
+
+    def step(name: str, fn):
+        nonlocal failed
+        try:
+            result = fn()
+            lines.append(f"ок   {name}{f': {result}' if isinstance(result, str) else ''}")
+            return result
+        except Exception as error:  # самопроверка должна дойти до конца и перечислить все ошибки
+            failed = True
+            lines.append(f"ОШИБКА {name}: {type(error).__name__}: {error}")
+            return None
+
+    for module in ("cv2", "numpy", "mss", "pynput.keyboard", "PySide6.QtMultimedia", "edge_tts"):
+        step(f"библиотека {module}", lambda m=module: __import__(m) and None)
+    app = step("окно Qt", lambda: QApplication(sys.argv))
+    settings = step("настройки", load_settings)
+    packets = []
+    server = step("сервер GSI", lambda: GsiServer(packets.append, port=0))
+    if app and settings and server:
+        overlay = step("оверлей", lambda: Overlay(settings.overlay))
+        voice = step("голос", lambda: VoicePlayer(settings.volume))
+        core = step("таймеры", lambda: TimerApp(settings, overlay, voice))
+        hotkeys = step("горячие клавиши", HotkeyManager)
+        threats = step("угрозы", lambda: ThreatsService(settings.threats, core.say,
+                                                        lambda: settings.mode == MODE_TURBO))
+        step("главное окно", lambda: MainWindow(settings, core, hotkeys, threats) and None)
+        server.start()
+
+        def send_packet():
+            body = json.dumps({"auth": {"token": installer.GSI_TOKEN}, "provider": {"name": "Dota 2"}}).encode()
+            urllib.request.urlopen(urllib.request.Request(f"http://127.0.0.1:{server.port}/", data=body,
+                                                          headers={"Content-Type": "application/json"}), timeout=5)
+            if not packets:
+                raise RuntimeError("пакет не дошёл")
+            return f"порт {server.port}"
+        step("приём пакета GSI", send_packet)
+        server.stop()
+        if threats:
+            threats.stop()
+    report.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return 1 if failed else 0
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Dota таймер")
     parser.add_argument("--minimized", action="store_true", help="запуститься свёрнутым в трей")
+    parser.add_argument("--selftest", metavar="ФАЙЛ", help="самопроверка собранной программы, итог — в ФАЙЛ")
     args = parser.parse_args()
+    if args.selftest:
+        sys.exit(selftest(Path(args.selftest)))
 
     setup_logging()
     log.info("Запуск")
