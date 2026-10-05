@@ -151,16 +151,36 @@ def test_report_total_skips_running_parts():
     assert legacy_matches(assets, []) == 0
 
 
-def test_windows_cover_every_hour_of_the_day():
-    """Два запуска в сутки (23:17 и 11:17 UTC) по 12 окон вместе покрывают все 24 часа (BUGLOG №24)."""
+def test_windows_of_neighbour_runs_never_overlap():
+    """Окна — на сетке часов UTC; соседние запуски берут разную чётность часов, поэтому не пересекаются при любом
+    времени старта (BUGLOG №42: сборы №88 и №108 через 16 ч 46 мин совпали окнами — 22% повторов). Каждый запуск —
+    сутки (12 окон через 2 ч), самое свежее окно — не ближе часа к настоящему (BUGLOG №24)."""
     import calendar
     from tools.collect_raw import window_targets
-    night = calendar.timegm((2026, 10, 1, 23, 17, 0))
-    day = calendar.timegm((2026, 10, 2, 11, 17, 0))
-    hours = {time_hour for t in window_targets(night, 12) + window_targets(day, 12)
-             for time_hour in [__import__("time").gmtime(t).tm_hour]}
-    assert hours == set(range(24))
-    assert max(window_targets(night, 12)) <= night - 3600  # самое свежее окно — не ближе часа к настоящему
+    first = calendar.timegm((2026, 10, 4, 4, 47, 0))
+    for gap_minutes in (11 * 60, 12 * 60 + 13, 16 * 60 + 46, 23 * 60 + 59):
+        second = first + gap_minutes * 60
+        a, b = window_targets(first, 12, 0), window_targets(second, 12, 1)
+        assert not set(a) & set(b), gap_minutes
+        assert all(t % 3600 == 0 for t in a + b)  # ровно на часах UTC
+        assert max(b) <= second - 3600 and max(b) > second - 3 * 3600  # свежее окно: от 1 до 3 ч назад
+        assert max(b) - min(b) == 22 * 3600  # 12 окон через 2 ч
+
+
+def test_next_parity_alternates(monkeypatch):
+    """Чётность — противоположная прошлому запуску из его run-*.json; без прошлого — по часу старта."""
+    import io
+    import json
+    import tools.collect_guard as guard
+    import tools.collect_raw as cr
+    monkeypatch.setattr(guard, "release_assets", lambda repo, release: [
+        {"name": "run-2026-10-04-0447.json", "browser_download_url": "https://x/u1"},
+        {"name": "run-2026-10-04-2133.json", "browser_download_url": "https://x/u2"}])
+    seen = []
+    monkeypatch.setattr(cr.urllib.request, "urlopen",
+                        lambda req, timeout=60: seen.append(req.full_url) or io.BytesIO(json.dumps({"window_parity": 0}).encode()))
+    assert cr.next_window_parity("data-raw", 1780000000) == 1 and seen == ["https://x/u2"]  # по свежайшему run-файлу
+    assert cr.next_window_parity(None, 3600 * 7) == 1  # без релиза — по часу старта
 
 
 def test_seq_for_time_finds_match_near_target(monkeypatch):
