@@ -559,7 +559,7 @@ def ally_answers(con: duckdb.DuckDBPyConnection, table: str, cfg: RecsConfig) ->
     if cfg.counter_min_a_pp is None:
         return []
     return con.execute(f"""
-        SELECT bucket, role, hero, ctx, y, 0.0 AS S, a_s, NULL::DOUBLE AS b_s,
+        SELECT bucket, role, hero, ctx, y, 0.0::DOUBLE AS S, a_s, NULL::DOUBLE AS b_s,  -- 0.0 без ::DOUBLE — Decimal, JSON падал (BUGLOG №43)
                CASE WHEN n >= {cfg.conf_high} THEN 'high' WHEN n >= {cfg.conf_mid} THEN 'mid' ELSE 'low' END AS conf,
                n, NULL::VARCHAR AS rule
         FROM {table}

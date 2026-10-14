@@ -36,3 +36,13 @@ def test_fresh_parts_are_running():
 def test_total_includes_broken_runs():
     lines = report([RUN], ASSETS, None, legacy=64725, broken={"2026-10-01-0212": 92248})
     assert "всего: 343 079" in lines[0] and "оборванные" in lines[0]
+
+
+def test_recs_line_warns_when_stale():
+    """6-я строка: советы старше суток — ВНИМАНИЕ (BUGLOG №43: пересчёт падал 9 дней, никто не видел)."""
+    from tools.report import recs_line
+    now = datetime(2026, 10, 14, 17, 0)
+    fresh = recs_line(datetime(2026, 10, 14, 5, 0), {"created_at": "2026-10-14T16:47:00Z", "conclusion": "success"}, now)
+    stale = recs_line(datetime(2026, 10, 5, 2, 43), {"created_at": "2026-10-14T16:47:00Z", "conclusion": "failure"}, now)
+    assert "ВНИМАНИЕ" not in fresh and "12 ч назад" in fresh
+    assert "ВНИМАНИЕ" in stale and "failure" in stale

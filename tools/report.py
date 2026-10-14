@@ -182,6 +182,31 @@ def _n(value) -> str:
     return f"{value:,}".replace(",", " ")
 
 
+RECS_STALE_HOURS = 24  # советы старше суток при двух сборах в сутки — пересчёт сломан (BUGLOG №43: 9 дней незаметно)
+
+
+def recs_line(recs_updated: datetime | None, last_run: dict | None, now: datetime) -> str:
+    """6-я строка отчёта: свежесть файла советов и итог последнего пересчёта."""
+    if recs_updated is None:
+        return "6. Советы: recs.zip в релизе нет — ВНИМАНИЕ (замер)"
+    age = (now - recs_updated).total_seconds() / 3600
+    run = (f"последний пересчёт {last_run['created_at'][:16].replace('T', ' ')} UTC — {last_run['conclusion'] or 'идёт'}"
+           if last_run else "пересчётов нет")
+    alarm = f" — ВНИМАНИЕ: старше {RECS_STALE_HOURS} ч, пересчёт не работает" if age > RECS_STALE_HOURS else ""
+    return f"6. Советы: recs.zip обновлён {age:.0f} ч назад; {run}{alarm} (замер)"
+
+
+def recs_health(now: datetime) -> str:
+    try:
+        assets = get_json(f"https://api.github.com/repos/{REPO}/releases/tags/recs")["assets"]
+        recs = next((_parse_time(a["updated_at"]) for a in assets if a["name"] == "recs.zip"), None)
+        runs = get_json(f"https://api.github.com/repos/{REPO}/actions/workflows/recs.yml/runs?per_page=10")["workflow_runs"]
+        last = next((r for r in runs if r["conclusion"] not in ("skipped", "cancelled")), None)
+    except Exception as error:  # отчёт о сборе не должен падать из-за этой строки
+        return f"6. Советы: не удалось проверить ({type(error).__name__})"
+    return recs_line(recs, last, now)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Отчёт о запуске сбора")
     parser.add_argument("--run", help="номер запуска GitHub (без него — последний)")
@@ -197,6 +222,8 @@ def main() -> None:
     runs = load_runs(assets)
     lines = (live(assets, runs) if args.live else
              report(runs, assets, args.run, legacy_matches(assets, runs), broken_runs(assets, runs, datetime.now(UTC).replace(tzinfo=None))))
+    if not args.live:
+        lines.append(recs_health(datetime.now(UTC).replace(tzinfo=None)))
     print("\n".join(lines))
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:

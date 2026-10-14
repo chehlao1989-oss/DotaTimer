@@ -309,3 +309,18 @@ def test_ally_level_finds_item_left_to_ally(tmp_path):
     rows = res["ally"]["normal"]["all"]["core"][str(HERO)][str(ALLY)]
     assert [names[r[0]] for r in rows] == ["spirit_vessel"] and rows[0][2] <= -30  # A в п.п.: истинно около −35
     assert str(HERO) not in res["ally"]["normal"]["all"]["core"][str(HERO)]  # сам себе не союзник
+
+
+def test_recs_zip_with_ally_rows_is_written(tmp_path):
+    """Файл советов с таблицей ally пишется и читается (BUGLOG №43: S из SQL-литерала 0.0 был Decimal — JSON падал,
+    пересчёт на GitHub не выкладывал советы 9 дней)."""
+    from app.threats.recs_file import load_all
+    from tools.compute_recs import write_recs
+    folder = tmp_path / "raw"
+    folder.mkdir()
+    make_matches(folder / "matches-test.parquet", ally=True)
+    cfg = load_config()
+    res = compute(str(folder / "matches-*.parquet"), None, ITEMS, {}, {}, HEROES, cfg, log=lambda *_: None)
+    write_recs(res, tmp_path / "recs.zip", cfg)
+    back = load_all(tmp_path / "recs.zip")
+    assert back["ally"]["normal"]["all"]["core"][str(HERO)][str(ALLY)]
