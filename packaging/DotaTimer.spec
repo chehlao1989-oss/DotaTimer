@@ -13,7 +13,8 @@ ICON = ROOT / "packaging" / "dotatimer.ico"  # рисует tools/make_icon.py
 a = Analysis(
     [str(ROOT / "packaging" / "launcher.py")],
     pathex=[str(ROOT)],
-    datas=[(str(ROOT / "data"), "data")],
+    # assets/fonts — свободные шрифты (OFL, с текстом лицензии) на случай, если Дота у игрока не найдена
+    datas=[(str(ROOT / "data"), "data"), (str(ROOT / "assets" / "fonts"), "assets/fonts")],
     # edge_tts импортируется только при генерации голоса, pynput выбирает модуль под Windows на лету — сборщик
     # сам их не находит
     hiddenimports=collect_submodules("edge_tts") + ["pynput.keyboard._win32", "pynput.mouse._win32",

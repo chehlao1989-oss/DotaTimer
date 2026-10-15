@@ -75,12 +75,18 @@ def _arrow(path: Path, up: bool) -> str:
     return path.as_posix()
 
 
-def app_stylesheet() -> str:
-    """Стиль программы (нужен уже созданный QApplication: стрелки рисуются Qt)."""
+def app_stylesheet(body_font: str = "Segoe UI", head_font: str = "Segoe UI") -> str:
+    """Стиль программы (нужен уже созданный QApplication: стрелки рисуются Qt). Шрифты — app/ui/fonts.py:
+    текст — body_font (Radiance из Доты), статус, заголовки блоков и вкладки — head_font (Reaver из Доты)."""
     folder = paths.app_data_dir() / "ui"
     folder.mkdir(parents=True, exist_ok=True)
+    heads = (f'QLabel#status {{ font-family: "{head_font}"; font-size: 20px; letter-spacing: 1px; '
+             f'text-transform: uppercase; }}\n'
+             f'QGroupBox::title {{ font-family: "{head_font}"; font-size: 15px; }}\n'
+             f'QTabBar::tab {{ font-family: "{head_font}"; font-size: 14px; }}\n')
     return (_QSS.replace("ARROW_UP", _arrow(folder / "arrow_up.png", True))
-            .replace("ARROW_DOWN", _arrow(folder / "arrow_down.png", False)))
+            .replace("ARROW_DOWN", _arrow(folder / "arrow_down.png", False))
+            .replace('font-family: "Segoe UI"', f'font-family: "{body_font}"') + heads)
 
 
 ICON_SIZE = 256  # рисуется в 256 px, Windows сама уменьшает для ярлыка, трея и панели задач

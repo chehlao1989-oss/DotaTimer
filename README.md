@@ -52,7 +52,7 @@ python -m app.main
 
 ## Правовое
 
-Dota таймер — неофициальный проект, **не связан с Valve Corporation** и не одобрен ею. Dota 2 и Steam — товарные знаки Valve Corporation. Иконки героев и предметов скачиваются программой с официального CDN Valve и не входят в репозиторий.
+Dota таймер — неофициальный проект, **не связан с Valve Corporation** и не одобрен ею. Dota 2 и Steam — товарные знаки Valve Corporation. Иконки героев и предметов скачиваются программой с официального CDN Valve и не входят в репозиторий. Шрифты Radiance и Reaver программа берёт из установленной у вас Dota 2 и не распространяет; если Доты нет — свободные шрифты Fira Sans и Forum (SIL Open Font License, текст лицензии — в `assets/fonts`).
 
 Статистика: [OpenDota](https://www.opendota.com), Steam Web API.
 

@@ -28,6 +28,7 @@ from app.ui.main_window import MainWindow
 from app.ui.overlay import Overlay
 from app.ui.threat_strip import ThreatStrip
 from app.ui.startup_check import run_startup_checks
+from app.ui.fonts import load_fonts
 from app.ui.theme import app_icon, app_stylesheet
 
 log = logging.getLogger("dotatimer")
@@ -128,9 +129,11 @@ def main() -> None:
     log.info("Запуск")
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)  # закрытое окно прячется в трей
-    app.setStyleSheet(app_stylesheet())
     app.setWindowIcon(app_icon())
     settings = load_settings()
+    # шрифты Доты из папки игры (иначе свободные похожие) — вариант 2 автора 15.10
+    dota_dir = settings.dota_dir or installer.find_dota_dir()
+    app.setStyleSheet(app_stylesheet(*load_fonts(Path(dota_dir) if dota_dir else None)))
 
     bridge = GsiBridge()
     try:
