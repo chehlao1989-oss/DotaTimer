@@ -12,7 +12,8 @@ from app import paths
 # (#bg — app/ui/background.py). Остальные окна (выбор героев, диалоги) — на сплошном тёмном фоне.
 _QSS = """
 QWidget { background: #14110f; color: #f2efe9; font-size: 13px; font-family: "Segoe UI"; }
-#bg, #bg QWidget { background: transparent; }
+#bg, #bg QTabWidget, #bg QStackedWidget, #bg QStackedWidget > QWidget, #bg QLabel, #bg QCheckBox,
+#bg QRadioButton, #bg QScrollArea, #bg QScrollArea > QWidget > QWidget { background: transparent; }
 QLabel#status { font-size: 16px; font-weight: 700; color: #ffd27a; padding: 6px 2px; }
 QLabel#hint { color: #c4bdb2; }
 QTabWidget::pane { border: 1px solid rgba(227,179,65,90); border-radius: 10px; background: rgba(12,10,10,120); top: -1px; }
@@ -30,15 +31,16 @@ QCheckBox::indicator, QRadioButton::indicator { width: 16px; height: 16px; borde
 QCheckBox::indicator { border-radius: 4px; }
 QRadioButton::indicator { border-radius: 9px; }
 QCheckBox::indicator:checked, QRadioButton::indicator:checked { background: #e3b341; border-color: #ffd27a; }
-QPushButton { background: rgba(155,46,31,225); border: 1px solid #d0553f; border-radius: 6px; padding: 7px 14px;
-              font-weight: 600; }
-QPushButton:hover { background: rgba(185,58,38,235); }
+QPushButton { background: rgba(18,12,10,235); color: #ffd27a; border: 1px solid rgba(227,179,65,150);
+              border-radius: 6px; padding: 7px 14px; font-weight: 600; }
+QPushButton:hover { background: rgba(110,31,21,240); color: #ffffff; border-color: #ffd27a; }
+QPushButton:pressed { background: rgba(155,46,31,245); }
 QComboBox, QKeySequenceEdit, QLineEdit { background: rgba(0,0,0,150); border: 1px solid rgba(227,179,65,90);
                                          border-radius: 4px; padding: 3px 8px; }
 QComboBox::drop-down { border: none; width: 22px; }
 QComboBox::down-arrow { image: url(ARROW_DOWN); width: 10px; height: 6px; }
 QComboBox QAbstractItemView { background: #1d1714; selection-background-color: #6e1f15; }
-QSpinBox { padding: 3px 26px 3px 8px; min-width: 64px; background: rgba(0,0,0,150); border: 1px solid rgba(227,179,65,90);
+QSpinBox { padding: 3px 26px 3px 8px; min-width: 92px; background: rgba(0,0,0,150); border: 1px solid rgba(227,179,65,90);
            border-radius: 4px; }
 QSpinBox::up-button, QSpinBox::down-button { subcontrol-origin: border; width: 20px; background: rgba(60,30,20,210);
                                              border-left: 1px solid rgba(227,179,65,90); }
