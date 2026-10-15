@@ -1,7 +1,8 @@
 """Сторож сбора (BUGLOG №32, DECISIONS №6): расписание каждый час, а настоящий сбор — только если с последнего
 успешного прошло не меньше min_hours. Тогда пропуск запуска GitHub стоит час, а не полсуток.
 
-«Успешный сбор» — свежайший файл итогов run-*.json в релизе data-raw (пишется в конце шага сбора матчей).
+«Успешный сбор» — свежайший файл итогов run-*.json в релизе data-raw (пишется в конце шага сбора матчей);
+возраст — от начала того сбора (время в имени файла), чтобы сборы шли 2 раза в сутки.
 Ответ — в $GITHUB_OUTPUT: run=true (собирать) или run=false (выйти). Без сети или при ошибке — собирать.
 
 Запуск: python tools/collect_guard.py [--min-hours 11]
@@ -17,8 +18,10 @@ MIN_HOURS = 11  # DECISIONS №6: реальных сборов 2 в сутки 
 
 
 def last_success_age_hours(assets: list[dict], now: datetime) -> float | None:
-    """Сколько часов назад выложен свежайший run-*.json; None — ни одного."""
-    times = [datetime.strptime(a["updated_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    """Сколько часов назад НАЧАЛСЯ последний успешный сбор (время старта — в имени run-<ГГГГ-ММ-ДД-ЧЧММ>.json);
+    None — ни одного. Раньше считалось от выкладки run-файла, то есть от конца сбора: при сборе 5 ч цикл выходил
+    ~17 ч — 1,4 сбора в сутки вместо 2 (замер 05–14.10, решение автора 15.10: 2 в сутки)."""
+    times = [datetime.strptime(a["name"][4:19], "%Y-%m-%d-%H%M").replace(tzinfo=timezone.utc)
              for a in assets if a.get("name", "").startswith("run-") and a["name"].endswith(".json")]
     return (now - max(times)).total_seconds() / 3600 if times else None
 
