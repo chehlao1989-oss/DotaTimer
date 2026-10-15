@@ -12,6 +12,7 @@ import numpy as np
 from PySide6.QtCore import QObject, Signal
 
 from app.threats.data import DataCache, GameData
+from app.ui.game_screen import Rect, current_monitor
 from app.vision.geometry import Calibration, HudLayout
 from app.vision.inventory import InventoryReader
 from app.vision.matcher import IconLibrary
@@ -22,6 +23,14 @@ log = logging.getLogger(__name__)
 
 INVENTORY_INTERVAL_SEC = 0.4  # ~2.5 раза в секунду
 IDLE_SLEEP_SEC = 0.5
+
+
+def pick_monitor(monitors: list[dict], wanted: Rect | None) -> dict:
+    """Монитор mss, где идёт игра (BUGLOG №51): по левому верхнему углу; не нашёлся — основной (monitors[1])."""
+    for monitor in monitors[1:]:
+        if wanted is not None and (monitor["left"], monitor["top"]) == wanted[:2]:
+            return monitor
+    return monitors[1]
 
 
 class VisionService(QObject):
@@ -82,26 +91,34 @@ class VisionService(QObject):
         import mss  # объект mss должен жить в том потоке, где снимает экран
         try:
             with mss.MSS() as screen:
-                monitor = screen.monitors[1]  # основной экран
-                layout = HudLayout(monitor["width"], monitor["height"], self.calibration)
-                log.info("Зрение: экран %dx%d", monitor["width"], monitor["height"])
-                top = layout.topbar_slots()[0]
-                heroes = IconLibrary.from_files(
-                    {p.stem: p for p in (self.cache.root / "images" / "heroes").glob("*.png")}, top.w, top.h)
-                items, neutral = self._libraries(layout)
                 while not self._stop.is_set():
-                    if self._topbar_requested.is_set():
-                        self._topbar_requested.clear()
-                        self._scan_topbar(screen, monitor, layout, heroes)
-                    if self._active.is_set() and self._names is not None:
-                        if self._reader is None:
-                            self._reader = InventoryReader(layout, items, neutral, self._names)
-                        self._scan_inventory(screen, monitor, layout)
-                        time.sleep(INVENTORY_INTERVAL_SEC)
-                    else:
-                        time.sleep(IDLE_SLEEP_SEC)
+                    self._watch(screen)
         except Exception:
             log.exception("Поток зрения упал, распознавание отключено до перезапуска")
+
+    def _watch(self, screen) -> None:
+        """Снимать монитор игры, пока Дота на нём; перенесли на другой монитор — выйти и начать заново."""
+        wanted = current_monitor()
+        monitor = pick_monitor(screen.monitors, wanted)
+        layout = HudLayout(monitor["width"], monitor["height"], self.calibration)
+        log.info("Зрение: экран %dx%d, монитор %d", monitor["width"], monitor["height"],
+                 screen.monitors.index(monitor))
+        self._reader = None  # читалка инвентаря привязана к размеру экрана
+        top = layout.topbar_slots()[0]
+        heroes = IconLibrary.from_files(
+            {p.stem: p for p in (self.cache.root / "images" / "heroes").glob("*.png")}, top.w, top.h)
+        items, neutral = self._libraries(layout)
+        while not self._stop.is_set() and current_monitor() == wanted:
+            if self._topbar_requested.is_set():
+                self._topbar_requested.clear()
+                self._scan_topbar(screen, monitor, layout, heroes)
+            if self._active.is_set() and self._names is not None:
+                if self._reader is None:
+                    self._reader = InventoryReader(layout, items, neutral, self._names)
+                self._scan_inventory(screen, monitor, layout)
+                time.sleep(INVENTORY_INTERVAL_SEC)
+            else:
+                time.sleep(IDLE_SLEEP_SEC)
 
     @staticmethod
     def _grab(screen, monitor, rect) -> np.ndarray:

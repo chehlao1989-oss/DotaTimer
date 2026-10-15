@@ -30,6 +30,7 @@ from app.ui.threat_strip import ThreatStrip
 from app.ui.startup_check import run_startup_checks
 from app.ui.backdrops import BackgroundSwitcher, Backdrops
 from app.ui.fonts import load_fonts
+from app.ui.game_screen import GameScreenTracker
 from app.ui.theme import app_icon, app_stylesheet
 
 log = logging.getLogger("dotatimer")
@@ -182,6 +183,10 @@ def main() -> None:
     voice.preload(ru.VOICE_PHRASES)
     bridge.voice_ready.connect(lambda: (voice.reload(), voice.preload(ru.VOICE_PHRASES)))
     generate_voice_in_background(bridge)
+    # окна поверх игры и «зрение» — на мониторе, где Дота (игра автора 15.10 на втором мониторе, BUGLOG №51)
+    game_screen = GameScreenTracker()
+    game_screen.changed.connect(lambda: (overlay.relayout(), strip.relayout()))
+    game_screen.start()
     overlay.show()
     if not args.minimized:
         window.show()

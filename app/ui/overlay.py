@@ -13,11 +13,12 @@ import re
 from pathlib import Path
 
 from PySide6.QtCore import QPoint, QPropertyAnimation, Qt, QTimer, Signal
-from PySide6.QtGui import QFont, QGuiApplication, QPixmap
+from PySide6.QtGui import QFont, QPixmap
 from PySide6.QtWidgets import QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from app.config import OverlaySettings
 from app.i18n import ru
+from app.ui.game_screen import current_screen
 from app.ui.outlined_label import OutlinedLabel
 
 # 440 → 560: карточка угроз переносилась посреди фраз (предпросмотр 30.09); 560 → 700: в подсказке с иконками
@@ -57,8 +58,8 @@ CLICK_THROUGH = Qt.WindowTransparentForInput
 
 
 def screen_factor() -> float:
-    """Поправка на разрешение: 1.0 при высоте 1080, 1.33 при 1440 и т.д."""
-    screen = QGuiApplication.primaryScreen()
+    """Поправка на разрешение монитора игры: 1.0 при высоте 1080, 1.33 при 1440 и т.д."""
+    screen = current_screen()
     return screen.geometry().height() / 1080 if screen else 1.0
 
 
@@ -111,13 +112,20 @@ class DraggableOverlay(QWidget):
         return screen_factor() * self.settings.scale
 
     def place(self, width: int, height: int, default_pos) -> None:
+        """На мониторе игры (BUGLOG №51). Сохранённое место — от левого верхнего угла этого монитора:
+        у основного монитора угол 0,0, поэтому места, сохранённые до 15.10, не меняются."""
         self.resize(width, height)
-        screen = QGuiApplication.primaryScreen().availableGeometry()
+        game = current_screen()
+        screen, origin = game.availableGeometry(), game.geometry().topLeft()
         if self.settings.x is None or self.settings.y is None:
             x, y = default_pos(screen, width, height)
         else:
-            x, y = self.settings.x, self.settings.y
+            x, y = origin.x() + self.settings.x, origin.y() + self.settings.y
         self.move(*clamp_to_screen(x, y, width, height, screen))
+
+    def _save_position(self) -> None:
+        origin = current_screen().geometry().topLeft()
+        self.settings.x, self.settings.y = self.x() - origin.x(), self.y() - origin.y()
 
     def relayout(self) -> None:
         """Пересчитать размеры после смены масштаба (переопределяется)."""
@@ -145,7 +153,7 @@ class DraggableOverlay(QWidget):
     def mouseMoveEvent(self, event):
         if self._layout_mode and self._drag_offset is not None:
             self.move(event.globalPosition().toPoint() - self._drag_offset)
-            self.settings.x, self.settings.y = self.x(), self.y()
+            self._save_position()
 
     def mouseReleaseEvent(self, event):
         self._drag_offset = None
@@ -159,7 +167,7 @@ class DraggableOverlay(QWidget):
             self.apply_opacity()
         else:
             self.settings.scale = round(min(SCALE_MAX, max(SCALE_MIN, self.settings.scale + 0.1 * step)), 2)
-            self.settings.x, self.settings.y = self.x(), self.y()
+            self._save_position()
             self.relayout()
 
 
