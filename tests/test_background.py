@@ -10,8 +10,8 @@ def test_background_image_and_fallback(qapp, tmp_path):
     picture.fill(QColor("#336699"))
     picture.save(str(img))
     widget = BackgroundWidget(str(img))
-    assert widget._pixmap is not None
-    assert widget.set_image(None) and widget._pixmap is None  # «Убрать» — тёмный градиент
+    assert widget._custom is not None
+    assert widget.set_image(None) and widget._custom is None  # «Убрать» — тёмный градиент
     assert not widget.set_image(str(tmp_path / "нет.png"))  # битый путь — сообщение игроку, фон градиентом
     widget.resize(200, 150)
     assert not widget.grab().isNull()
@@ -24,3 +24,27 @@ def test_spinbox_arrows_have_own_images(qapp):
     assert "QSpinBox::up-button" in qss and "subcontrol-position: top right" in qss
     up = qss.split("QSpinBox::up-arrow { image: url(")[1].split(")")[0]
     assert Path(up).is_file()
+
+
+def test_switcher_hero_in_match_map_outside(qapp, tmp_path, monkeypatch):
+    """«Б в катке, А вне катки» (автор 15.10): карта при запуске, герой игрока в катке, после катки — снова карта;
+    своя картинка игрока важнее; запоздавшая картинка (нужна уже другая) не ставится."""
+    from types import SimpleNamespace
+    from PySide6.QtGui import QColor, QImage
+    from app.ui import backdrops
+    from app.ui.background import BackgroundWidget
+    monkeypatch.setattr(backdrops, "cache_dir", lambda: tmp_path)
+    for name in ("map.jpg", "hero_drow_ranger.png"):
+        picture = QImage(40, 30, QImage.Format_ARGB32)
+        picture.fill(QColor("#884422"))
+        picture.save(str(tmp_path / name), "PNG")
+    widget = BackgroundWidget()
+    switcher = backdrops.BackgroundSwitcher(widget, backdrops.Backdrops(fetch=lambda url, path: None))
+    assert widget._auto_kind == backdrops.KIND_MAP
+    switcher.on_state(SimpleNamespace(hero_name="npc_dota_hero_drow_ranger", in_match=True))
+    assert widget._auto_kind == backdrops.KIND_HERO
+    switcher.on_state(SimpleNamespace(hero_name="npc_dota_hero_drow_ranger", in_match=False))
+    assert widget._auto_kind == backdrops.KIND_MAP
+    switcher._on_ready(backdrops.KIND_HERO, str(tmp_path / "hero_drow_ranger.png"))  # опоздала — катка кончилась
+    assert widget._auto_kind == backdrops.KIND_MAP
+    assert backdrops.source(backdrops.KIND_HERO, "nevermore")[0].endswith("/heroes/renders/nevermore.png")

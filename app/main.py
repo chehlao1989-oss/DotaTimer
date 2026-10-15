@@ -28,6 +28,7 @@ from app.ui.main_window import MainWindow
 from app.ui.overlay import Overlay
 from app.ui.threat_strip import ThreatStrip
 from app.ui.startup_check import run_startup_checks
+from app.ui.backdrops import BackgroundSwitcher, Backdrops
 from app.ui.fonts import load_fonts
 from app.ui.theme import app_icon, app_stylesheet
 
@@ -161,6 +162,9 @@ def main() -> None:
     core.extra_hotkeys = {"show_threats": threats.toggle_strip, "seen_item": threats.seen_item,
                           "pick_heroes": threats.pick_heroes}
     window = MainWindow(settings, core, hotkeys, threats)
+    # фон окна: в катке — твой герой, вне катки — карта (картинки с сервера Valve, выбор автора 15.10)
+    switcher = BackgroundSwitcher(window.background, Backdrops())
+    core.state_listeners.append(switcher.on_state)
 
     run_startup_checks(window, settings)
     bridge.packet.connect(core.on_packet)
