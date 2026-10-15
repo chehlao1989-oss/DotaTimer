@@ -163,6 +163,9 @@ def test_recs_incremental_on_github():
     workflow = (ROOT / ".github" / "workflows" / "recs.yml").read_text(encoding="utf-8")
     assert "tools/recs_state.py --release data-raw" in workflow and "gh release upload \"$STATE_RELEASE\" state.tar.gz" in workflow
     assert "compute_recs.py --raw raw" not in workflow  # расчёт с нуля по всему сырью — только в проверках (checks.yml)
+    # OpenDota не ответила — расчёт идёт по справочникам прошлого удачного расчёта (BUGLOG №48)
+    assert workflow.index('-p refs.tar.gz') < workflow.index("refresh_core()")
+    assert "tar czf refs.tar.gz cache/*.json" in workflow and "state.tar.gz refs.tar.gz" in workflow
 
 
 def test_build_on_github():
