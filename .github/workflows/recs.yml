@@ -2,7 +2,8 @@
 # tools/compute_recs.py → recs.zip в релиз «recs». Программа скачивает recs.zip раз в сутки (app/threats/recs_file.py).
 # Сбор запускается каждый час (будильник, BUGLOG №37), а собирает 2 раза в сутки: сторож расчёта считает, только если
 # в data-raw есть данные новее recs.zip (BUGLOG №38). Ручная кнопка считает всегда.
-# Расчёт инкрементальный (DECISIONS №23): хранилище дневных сумм — state.tar.gz в релизе «recs-state»; пересчитываются
+# Расчёт инкрементальный (DECISIONS №23): хранилище сумм — state.tar.gz.part-00…03 в релизе «recs-state» (4 части:
+# предел файла в релизе 2 ГБ, хранилище 973 МБ на 15.10 и растёт — DECISIONS №27); пересчитываются
 # только дни с новыми матчами, сырьё докачивается только для них (tools/recs_state.py). Проба ветки — в релизы *-trial.
 name: Расчёт советов
 
@@ -11,6 +12,8 @@ on:
     workflows: ["Статистика матчей"]
     types: [completed]
   workflow_dispatch: {}   # кнопка «Run workflow» для ручного запуска
+  push:
+    branches: [recs-state-parts]  # проба ветки (в релизы recs-trial / recs-state-trial); при слиянии убрать
 
 permissions:
   contents: write  # чтобы выкладывать recs.zip в релиз
@@ -47,8 +50,10 @@ jobs:
       - name: Хранилище дневных сумм из релиза
         if: steps.guard.outputs.run != 'false'
         run: |
-          gh release download "$STATE_RELEASE" -p state.tar.gz || echo "хранилища нет — соберу с нуля"
-          if [ -f state.tar.gz ]; then tar xzf state.tar.gz && du -sh state; fi
+          gh release download "$STATE_RELEASE" -p "state.tar.gz.part-*" || gh release download "$STATE_RELEASE" -p state.tar.gz \
+            || echo "хранилища нет — соберу с нуля"
+          if ls state.tar.gz.part-* >/dev/null 2>&1; then cat state.tar.gz.part-* | tar xzf - && du -sh state
+          elif [ -f state.tar.gz ]; then tar xzf state.tar.gz && du -sh state; fi  # до 15.10 — одним файлом
 
       - name: Справочники OpenDota (герои, предметы, способности — 5 запросов)
         if: steps.guard.outputs.run != 'false'
@@ -74,7 +79,9 @@ jobs:
         run: |
           tar czf state.tar.gz state && ls -la state.tar.gz
           echo "архив хранилища: $(du -h state.tar.gz | cut -f1)" >> "$GITHUB_STEP_SUMMARY"
+          # всегда 4 части с одними и теми же именами: --clobber заменяет их, лишних файлов в релизе не остаётся
+          split -n 4 -d state.tar.gz state.tar.gz.part- && rm state.tar.gz && ls -la state.tar.gz.part-*
           gh release view "$STATE_RELEASE" >/dev/null 2>&1 || gh release create "$STATE_RELEASE" --title "Хранилище дневных сумм ($STATE_RELEASE)" \
             --notes "Суммы по дням для инкрементального расчёта советов (tools/recs_state.py, DECISIONS №23). Можно удалить — соберётся с нуля из data-raw." \
             --prerelease
-          gh release upload "$STATE_RELEASE" state.tar.gz recs.log --clobber  # журнал — замеры времени (DECISIONS №23)
+          gh release upload "$STATE_RELEASE" state.tar.gz.part-* recs.log --clobber  # журнал — замеры времени (DECISIONS №23)

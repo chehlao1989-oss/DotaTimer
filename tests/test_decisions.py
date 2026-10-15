@@ -161,7 +161,8 @@ def test_checks_run_on_github():
 def test_recs_incremental_on_github():
     """№23: пересчёт советов на GitHub — по хранилищу дневных сумм (tools/recs_state.py), хранилище — в релизе."""
     workflow = (ROOT / ".github" / "workflows" / "recs.yml").read_text(encoding="utf-8")
-    assert "tools/recs_state.py --release data-raw" in workflow and "gh release upload \"$STATE_RELEASE\" state.tar.gz" in workflow
+    assert "tools/recs_state.py --release data-raw" in workflow and "gh release upload \"$STATE_RELEASE\" state.tar.gz.part-*" in workflow
+    assert "split -n 4 -d state.tar.gz" in workflow  # №27: 4 части — каждая меньше 2 ГБ (предел файла в релизе)
     assert "compute_recs.py --raw raw" not in workflow  # расчёт с нуля по всему сырью — только в проверках (checks.yml)
 
 
