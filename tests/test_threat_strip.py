@@ -132,3 +132,32 @@ def test_enemy_without_counter_not_drawn(qapp, tmp_path):
     names = [w.text() for w in strip.findChildren(OutlinedLabel) if w.isVisible()]
     assert "Sniper" in names and "Axe" not in names
     strip.close()
+
+
+def test_strip_shows_item_names(qapp, tmp_path):
+    """Под иконкой — название предмета (просьба автора 15.10), если оно пришло в titles."""
+    from app.ui.outlined_label import OutlinedLabel
+    from app.ui.threat_strip import ThreatStrip
+    strip = ThreatStrip(StripSettings(), tmp_path)
+    strip.update_recommendations([ThreatRecommendation("axe", (RecItem("blade_mail", 1, "hero", 6.0, 900),))],
+                                 {"axe": "Axe", "blade_mail": "Blade Mail"})
+    strip.show()
+    qapp.processEvents()
+    texts = [w.text() for w in strip.findChildren(OutlinedLabel) if w.isVisible()]
+    assert "Blade Mail" in texts and "Axe" in texts
+    strip.close()
+
+
+def test_moved_strip_stays_on_screen_after_growing(qapp, tmp_path):
+    """Полоска, сдвинутая игроком к правому краю, после роста (названия, крупнее) не вылезает за экран (15.10)."""
+    from PySide6.QtGui import QGuiApplication
+    from app.ui.threat_strip import ThreatStrip
+    screen = QGuiApplication.primaryScreen().availableGeometry()
+    strip = ThreatStrip(StripSettings(x=screen.right() - 30, y=screen.top() + 60), tmp_path)
+    strip.update_recommendations([ThreatRecommendation("axe", (RecItem("blade_mail", 1, "hero", 6.0, 900),
+                                                               RecItem("black_king_bar", 1, "hero", 4.0, 900)))],
+                                 {"axe": "Axe", "blade_mail": "Blade Mail", "black_king_bar": "Black King Bar"})
+    strip.show()
+    qapp.processEvents()
+    assert screen.contains(strip.geometry())
+    strip.close()

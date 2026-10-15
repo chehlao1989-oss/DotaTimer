@@ -25,7 +25,7 @@ from app.notify.voice import VoicePlayer
 from app.threats.service import ThreatsService
 from app.timers.timings import MODE_TURBO
 from app.ui.main_window import MainWindow
-from app.ui.overlay import Overlay
+from app.ui.overlay import Overlay, set_font_family
 from app.ui.threat_strip import ThreatStrip
 from app.ui.startup_check import run_startup_checks
 from app.ui.backdrops import BackgroundSwitcher, Backdrops
@@ -134,7 +134,9 @@ def main() -> None:
     settings = load_settings()
     # шрифты Доты из папки игры (иначе свободные похожие) — вариант 2 автора 15.10
     dota_dir = settings.dota_dir or installer.find_dota_dir()
-    app.setStyleSheet(app_stylesheet(*load_fonts(Path(dota_dir) if dota_dir else None)))
+    body_font, head_font = load_fonts(Path(dota_dir) if dota_dir else None)
+    app.setStyleSheet(app_stylesheet(body_font, head_font))
+    set_font_family(body_font)  # надписи и полоска поверх игры — тем же шрифтом
 
     bridge = GsiBridge()
     try:

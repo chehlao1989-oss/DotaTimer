@@ -238,6 +238,8 @@ class ThreatsService(QObject):
         self._last_recs = {r.hero: r for r in recs}
         if self.strip is not None and self.overlays_enabled:
             titles = {t.hero.name: t.hero.localized for t in self.controller.threats}
+            # названия предметов под иконками на полоске (просьба автора 15.10)
+            titles.update({i.item: self.controller.item_title(i.item) for r in recs for i in r.items})
             self.strip.update_recommendations(recs if self.settings.enabled else [], titles)
         # голосовая фраза «Совет по предметам» убрана: при смене советов она повторялась (замечание автора 30.09)
 

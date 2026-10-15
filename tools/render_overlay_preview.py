@@ -121,7 +121,9 @@ def real_threats():
     inputs = [ThreatInput(e, data.hero_by_name(e).id, frozenset(REAL_SCENARIO["enemy_items"].get(e, set())))
               for e in REAL_SCENARIO["enemies"]]
     threats = rec.recommend(me.id, inputs, set(), REAL_SCENARIO["minute"] * 60, REAL_SCENARIO["gold"])
-    return threats, {e: data.hero_by_name(e).localized for e in REAL_SCENARIO["enemies"]}
+    titles = {e: data.hero_by_name(e).localized for e in REAL_SCENARIO["enemies"]}
+    titles.update({i.item: data.items[i.item].dname for t in threats for i in t.items if i.item in data.items})
+    return threats, titles
 
 
 def build_windows(w: int, h: int, images_dir: Path, overlay_settings: OverlaySettings,
@@ -147,7 +149,9 @@ def build_windows(w: int, h: int, images_dir: Path, overlay_settings: OverlaySet
         frame.setGraphicsEffect(None)  # эффект плавного угасания не рисуется через render() — снимаем для снимка
     strip = ThreatStrip(strip_settings, images_dir)
     threats, titles = real_threats() or (SAMPLE_THREATS, {"axe": "Axe", "phantom_assassin": "Phantom Assassin",
-                                                          "sniper": "Sniper"})
+                                                          "sniper": "Sniper", "blade_mail": "Blade Mail",
+                                                          "black_king_bar": "Black King Bar",
+                                                          "monkey_king_bar": "Monkey King Bar", "blink": "Blink Dagger"})
     strip.update_recommendations(threats, titles)
     for widget in (messages, strip):
         widget.show()
@@ -204,6 +208,10 @@ def main() -> None:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     app = QApplication.instance() or QApplication(sys.argv)  # noqa: F841
+    # шрифт надписей — как в программе: Radiance из Доты, иначе свободный (app/ui/fonts.py)
+    from app.gsi import installer
+    from app.ui.fonts import load_fonts
+    overlay_mod.set_font_family(load_fonts(installer.find_dota_dir())[0])
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     images_dir = Path(os.environ.get("APPDATA", ".")) / "DotaTimer" / "cache" / "images"

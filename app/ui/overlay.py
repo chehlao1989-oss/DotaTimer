@@ -24,7 +24,7 @@ from app.ui.outlined_label import OutlinedLabel
 # «… Silver Edge» переносилось в 4 строки (предпросмотр 01.10, BUGLOG №35)
 BASE_WIDTH = 700
 BASE_FONT_PX = 20  # при высоте экрана 1080
-FONT_FAMILY = "Segoe UI"  # с полужирным начертанием Windows подставляет Segoe UI Semibold
+FONT_FAMILY = "Segoe UI"  # до set_font_family; с полужирным начертанием Windows подставляет Segoe UI Semibold
 SCALE_MIN, SCALE_MAX = 0.8, 1.5
 MAX_MESSAGES = 4
 FADE_MS = 800
@@ -67,6 +67,12 @@ def clamp_to_screen(x: int, y: int, width: int, height: int, screen) -> tuple[in
     x = max(screen.left(), min(x, screen.right() + 1 - width))
     y = max(screen.top(), min(y, screen.bottom() + 1 - height))
     return x, y
+
+
+def set_font_family(family: str) -> None:
+    """Шрифт надписей поверх игры — тот же, что в окне: Radiance из Доты (app/ui/fonts.py, выбор автора 15.10)."""
+    global FONT_FAMILY
+    FONT_FAMILY = family
 
 
 def overlay_font(px: int) -> QFont:

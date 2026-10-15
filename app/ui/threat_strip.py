@@ -4,7 +4,7 @@
 - купленный совет — с зелёной галочкой, рядом следующий;
 - если хватает золота — золотая рамка;
 - совет только что сменился — яркая жёлтая рамка на 5 секунд;
-- под иконкой прибавка винрейта («+6%»), если совет из статистики.
+- под иконкой — название предмета (просьба автора 15.10) и прибавка («+6%»), если совет из статистики.
 Клики проходят насквозь. Место, размер (80–150%) и прозрачность настраиваются,
 Ctrl+Alt+H скрывает и показывает.
 """
@@ -20,9 +20,11 @@ from app.threats.recommend import ThreatRecommendation, format_delta
 from app.ui.outlined_label import OutlinedLabel
 from app.ui.overlay import DraggableOverlay, overlay_font
 
-PORTRAIT_W, PORTRAIT_H = 96, 54  # при 1080p и масштабе 100%
-ICON_W, ICON_H = 46, 34
-CAPTION_PX = 13
+# при 1080p и масштабе 100%; крупнее в ~1,25 раза по просьбе автора 15.10 (было 96×54, 46×34, 13 px)
+PORTRAIT_W, PORTRAIT_H = 120, 68
+ICON_W, ICON_H = 58, 43
+CAPTION_PX = 15
+NAME_WRAP_ICONS = 1.9  # название предмета под иконкой переносится по ширине ~1,9 иконки (2 строки)
 HIGHLIGHT_MS = 5000
 MARGIN = 20
 # DECISIONS №13: справа вверху, под полосой FPS (замер по скриншоту автора: 0–36 px при высоте 1080). Слева игра
@@ -32,6 +34,7 @@ COLOR_BOUGHT = QColor("#3fb950")
 COLOR_AFFORDABLE = QColor("#c9a45c")
 COLOR_HIGHLIGHT = QColor("#ffd33d")
 CAPTION_COLOR = QColor("#dfe6ee")
+NAME_COLOR = QColor("#ffd27a")  # название предмета — золотом, как цены в магазине Доты
 PANEL_STYLE = "QWidget#panel { background: rgba(12, 14, 18, 200); border-radius: 8px; }"
 
 
@@ -144,7 +147,7 @@ class ThreatStrip(DraggableOverlay):
             name = OutlinedLabel(title, overlay_font(round(CAPTION_PX * f)))
             column.addWidget(name, alignment=Qt.AlignHCenter)
             icons = QHBoxLayout()
-            icons.setSpacing(round(4 * f))
+            icons.setSpacing(round(12 * f))  # с названиями под иконками — шире, иначе названия слипались
             for item in rec.items:
                 cell = QVBoxLayout()
                 cell.setSpacing(0)
@@ -152,6 +155,11 @@ class ThreatStrip(DraggableOverlay):
                 icon.setPixmap(item_icon(self.images_dir / "items" / f"{item.item}.png", iw, ih, item.bought,
                                          item.affordable, (rec.hero, item.item) in self._highlight))
                 cell.addWidget(icon, alignment=Qt.AlignHCenter)
+                name = self._titles.get(item.item)
+                if name:
+                    cell.addWidget(OutlinedLabel(name, overlay_font(round((CAPTION_PX - 2) * f)),
+                                                 round(iw * NAME_WRAP_ICONS), color=NAME_COLOR),
+                                   alignment=Qt.AlignHCenter)
                 caption = OutlinedLabel(self._caption(item), overlay_font(round((CAPTION_PX - 1) * f)),
                                         color=CAPTION_COLOR)
                 cell.addWidget(caption, alignment=Qt.AlignHCenter)
@@ -170,9 +178,10 @@ class ThreatStrip(DraggableOverlay):
     def resizeEvent(self, event):
         # Новые портреты и иконки показываются только после отрисовки, и размер полоски растёт уже после
         # place(): без этого полоска уезжала вниз на миникарту (BUGLOG №13). Прижимаем заново по новому размеру.
+        # То же для места, куда игрок сдвинул полоску сам: выросшая полоска (названия предметов, крупнее — 15.10)
+        # вылезала за правый край экрана — place() прижимает её в пределы экрана (clamp_to_screen).
         super().resizeEvent(event)
-        if self.settings.x is None or self.settings.y is None:
-            self.place(self.width(), self.height(), self._default_pos)
+        self.place(self.width(), self.height(), self._default_pos)
 
     @staticmethod
     def _caption(item) -> str:
