@@ -119,21 +119,6 @@ def test_messages_never_overflow_window(qapp):
     overlay.close()
 
 
-def test_enemy_without_counter_not_drawn(qapp, tmp_path):
-    """DECISIONS №22: враг без «настоящего контр-предмета» на полоске не рисуется; если таких все — полоски нет."""
-    from app.ui.outlined_label import OutlinedLabel
-    from app.ui.threat_strip import ThreatStrip
-    strip = ThreatStrip(StripSettings(), tmp_path)
-    strip.update_recommendations([ThreatRecommendation("axe", ())], {"axe": "Axe"})
-    assert not strip.isVisible()
-    strip.update_recommendations([ThreatRecommendation("axe", ()),
-                                  ThreatRecommendation("sniper", (RecItem("blink", 1, "mechanic", None, 0),))],
-                                 {"axe": "Axe", "sniper": "Sniper"})
-    names = [w.text() for w in strip.findChildren(OutlinedLabel) if w.isVisible()]
-    assert "Sniper" in names and "Axe" not in names
-    strip.close()
-
-
 def test_strip_shows_item_names(qapp, tmp_path):
     """Под иконкой — название предмета (просьба автора 15.10), если оно пришло в titles."""
     from app.ui.outlined_label import OutlinedLabel
@@ -172,3 +157,18 @@ def test_opacity_dims_only_message_background(qapp, tmp_path):
     assert overlay.windowOpacity() == 1.0
     assert f"rgba(8, 10, 14, {round(FRAME_ALPHA_END * 0.6)})" in overlay._frames()[-1].styleSheet()
     overlay.close()
+
+
+def test_strip_keeps_threats_without_answer(qapp, tmp_path):
+    """Угрозы без контр-предмета остаются на полоске с «нет явного ответа» (иначе полоска пропадала, игра 15.10)."""
+    from app.i18n import ru
+    from app.ui.outlined_label import OutlinedLabel
+    from app.ui.threat_strip import ThreatStrip
+    strip = ThreatStrip(StripSettings(), tmp_path)
+    strip.update_recommendations([ThreatRecommendation("sand_king", ()), ThreatRecommendation("sven", ())],
+                                 {"sand_king": "Sand King", "sven": "Sven"})
+    qapp.processEvents()
+    assert strip.isVisible()
+    texts = [label._text for label in strip.findChildren(OutlinedLabel) if label.isVisibleTo(strip)]
+    assert texts.count(ru.STRIP_NO_ANSWER) == 2 and "Sand King" in texts
+    strip.close()

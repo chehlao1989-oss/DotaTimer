@@ -230,6 +230,7 @@ LOW_DATA = "мало данных"
 
 # --- Полоска угроз ---
 STRIP_BOUGHT = "есть ✓"
+STRIP_NO_ANSWER = "нет явного ответа"  # угроза без настоящего контр-предмета (DECISIONS №22)
 CARD_BOUGHT = "{item} ✓"
 STRIP_DELTA = "{delta:+.0f}%"
 DELTA_ZERO = "±0%"

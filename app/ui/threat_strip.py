@@ -95,7 +95,7 @@ class ThreatStrip(DraggableOverlay):
                     self._highlight.add(key)
                     QTimer.singleShot(HIGHLIGHT_MS, lambda k=key: self._unhighlight(k))
         self._render()
-        if any(r.items for r in recs) and self.settings.visible and not self.isVisible():
+        if recs and self.settings.visible and not self.isVisible():
             self.show()
 
     def clear(self) -> None:
@@ -135,8 +135,9 @@ class ThreatStrip(DraggableOverlay):
         self._clear()
         self._row.setContentsMargins(spacing, spacing, spacing, spacing)
         self._row.setSpacing(spacing * 2)
-        # враг без «настоящего контр-предмета» на полоске не рисуется (DECISIONS №22)
-        recs = [r for r in self._recs if r.items] or ([] if not self._layout_mode else [ThreatRecommendation("", ())])
+        # угроза без «настоящего контр-предмета» (DECISIONS №22) остаётся на полоске с подписью «нет явного ответа»:
+        # пустая полоска выглядела как поломка (игра автора 15.10, Huskar против Sand King и Sven)
+        recs = self._recs or ([] if not self._layout_mode else [ThreatRecommendation("", ())])
         for rec in recs:
             column = QVBoxLayout()
             column.setSpacing(round(4 * f))
@@ -164,7 +165,11 @@ class ThreatStrip(DraggableOverlay):
                                         color=CAPTION_COLOR)
                 cell.addWidget(caption, alignment=Qt.AlignHCenter)
                 icons.addLayout(cell)
+            if rec.hero and not rec.items:
+                icons.addWidget(OutlinedLabel(ru.STRIP_NO_ANSWER, overlay_font(round((CAPTION_PX - 1) * f)),
+                                              round(pw * 1.2), color=CAPTION_COLOR), alignment=Qt.AlignHCenter)
             column.addLayout(icons)
+            column.addStretch(1)  # портреты всех угроз — на одной высоте, даже без иконок под ними
             self._row.addLayout(column)
         self._panel.adjustSize()
         self.adjustSize()
