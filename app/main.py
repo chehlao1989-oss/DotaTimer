@@ -28,7 +28,7 @@ from app.ui.main_window import MainWindow
 from app.ui.overlay import Overlay
 from app.ui.threat_strip import ThreatStrip
 from app.ui.startup_check import run_startup_checks
-from app.ui.theme import DARK_QSS, app_icon
+from app.ui.theme import app_icon, app_stylesheet
 
 log = logging.getLogger("dotatimer")
 
@@ -128,7 +128,7 @@ def main() -> None:
     log.info("Запуск")
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)  # закрытое окно прячется в трей
-    app.setStyleSheet(DARK_QSS)
+    app.setStyleSheet(app_stylesheet())
     app.setWindowIcon(app_icon())
     settings = load_settings()
 

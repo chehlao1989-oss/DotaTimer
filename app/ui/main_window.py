@@ -5,7 +5,7 @@ import time
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QKeySequence
 from PySide6.QtWidgets import (
-    QApplication, QButtonGroup, QCheckBox, QComboBox, QGridLayout, QGroupBox, QHBoxLayout, QKeySequenceEdit,
+    QApplication, QButtonGroup, QCheckBox, QComboBox, QFileDialog, QGridLayout, QGroupBox, QHBoxLayout, QKeySequenceEdit,
     QLabel, QMainWindow,
     QMenu, QMessageBox, QPushButton, QRadioButton, QSlider, QSpinBox, QSystemTrayIcon, QTabWidget,
     QVBoxLayout, QWidget,
@@ -17,6 +17,7 @@ from app.core import TimerApp
 from app.hotkeys import DEFAULT_BINDINGS, HotkeyManager, parse_binding
 from app.i18n import ru
 from app.timers.timings import MODE_NORMAL, MODE_TURBO
+from app.ui.background import BackgroundWidget
 from app.ui.theme import app_icon
 
 log = logging.getLogger(__name__)
@@ -41,7 +42,8 @@ class MainWindow(QMainWindow):
         self.setWindowIcon(app_icon())
         self.resize(660, 640)
 
-        central = QWidget()
+        self.background = BackgroundWidget(settings.background)
+        central = self.background
         layout = QVBoxLayout(central)
         self.status = QLabel(objectName="status")
         layout.addWidget(self.status)
@@ -329,8 +331,31 @@ class MainWindow(QMainWindow):
         self.autostart.setChecked(autostart.is_enabled())
         self.autostart.toggled.connect(self._on_autostart)
         layout.addWidget(self.autostart)
+        row = QHBoxLayout()
+        choose = QPushButton(ru.BACKGROUND_CHOOSE)
+        choose.clicked.connect(self._choose_background)
+        clear = QPushButton(ru.BACKGROUND_CLEAR)
+        clear.clicked.connect(lambda: self._set_background(None))
+        row.addWidget(QLabel(ru.BACKGROUND_LABEL))
+        row.addWidget(choose)
+        row.addWidget(clear)
+        row.addStretch(1)
+        layout.addLayout(row)
+        layout.addWidget(QLabel(ru.BACKGROUND_HINT, objectName="hint", wordWrap=True))
         layout.addStretch(1)
         return tab
+
+    def _choose_background(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(self, ru.BACKGROUND_CHOOSE, "", ru.BACKGROUND_FILTER)
+        if path:
+            self._set_background(path)
+
+    def _set_background(self, path: str | None) -> None:
+        if not self.background.set_image(path):
+            QMessageBox.warning(self, ru.APP_TITLE, ru.BACKGROUND_BAD)
+            return
+        self.settings.background = path
+        save_settings(self.settings)
 
     def _on_autostart(self, on: bool) -> None:
         try:

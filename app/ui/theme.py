@@ -1,28 +1,83 @@
-"""Тёмная тема в стиле Доты и иконка программы (рисуется кодом, без файлов)."""
+"""Тема в стиле Доты (вариант Б автора 15.10: панели поверх фона) и иконка программы (рисуется кодом)."""
 import math
+from pathlib import Path
 
 from PySide6.QtCore import QPointF, QRectF, Qt
-from PySide6.QtGui import QBrush, QColor, QFont, QIcon, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap
+from PySide6.QtGui import (QBrush, QColor, QIcon, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap,
+                           QPolygonF)
 
-DARK_QSS = """
-QWidget { background: #15181d; color: #e6e6e6; font-size: 13px; font-family: "Segoe UI"; }
-QTabWidget::pane { border: 1px solid #2c3139; border-radius: 6px; }
-QTabBar::tab { background: #1d2127; padding: 7px 14px; border: 1px solid #2c3139;
-               border-bottom: none; border-top-left-radius: 6px; border-top-right-radius: 6px; }
-QTabBar::tab:selected { background: #2a1f1c; color: #f0c674; }
-QGroupBox { border: 1px solid #2c3139; border-radius: 6px; margin-top: 12px; padding-top: 8px; }
-QGroupBox::title { subcontrol-origin: margin; left: 8px; color: #c9a45c; }
-QPushButton { background: #7a2418; border: 1px solid #a3342a; border-radius: 5px; padding: 6px 12px; }
-QPushButton:hover { background: #93301f; }
-QComboBox, QSpinBox { background: #1d2127; border: 1px solid #3a404a; border-radius: 4px; padding: 3px 6px; }
-QCheckBox::indicator, QRadioButton::indicator { width: 15px; height: 15px; border: 1px solid #6b7380;
-                                              background: #1d2127; }
-QCheckBox::indicator { border-radius: 3px; }
-QRadioButton::indicator { border-radius: 8px; }
-QCheckBox::indicator:checked, QRadioButton::indicator:checked { background: #c9a45c; border-color: #e3b341; }
-QLabel#status { font-size: 14px; font-weight: 600; padding: 4px 2px; }
-QLabel#hint { color: #8a93a0; }
+from app import paths
+
+# Вариант Б (выбор автора 15.10): полупрозрачные тёмные панели с золотой рамкой поверх фона главного окна
+# (#bg — app/ui/background.py). Остальные окна (выбор героев, диалоги) — на сплошном тёмном фоне.
+_QSS = """
+QWidget { background: #14110f; color: #f2efe9; font-size: 13px; font-family: "Segoe UI"; }
+#bg, #bg QWidget { background: transparent; }
+QLabel#status { font-size: 16px; font-weight: 700; color: #ffd27a; padding: 6px 2px; }
+QLabel#hint { color: #c4bdb2; }
+QTabWidget::pane { border: 1px solid rgba(227,179,65,90); border-radius: 10px; background: rgba(12,10,10,120); top: -1px; }
+QTabBar::tab { background: rgba(12,10,10,150); color: #d2cbc0; padding: 9px 14px; border: 1px solid rgba(227,179,65,50);
+               border-bottom: none; border-top-left-radius: 8px; border-top-right-radius: 8px; margin-right: 2px;
+               font-weight: 600; }
+QTabBar::tab:selected { background: rgba(110,31,21,225); color: #ffd27a; border-color: rgba(227,179,65,160); }
+QTabBar::tab:hover { color: #ffffff; }
+QGroupBox { background: rgba(20,16,15,110); border: 1px solid rgba(227,179,65,70); border-radius: 8px; margin-top: 16px;
+            padding: 10px 8px 6px 8px; }
+QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 4px; color: #ffd27a; font-weight: 700; }
+QCheckBox, QRadioButton { background: transparent; spacing: 8px; padding: 2px 0; }
+QCheckBox::indicator, QRadioButton::indicator { width: 16px; height: 16px; border: 1px solid #8a7a60;
+                                              background: rgba(0,0,0,130); }
+QCheckBox::indicator { border-radius: 4px; }
+QRadioButton::indicator { border-radius: 9px; }
+QCheckBox::indicator:checked, QRadioButton::indicator:checked { background: #e3b341; border-color: #ffd27a; }
+QPushButton { background: rgba(155,46,31,225); border: 1px solid #d0553f; border-radius: 6px; padding: 7px 14px;
+              font-weight: 600; }
+QPushButton:hover { background: rgba(185,58,38,235); }
+QComboBox, QKeySequenceEdit, QLineEdit { background: rgba(0,0,0,150); border: 1px solid rgba(227,179,65,90);
+                                         border-radius: 4px; padding: 3px 8px; }
+QComboBox::drop-down { border: none; width: 22px; }
+QComboBox::down-arrow { image: url(ARROW_DOWN); width: 10px; height: 6px; }
+QComboBox QAbstractItemView { background: #1d1714; selection-background-color: #6e1f15; }
+QSpinBox { padding: 3px 26px 3px 8px; min-width: 64px; background: rgba(0,0,0,150); border: 1px solid rgba(227,179,65,90);
+           border-radius: 4px; }
+QSpinBox::up-button, QSpinBox::down-button { subcontrol-origin: border; width: 20px; background: rgba(60,30,20,210);
+                                             border-left: 1px solid rgba(227,179,65,90); }
+QSpinBox::up-button { subcontrol-position: top right; border-top-right-radius: 4px; }
+QSpinBox::down-button { subcontrol-position: bottom right; border-bottom-right-radius: 4px; }
+QSpinBox::up-button:hover, QSpinBox::down-button:hover { background: rgba(110,31,21,235); }
+QSpinBox::up-arrow { image: url(ARROW_UP); width: 10px; height: 6px; }
+QSpinBox::down-arrow { image: url(ARROW_DOWN); width: 10px; height: 6px; }
+QSlider::groove:horizontal { height: 4px; background: rgba(255,255,255,40); border-radius: 2px; }
+QSlider::handle:horizontal { background: #e3b341; width: 14px; margin: -6px 0; border-radius: 7px; }
+QMenu { background: #1d1714; border: 1px solid rgba(227,179,65,90); }
+QMenu::item:selected { background: #6e1f15; }
 """
+ARROW_COLOR = "#ffd27a"
+
+
+def _arrow(path: Path, up: bool) -> str:
+    """Стрелка для кнопок поля с числом: стандартная стрелка Windows под нашим стилем наезжала на «сек» и не
+    нажималась (BUGLOG №45) — рисуем свою. Кладётся в %APPDATA%\\DotaTimer\\ui."""
+    if not path.exists():
+        image = QPixmap(10, 6)
+        image.fill(Qt.transparent)
+        painter = QPainter(image)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(QColor(ARROW_COLOR))
+        points = [QPointF(0, 6), QPointF(10, 6), QPointF(5, 0)] if up else [QPointF(0, 0), QPointF(10, 0), QPointF(5, 6)]
+        painter.drawPolygon(QPolygonF(points))
+        painter.end()
+        image.save(str(path))
+    return path.as_posix()
+
+
+def app_stylesheet() -> str:
+    """Стиль программы (нужен уже созданный QApplication: стрелки рисуются Qt)."""
+    folder = paths.app_data_dir() / "ui"
+    folder.mkdir(parents=True, exist_ok=True)
+    return (_QSS.replace("ARROW_UP", _arrow(folder / "arrow_up.png", True))
+            .replace("ARROW_DOWN", _arrow(folder / "arrow_down.png", False)))
 
 
 ICON_SIZE = 256  # рисуется в 256 px, Windows сама уменьшает для ярлыка, трея и панели задач

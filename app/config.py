@@ -50,6 +50,7 @@ class Settings:
     mode: str = MODE_NORMAL  # "normal" или "turbo", GSI режим не сообщает
     hotkeys: dict[str, str] = field(default_factory=lambda: dict(DEFAULT_BINDINGS))
     dota_dir: str | None = None  # папка Доты, если её выбрали вручную
+    background: str | None = None  # картинка фона главного окна (выбирает игрок; None — тёмный градиент)
     hide_fullscreen_warning: bool = False  # «Больше не показывать»
     screen_reminder_shown: bool = False  # напоминание, когда video.txt не найден, показывается один раз
 
