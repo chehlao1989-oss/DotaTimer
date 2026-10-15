@@ -119,8 +119,9 @@ def test_messages_never_overflow_window(qapp):
     overlay.close()
 
 
-def test_strip_shows_item_names(qapp, tmp_path):
-    """Под иконкой — название предмета (просьба автора 15.10), если оно пришло в titles."""
+def test_strip_has_no_item_names(qapp, tmp_path):
+    """Названий предметов под иконками нет: полоска с ними закрывала лавку (вариант 3 автора 15.10, DECISIONS №13).
+    Имя героя остаётся."""
     from app.ui.outlined_label import OutlinedLabel
     from app.ui.threat_strip import ThreatStrip
     strip = ThreatStrip(StripSettings(), tmp_path)
@@ -129,12 +130,12 @@ def test_strip_shows_item_names(qapp, tmp_path):
     strip.show()
     qapp.processEvents()
     texts = [w.text() for w in strip.findChildren(OutlinedLabel) if w.isVisible()]
-    assert "Blade Mail" in texts and "Axe" in texts
+    assert "Blade Mail" not in texts and "Axe" in texts
     strip.close()
 
 
 def test_moved_strip_stays_on_screen_after_growing(qapp, tmp_path):
-    """Полоска, сдвинутая игроком к правому краю, после роста (названия, крупнее) не вылезает за экран (15.10)."""
+    """Полоска, сдвинутая игроком к правому краю, после роста (больше советов) не вылезает за экран (15.10)."""
     from PySide6.QtGui import QGuiApplication
     from app.ui.threat_strip import ThreatStrip
     screen = QGuiApplication.primaryScreen().availableGeometry()
