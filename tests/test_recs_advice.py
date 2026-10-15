@@ -155,3 +155,31 @@ def test_download_recs_keeps_old_copy_on_bad_file(tmp_path):
     os.utime(target, (0, 0))  # копия «старая»
     assert not download_recs(target, bad.as_uri())
     assert load_meta(target)["matches"] == 100
+
+
+def test_ally_item_removed_from_advice(tmp_path):
+    """DECISIONS №26: Y, который мой герой берёт заметно реже при союзнике S, из советов убирается — показывается
+    следующий; купленный Y остаётся с галочкой; подсказка на предмет врага — тоже без Y."""
+    from copy import deepcopy
+    ally = 5
+    result = deepcopy(RESULT)
+    result["ally"] = {"normal": {"all": {"core": {str(ME): {str(ally): [[ITEMS["monkey_king_bar"].id, 0.0, -6.0, 0.0,
+                                                                         2, 900, 0]]}}}}}
+    path = tmp_path / "ally.zip"
+    write_recs_zip(result, path)
+    from dataclasses import replace
+    off = RecsRecommender(RecsSource(path), ITEMS, CFG)  # по умолчанию выключено (BUGLOG №47)
+    assert off.counters(ME, PA, "butterfly", ally_ids=(ally,)) == ["monkey_king_bar", "bloodthorn"]
+    rec = RecsRecommender(RecsSource(path), ITEMS, replace(CFG, ally_filter=True))
+    pa = ThreatInput("phantom_assassin", PA, frozenset())
+    alone = rec.recommend(ME, [pa], set(), game_time=30 * 60)[0]
+    assert alone.items[0].item == "monkey_king_bar"
+    rec.reset()
+    with_ally = rec.recommend(ME, [pa], set(), game_time=30 * 60, ally_ids=(ally,))[0]
+    assert "monkey_king_bar" not in [i.item for i in with_ally.items]
+    assert with_ally.items[0].item == "black_king_bar"
+    rec.reset()
+    owned = rec.recommend(ME, [pa], {"monkey_king_bar"}, game_time=30 * 60, ally_ids=(ally,))[0]
+    assert owned.items[0].item == "monkey_king_bar" and owned.items[0].bought
+    assert rec.counters(ME, PA, "butterfly", ally_ids=(ally,)) == ["bloodthorn"]
+    assert rec.counters(ME, PA, "butterfly", ally_ids=(77,)) == ["monkey_king_bar", "bloodthorn"]

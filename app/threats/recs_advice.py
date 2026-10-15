@@ -6,6 +6,8 @@
 - Советы: из куска моего героя (recs.zip → heroes/<id>.json). Если у врага замечен предмет X — сначала ответы на X
   (связка «E с X», иначе «любой враг с X»), потом ответы на самого героя E. Порядок строк уже в файле:
   сначала по механике, потом «по опыту игроков» (DECISIONS №18).
+- Союзники (DECISIONS №26, вариант Б): предмет Y, который мой герой заметно реже берёт, когда в команде союзник S
+  (таблица ally: обычно Y берёт сам S), из советов убирается — показывается следующий.
 - Отсев в программе (спека 6.4–6.7): уже куплено (сам предмет или его доделка) — галочка; два слота: «сейчас»
   (укладывается в фазу игры по стоимости) и «потом» (лучший вообще); бонус предмету, который в топ-3 против двух
   угроз; гистерезис — совет меняется, только если новый S больше старого на hysteresis.
@@ -33,12 +35,13 @@ class AdviceConfig:
     hysteresis: float  # спека 6.7, в единицах S
     top_for_bonus: int  # в топ-N против двух угроз — бонус (спека 6.6: топ-3)
     show_delta_min_pp: float = 1.0  # подпись «+N%» под советом — только от этой прибавки A
+    ally_filter: bool = False  # учёт союзников (DECISIONS №26); выключен — таблица ally убирает личные предметы (BUGLOG №47)
 
 
 def advice_config(raw: dict) -> AdviceConfig:
     r = raw["recs_advice"]
     return AdviceConfig(r["phase_base_cost"], r["phase_cost_per_min"], r["multi_threat_bonus"], r["hysteresis"],
-                        r["top_for_bonus"], r.get("show_delta_min_pp", 1.0))
+                        r["top_for_bonus"], r.get("show_delta_min_pp", 1.0), r.get("ally_filter", False))
 
 
 class RecsSource:
@@ -174,8 +177,15 @@ class RecsRecommender:
                 out.append((key, self.source.decode(row), tier))
         return out
 
+    def ally_taken(self, slice_: dict, role: str, ally_ids) -> set[str]:
+        """Предметы, которые при этих союзниках обычно берёт союзник, а не мой герой (таблица ally)."""
+        if not self.config.ally_filter:
+            return set()
+        table = slice_.get("ally", {}).get(self.bucket, {}).get("all", {}).get(role, {})
+        return {self.by_id[row[0]] for ally in ally_ids for row in table.get(str(ally), []) if row[0] in self.by_id}
+
     def recommend(self, my_hero_id: int | None, threats: list[ThreatInput], my_items: set[str],
-                  game_time: int, my_gold: int | None = None) -> list[ThreatRecommendation]:
+                  game_time: int, my_gold: int | None = None, ally_ids=()) -> list[ThreatRecommendation]:
         if my_hero_id is None:
             return []
         slice_ = self.source.hero(my_hero_id)
@@ -187,6 +197,10 @@ class RecsRecommender:
         minutes = max(0, game_time) / 60
         budget = cfg.phase_base_cost + cfg.phase_cost_per_min * minutes
         per_threat = {t.hero: self._rows(slice_, role, t) for t in threats}
+        taken = self.ally_taken(slice_, role, ally_ids)
+        if taken:  # купленное остаётся с галочкой; убираем только то, что ещё советовали бы
+            per_threat = {h: [r for r in rows if r[0] not in taken or self._owned(r[0], my_items)]
+                          for h, rows in per_threat.items()}
         # бонус за предмет в топ-N против двух и больше угроз (спека 6.6)
         tops: dict[str, int] = {}
         for rows in per_threat.values():
@@ -221,7 +235,8 @@ class RecsRecommender:
             result.append(ThreatRecommendation(threat.hero, tuple(items)))
         return result
 
-    def counters(self, my_hero_id: int | None, enemy_hero_id: int, item: str, limit: int = 2) -> list[str]:
+    def counters(self, my_hero_id: int | None, enemy_hero_id: int, item: str, limit: int = 2,
+                 ally_ids=()) -> list[str]:
         """Советы на предмет врага для подсказки «у врага появился X»: ключи предметов."""
         if my_hero_id is None:
             return []
@@ -230,7 +245,8 @@ class RecsRecommender:
         if role is None:
             return []
         rows = self._rows(slice_, role, ThreatInput("", enemy_hero_id, frozenset({item})))
-        return [k for k, _d, tier in rows if tier == TIER_ITEM][:limit]
+        taken = self.ally_taken(slice_, role, ally_ids)
+        return [k for k, _d, tier in rows if tier == TIER_ITEM and k not in taken][:limit]
 
     def _hysteresis(self, hero: str, first, fresh, score, items: frozenset):
         """Совет меняется, только если новый S больше прошлого на hysteresis (спека 6.7).

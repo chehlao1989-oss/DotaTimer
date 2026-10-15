@@ -34,6 +34,9 @@ def test_enemy_side_from_own_hero_when_team_unknown():
     ctrl.on_game_state(0, True, "npc_dota_hero_sven", None, True)
     ctrl.on_topbar(topbar(["alchemist", "medusa", "lion", "pudge", "viper"], ["sven", "axe", "tiny", "lina", "zuus"]))
     assert ctrl.enemies[0] == "alchemist"
+    assert ctrl.allies == ["axe", "tiny", "lina", "zuus"]  # союзники — без своего героя (DECISIONS №26)
+    ctrl.new_match()
+    assert ctrl.allies == []
 
 
 def test_item_hint_uses_stats_and_skips_owned():

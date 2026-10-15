@@ -52,6 +52,7 @@ class ThreatsController:
         self.turbo = turbo
         self.tracker = ItemTracker(data, tagger, config.min_component_cost)
         self.enemies: list[str] = []
+        self.allies: list[str] = []  # союзники по верхней панели, без своего героя (DECISIONS №26)
         self.threats: list[Threat] = []
         self.own_hero: str | None = None
         self.own_team: str | None = None
@@ -79,6 +80,9 @@ class ThreatsController:
         hero = self.data.hero_by_name(self.own_hero or "")
         return hero.id if hero else None
 
+    def ally_ids(self) -> tuple[int, ...]:
+        return tuple(h.id for h in (self.data.hero_by_name(a) for a in self.allies) if h)
+
     def bucket(self) -> str:
         return BUCKET_TURBO if self.turbo() else BUCKET_NORMAL
 
@@ -86,6 +90,7 @@ class ThreatsController:
     def new_match(self) -> None:
         self.tracker.reset()
         self.enemies, self.threats = [], []
+        self.allies = []
         self._topbar_tries = 0
         self._next_topbar_at = None
         self._was_alive = None
@@ -116,6 +121,13 @@ class ThreatsController:
         side = enemy_side(self.own_team) or enemy_side(result.side_of(self.own_hero or ""))
         enemies = result.heroes(side) if side else []
         known = [e for e in enemies if e]
+        own_side = {"radiant": "dire", "dire": "radiant"}.get(side or "")
+        allies = [a for a in (result.heroes(own_side) if own_side else []) if a and a != self.own_hero]
+        if allies != self.allies:
+            self.allies = allies
+            log.info("Союзники: %s", allies)
+            if self.on_enemies_changed and not (known and known != self.enemies):
+                self.on_enemies_changed()  # советы пересчитать и без смены врагов
         if len(known) == 5:
             self._next_topbar_at = None  # все узнаны, больше не снимаем
         if known and known != self.enemies:

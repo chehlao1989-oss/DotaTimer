@@ -138,7 +138,8 @@ class ThreatsService(QObject):
 
         def counters(hero: str, item: str) -> list[str]:
             enemy = data.hero_by_name(hero)
-            return self.recommender.counters(controller.my_hero_id(), enemy.id, item) if enemy else []
+            return self.recommender.counters(controller.my_hero_id(), enemy.id, item,
+                                             ally_ids=controller.ally_ids()) if enemy else []
 
         controller.item_counters = counters
         controller.hint_duration = raw_config["recs_advice"].get("hint_display_sec")
@@ -226,7 +227,8 @@ class ThreatsService(QObject):
         if self.controller is None or self.recommender is None or not self.controller.threats:
             return
         inputs = self._threat_inputs()
-        key = (tuple(inputs), frozenset(self.controller.own_items), (self.last_clock or 0) // 30, self.turbo())
+        allies = self.controller.ally_ids()
+        key = (tuple(inputs), frozenset(self.controller.own_items), (self.last_clock or 0) // 30, self.turbo(), allies)
         if key == self._rec_key and not force:
             return
         self._rec_key = key
@@ -234,7 +236,7 @@ class ThreatsService(QObject):
         self.recommender.stats = self.stats
         self.recommender.role_mode = self.settings.role_mode
         recs = self.recommender.recommend(self.controller.my_hero_id(), inputs, set(self.controller.own_items),
-                                          self.last_clock or 0, self._gold)
+                                          self.last_clock or 0, self._gold, allies)
         self._last_recs = {r.hero: r for r in recs}
         if self.strip is not None and self.overlays_enabled:
             titles = {t.hero.name: t.hero.localized for t in self.controller.threats}
