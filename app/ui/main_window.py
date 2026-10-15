@@ -5,7 +5,7 @@ import time
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QKeySequence
 from PySide6.QtWidgets import (
-    QApplication, QButtonGroup, QCheckBox, QComboBox, QFileDialog, QGridLayout, QGroupBox, QHBoxLayout, QKeySequenceEdit,
+    QApplication, QButtonGroup, QCheckBox, QComboBox, QFileDialog, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QKeySequenceEdit,
     QLabel, QMainWindow,
     QMenu, QMessageBox, QPushButton, QRadioButton, QSlider, QSpinBox, QSystemTrayIcon, QTabWidget,
     QVBoxLayout, QWidget,
@@ -45,10 +45,15 @@ class MainWindow(QMainWindow):
         self.background = BackgroundWidget(settings.background)
         central = self.background
         layout = QVBoxLayout(central)
+        # статус и подсказка — на тёмной плашке: на светлых местах картинки фона буквы засвечивались (автор, 15.10)
+        header = QFrame(objectName="header")
+        header_layout = QVBoxLayout(header)
+        header_layout.setContentsMargins(10, 6, 10, 8)
         self.status = QLabel(objectName="status")
-        layout.addWidget(self.status)
+        header_layout.addWidget(self.status)
         self.status_hint = QLabel(ru.STATUS_WAITING_HINT, objectName="hint", wordWrap=True)
-        layout.addWidget(self.status_hint)
+        header_layout.addWidget(self.status_hint)
+        layout.addWidget(header)
         tabs = QTabWidget()
         tabs.addTab(self._timers_tab(), ru.TAB_TIMERS)
         tabs.addTab(self._threats_tab(), ru.TAB_THREATS)

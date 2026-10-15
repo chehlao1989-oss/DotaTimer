@@ -15,6 +15,7 @@ QWidget { background: #14110f; color: #f2efe9; font-size: 13px; font-family: "Se
 #bg, #bg QTabWidget, #bg QStackedWidget, #bg QStackedWidget > QWidget, #bg QLabel, #bg QCheckBox,
 #bg QRadioButton, #bg QScrollArea, #bg QScrollArea > QWidget > QWidget { background: transparent; }
 QLabel#status { font-size: 16px; font-weight: 700; color: #ffd27a; padding: 6px 2px; }
+QFrame#header { background: rgba(10,8,8,175); border: 1px solid rgba(227,179,65,70); border-radius: 8px; }
 QLabel#hint { color: #c4bdb2; }
 QTabWidget::pane { border: 1px solid rgba(227,179,65,90); border-radius: 10px; background: rgba(12,10,10,120); top: -1px; }
 QTabBar::tab { background: rgba(12,10,10,150); color: #d2cbc0; padding: 9px 14px; border: 1px solid rgba(227,179,65,50);
