@@ -1,6 +1,8 @@
 """Тёмная тема в стиле Доты и иконка программы (рисуется кодом, без файлов)."""
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPen, QPixmap
+import math
+
+from PySide6.QtCore import QPointF, QRectF, Qt
+from PySide6.QtGui import QBrush, QColor, QFont, QIcon, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap
 
 DARK_QSS = """
 QWidget { background: #15181d; color: #e6e6e6; font-size: 13px; font-family: "Segoe UI"; }
@@ -23,20 +25,54 @@ QLabel#hint { color: #8a93a0; }
 """
 
 
+ICON_SIZE = 256  # рисуется в 256 px, Windows сама уменьшает для ярлыка, трея и панели задач
+
+
+def _draw_stopwatch(painter: QPainter) -> None:
+    """Секундомер (вариант А, выбор автора 15.10): золотой корпус на тёмно-красном фоне, стрелка на 6 и красная
+    дуга до неё — намёк на первую активку на 6:00. Координаты — в квадрате 256×256."""
+    s = ICON_SIZE
+    frame = QRectF(8, 8, s - 16, s - 16)
+    background = QLinearGradient(0, 8, 0, s - 8)
+    background.setColorAt(0, QColor("#3a0f0c"))
+    background.setColorAt(1, QColor("#120606"))
+    path = QPainterPath()
+    path.addRoundedRect(frame, 52, 52)
+    painter.fillPath(path, QBrush(background))
+    painter.setPen(QPen(QColor("#c9962f"), 6))
+    painter.drawPath(path)
+    gold = QLinearGradient(0, 40, 0, 230)
+    gold.setColorAt(0, QColor("#ffe08a"))
+    gold.setColorAt(1, QColor("#b8862b"))
+    painter.setPen(Qt.NoPen)
+    painter.setBrush(QBrush(gold))
+    painter.drawRoundedRect(QRectF(112, 30, 32, 22), 6, 6)  # кнопка
+    painter.drawRect(QRectF(122, 50, 12, 14))  # ушко
+    center = QPointF(128, 140)
+    painter.setBrush(QColor("#1b0907"))
+    painter.setPen(QPen(QBrush(gold), 14))
+    painter.drawEllipse(center, 78, 78)
+    painter.setPen(QPen(QColor("#e0452f"), 12, Qt.SolidLine, Qt.RoundCap))
+    painter.drawArc(QRectF(center.x() - 58, center.y() - 58, 116, 116), 90 * 16, -180 * 16)
+    painter.setPen(QPen(QColor("#f3d27a"), 5, Qt.SolidLine, Qt.RoundCap))
+    for k in range(12):
+        angle = math.radians(k * 30)
+        inner = 44 if k % 3 else 38
+        painter.drawLine(QPointF(center.x() + inner * math.sin(angle), center.y() - inner * math.cos(angle)),
+                         QPointF(center.x() + 56 * math.sin(angle), center.y() - 56 * math.cos(angle)))
+    painter.setPen(QPen(QColor("#ffffff"), 9, Qt.SolidLine, Qt.RoundCap))
+    painter.drawLine(center, QPointF(center.x(), center.y() + 40))  # стрелка на 6
+    painter.setPen(Qt.NoPen)
+    painter.setBrush(QColor("#ffe08a"))
+    painter.drawEllipse(center, 9, 9)
+
+
 def app_icon() -> QIcon:
-    """Иконка: тёмный круг с золотым ободком и буквой D."""
-    size = 64
-    pixmap = QPixmap(size, size)
+    """Значок программы (окно, трей, ярлык, exe — через tools/make_icon.py): секундомер."""
+    pixmap = QPixmap(ICON_SIZE, ICON_SIZE)
     pixmap.fill(Qt.transparent)
     painter = QPainter(pixmap)
     painter.setRenderHint(QPainter.Antialiasing)
-    painter.setBrush(QColor("#7a2418"))
-    painter.setPen(QPen(QColor("#e3b341"), 5))
-    painter.drawEllipse(4, 4, size - 8, size - 8)
-    painter.setPen(QColor("#f2f2f2"))
-    font = QFont("Segoe UI", 26)
-    font.setBold(True)
-    painter.setFont(font)
-    painter.drawText(pixmap.rect(), Qt.AlignCenter, "D")
+    _draw_stopwatch(painter)
     painter.end()
     return QIcon(pixmap)
