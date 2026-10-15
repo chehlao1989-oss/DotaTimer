@@ -1,7 +1,7 @@
 """Фон главного окна (вариант Б, выбор автора 15.10).
 
-Своя картинка игрока (кнопка «Выбрать фон…») важнее всего. Без неё — картинки с сервера Valve (app/ui/backdrops.py):
-в катке — рендер героя игрока справа на тёмно-красном фоне, вне катки — панорама карты. Пока картинки нет —
+В катке — рендер героя игрока справа на тёмно-красном фоне (картинка с сервера Valve, app/ui/backdrops.py);
+вне катки — своя картинка игрока (кнопка «Выбрать фон…»), а без неё — панорама карты. Пока картинки нет —
 тёмный градиент. Своя картинка и панорама заполняют окно с обрезкой краёв (без искажения) и затемняются,
 чтобы текст на полупрозрачных панелях читался. Арт Valve в программу не кладём — это их авторская собственность.
 """
@@ -61,10 +61,11 @@ class BackgroundWidget(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.SmoothPixmapTransform)
         rect = self.rect()
-        if self._custom is not None:
-            self._cover(painter, self._custom)
-        elif self._auto is not None and self._auto_kind == KIND_HERO:
+        # в катке — всегда герой игрока; вне катки — своя картинка, иначе карта (автор 15.10)
+        if self._auto is not None and self._auto_kind == KIND_HERO:
             self._hero(painter, self._auto)
+        elif self._custom is not None:
+            self._cover(painter, self._custom)
         elif self._auto is not None:
             self._cover(painter, self._auto)
         else:

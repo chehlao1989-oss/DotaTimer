@@ -48,3 +48,24 @@ def test_switcher_hero_in_match_map_outside(qapp, tmp_path, monkeypatch):
     switcher._on_ready(backdrops.KIND_HERO, str(tmp_path / "hero_drow_ranger.png"))  # опоздала — катка кончилась
     assert widget._auto_kind == backdrops.KIND_MAP
     assert backdrops.source(backdrops.KIND_HERO, "nevermore")[0].endswith("/heroes/renders/nevermore.png")
+
+
+def test_hero_beats_custom_in_match(qapp, tmp_path):
+    """В катке — всегда герой, даже если выбрана своя картинка; вне катки — своя картинка вместо карты (автор 15.10)."""
+    from PySide6.QtGui import QColor, QImage
+    from app.ui.backdrops import KIND_HERO, KIND_MAP
+    from app.ui.background import BackgroundWidget
+    paths = {}
+    for name, color in (("own", "#ff0000"), ("hero", "#00ff00"), ("map", "#0000ff")):
+        img = QImage(40, 30, QImage.Format_ARGB32)
+        img.fill(QColor(color))
+        paths[name] = tmp_path / f"{name}.png"
+        img.save(str(paths[name]))
+    widget = BackgroundWidget(str(paths["own"]))
+    widget.resize(80, 60)
+    widget.set_auto(KIND_MAP, str(paths["map"]))
+    out = widget.grab().toImage()
+    assert out.pixelColor(10, 30).red() > out.pixelColor(10, 30).blue()  # вне катки — своя (красная), не карта
+    widget.set_auto(KIND_HERO, str(paths["hero"]))
+    out = widget.grab().toImage()
+    assert out.pixelColor(75, 30).green() > out.pixelColor(75, 30).red()  # в катке справа — герой (зелёный)
