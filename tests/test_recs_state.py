@@ -38,7 +38,7 @@ def close(a, b, tol=0.11):
 
 def test_incremental_equals_from_scratch(tmp_path):
     base = tmp_path / "base.parquet"
-    make_matches(base, n=3000)
+    make_matches(base, n=3000, ally=True)  # с союзником: таблицы ally и team (командные предметы) по порциям
     raw = tmp_path / "raw"
     raw.mkdir()
     # первая порция: матчи 0–1999; вторая: 2000–2999 и повтор части первой (пересечение запусков сбора)

@@ -44,17 +44,26 @@ def make_matches(path, n=6000, seed=7, ally=False):
         x = rng.random() < (0.7 if long else 0.2)
         with_ally = ally and rng.random() < 0.5  # союзник ALLY вместо героя 5: тогда Vessel обычно берёт он
         has = {
-            BKB: rng.random() < (0.7 if long else 0.2),  # зависит только от длительности
+            # зависит от длительности; с союзником — реже (личный предмет: H меньше достаётся фарма, BUGLOG №47)
+            BKB: rng.random() < (0.7 if long else 0.2) - (0.2 if with_ally else 0.0),
             VESSEL: rng.random() < (0.05 if with_ally else 0.6 if x else 0.2),  # адаптация к Heart; с союзником — реже
             SKADI: rng.random() < 0.3,
         }
         win = rng.random() < 0.5 + (0.15 if (has[SKADI] and x) else 0.0)
+        # союзник ALLY сам берёт Vessel (командный: двух в команде почти не бывает); герои 2 и 3 берут BKB
+        # независимо от H (личный: два в команде — как случайно)
+        bought = {}
+        if ally:
+            bought = {ALLY: [VESSEL] if with_ally and rng.random() < 0.9 else [],
+                      2: [BKB] if rng.random() < 0.5 else [], 3: [BKB] if rng.random() < 0.5 else []}
         for slot in range(10):
             radiant = slot < 5
             hero = [1, 2, 3, 4, ALLY if with_ally else 5][slot] if radiant else [10, 11, 12, 13, 14][slot - 5]
             items = []
             if hero == HERO:
                 items = [i for i, on in has.items() if on]
+            elif radiant:
+                items = bought.get(hero, [])
             if hero == ENEMY and x:
                 items = [HEART]
             rows.append({"match_id": m, "start_time": 1780000000, "duration": duration, "game_mode": 22,
@@ -300,7 +309,8 @@ def test_counter_threshold_keeps_only_real_counters(tmp_path):
 
 def test_ally_level_finds_item_left_to_ally(tmp_path):
     """Учёт союзников (вариант Б автора 05.10): когда в команде союзник ALLY, игроки на H реже берут Vessel —
-    в таблице ally у H против контекста ALLY есть Vessel с A ≤ −3 п.п.; без такой связи строк нет."""
+    в таблице ally у H против контекста ALLY есть Vessel с A ≤ −3 п.п.; без такой связи строк нет.
+    BKB при союзнике H тоже берёт реже (A ≈ −20 п.п.), но это личный предмет — в таблицу не попадает (BUGLOG №47)."""
     folder = tmp_path / "raw"
     folder.mkdir()
     make_matches(folder / "matches-test.parquet", ally=True)
@@ -309,6 +319,22 @@ def test_ally_level_finds_item_left_to_ally(tmp_path):
     rows = res["ally"]["normal"]["all"]["core"][str(HERO)][str(ALLY)]
     assert [names[r[0]] for r in rows] == ["spirit_vessel"] and rows[0][2] <= -30  # A в п.п.: истинно около −35
     assert str(HERO) not in res["ally"]["normal"]["all"]["core"][str(HERO)]  # сам себе не союзник
+    team = res["meta"]["team_items"]["normal"]
+    assert team[str(VESSEL)][2] and team[str(VESSEL)][0] < 0.5  # пар Vessel в команде намного меньше случайного
+    assert not team[str(BKB)][2] and 0.85 < team[str(BKB)][0] < 1.15  # BKB — как случайно
+
+
+def test_ally_filter_needs_team_item(tmp_path):
+    """Без отбора командных предметов (порог 10 — командные все) BKB попадает в таблицу ally: тест выше ловит отбор."""
+    import dataclasses
+    folder = tmp_path / "raw"
+    folder.mkdir()
+    make_matches(folder / "matches-test.parquet", ally=True)
+    cfg = dataclasses.replace(load_config(), team_item_max_ratio=10.0)
+    res = compute(str(folder / "matches-*.parquet"), None, ITEMS, {}, {}, HEROES, cfg, log=lambda *_: None)
+    names = {v["id"]: k for k, v in ITEMS.items()}
+    rows = res["ally"]["normal"]["all"]["core"][str(HERO)][str(ALLY)]
+    assert "black_king_bar" in [names[r[0]] for r in rows]
 
 
 def test_recs_zip_with_ally_rows_is_written(tmp_path):

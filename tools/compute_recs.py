@@ -79,6 +79,8 @@ class RecsConfig:
     min_buy_share: float  # доля игр H в роли, в которых он покупает Y; реже — Y не кандидат (спека 6.4)
     counter_min_a_pp: float | None  # совет — только если A значим и не меньше этого, п.п. (DECISIONS №22)
     levels: list  # уровни контекста: L3, L2, L1, hero (решение по L1 — по замеру L1 против L2, 02.10)
+    team_item_max_ratio: float = 0.85  # «командный» предмет: пар в команде на деле / ожидаемых ≤ этого (DECISIONS №26)
+    team_item_min_pairs: float = 100  # командным считается, только если ожидаемых пар не меньше
 
 
 def load_config(path: Path = CONFIG_PATH) -> RecsConfig:
@@ -286,6 +288,29 @@ def drop_unfinished_components(con: duckdb.DuckDBPyConnection, meta: ItemMeta, c
     """)
     if delete:
         con.execute(f"DELETE FROM expand WHERE y IN (SELECT y FROM component_share WHERE share < {cfg.component_final_share})")
+
+
+def team_counts(con: duckdb.DuckDBPyConnection) -> None:
+    """Командный предмет — тот, которого команде хватает одного: два таких в одной команде бывают реже, чем при
+    независимой покупке. Таблица team_cnt(bucket, y, pairs, expected): пар владельцев Y в одной команде на деле и
+    ожидаемых, если каждый покупает сам по себе с вероятностью своего героя в своей роли (p — по этим же играм).
+    Ожидаемое число пар в команде — Σ_{i<j} p_i·p_j = ((Σp)² − Σp²) / 2. Суммы складываются по порциям (recs_state);
+    вероятности берутся по порции — на 4 частях по 150 тыс. матчей отношения те же, что по всем (замер 15.10, BUGLOG №47)."""
+    con.execute("""
+        CREATE OR REPLACE TABLE team_cnt AS
+        WITH n AS (SELECT bucket, role, hero, count(*) AS n FROM pg GROUP BY ALL),
+        own AS (SELECT p.bucket, p.role, p.hero, p.match_id, p.is_radiant, o.y
+                FROM pg p JOIN owned_y o USING (match_id, is_radiant, hero)),
+        pr AS (SELECT bucket, role, hero, y, count(*) / any_value(n.n) AS p FROM own JOIN n USING (bucket, role, hero)
+               GROUP BY ALL),
+        ex AS (SELECT bucket, y, sum((s1 * s1 - s2) / 2) AS expected FROM (
+                   SELECT p.bucket, p.match_id, p.is_radiant, pr.y, sum(pr.p) AS s1, sum(pr.p * pr.p) AS s2
+                   FROM pg p JOIN pr USING (bucket, role, hero) GROUP BY ALL) GROUP BY ALL),
+        ob AS (SELECT bucket, y, sum(k * (k - 1) / 2) AS pairs FROM (
+                   SELECT bucket, match_id, is_radiant, y, count(*) AS k FROM own GROUP BY ALL) GROUP BY ALL)
+        SELECT ex.bucket, ex.y, coalesce(ob.pairs, 0)::DOUBLE AS pairs, ex.expected::DOUBLE AS expected
+        FROM ex LEFT JOIN ob USING (bucket, y)
+    """)
 
 
 # ---------- метрики по стратам (в DuckDB) ----------
@@ -555,18 +580,35 @@ def rank_answers(con: duckdb.DuckDBPyConnection, table: str, level: str, cfg: Re
 def ally_answers(con: duckdb.DuckDBPyConnection, table: str, cfg: RecsConfig) -> list:
     """«Y обычно берёт союзник S»: игроки на H заметно реже берут Y, когда S в команде — A значим и не больше
     −counter_min_a_pp (тот же порог, что у контр-предметов, DECISIONS №22). Строки в формате rank_answers
-    (S = 0, B не считается); программа убирает такой Y из советов H (вариант Б автора 05.10)."""
+    (S = 0, B не считается); программа убирает такой Y из советов H (вариант Б автора 05.10).
+    Только командные Y (team_items): иначе в таблицу попадали личные Blink, BKB, Aghanim's — при S герою H просто
+    реже достаётся фарм, а не S покупает за него (BUGLOG №47, вариант Б автора 15.10)."""
     if cfg.counter_min_a_pp is None:
         return []
     return con.execute(f"""
         SELECT bucket, role, hero, ctx, y, 0.0::DOUBLE AS S, a_s, NULL::DOUBLE AS b_s,  -- 0.0 без ::DOUBLE — Decimal, JSON падал (BUGLOG №43)
                CASE WHEN n >= {cfg.conf_high} THEN 'high' WHEN n >= {cfg.conf_mid} THEN 'mid' ELSE 'low' END AS conf,
                n, NULL::VARCHAR AS rule
-        FROM {table}
+        FROM {table} SEMI JOIN team_items USING (bucket, y)
         WHERE a_s IS NOT NULL AND a_s + {cfg.z90} * sqrt(greatest(coalesce(va_s, 0), 0)) < 0
           AND a_s * 100 <= -{cfg.counter_min_a_pp} AND ctx <> CAST(hero AS VARCHAR)
         ORDER BY bucket, role, hero, ctx, round(a_s, 9), y
     """).fetchall()
+
+
+def team_items(con: duckdb.DuckDBPyConnection, cfg: RecsConfig) -> dict:
+    """Таблица team_items(bucket, y) — командные предметы по team_cnt (DECISIONS №26); для meta —
+    {режим: {предмет: [пар на деле / ожидаемых, ожидаемых пар, командный ли]}}. Промежуточные, которые обычно
+    доделывают (DECISIONS №14), не ответ — их здесь нет (иначе расчёт с нуля и по хранилищу расходились бы)."""
+    known = (f"expected >= {cfg.team_item_min_pairs} AND y NOT IN "
+             f"(SELECT y FROM component_share WHERE share < {cfg.component_final_share})")
+    con.execute(f"""CREATE OR REPLACE TABLE team_items AS SELECT bucket, y FROM team_cnt
+                    WHERE {known} AND pairs / expected <= {cfg.team_item_max_ratio}""")
+    out: dict = {}
+    for bucket, y, ratio, expected in con.execute(f"""
+        SELECT bucket, y, pairs / expected, expected FROM team_cnt WHERE {known} ORDER BY bucket, 3, y""").fetchall():
+        out.setdefault(bucket, {})[str(y)] = [round(ratio, 3), int(round(expected)), ratio <= cfg.team_item_max_ratio]
+    return out
 
 
 def nest_answers(out: dict, group: str, rows: list, flags: list) -> None:
@@ -683,6 +725,7 @@ def compute(matches_glob: str, ranks_glob: str | None, items: dict, abilities: d
     con = setup_connection(con, cfg)
     t0 = time.time()
     prepare(con, matches_glob, ranks_glob, meta, heroes, cfg, where)
+    team_counts(con)
     total, rows, ranked, first, last = con.execute("""
         SELECT count(DISTINCT match_id), count(*), count(DISTINCT match_id) FILTER (WHERE rank_group IS NOT NULL),
                min(start_time), max(start_time) FROM pg
@@ -712,6 +755,9 @@ def finish(con: duckdb.DuckDBPyConnection, providers: dict, meta: ItemMeta, flag
                        "hero_class": {str(h): [c, r] for h, c, r in con.execute("SELECT * FROM hero_cls").fetchall()}},
               "item": {}, "item_hero": {}, "hero": {}, "item_class": {}, "hero_class": {}, "threat": {}, "buys": {},
               "ally": {}}
+    # командные предметы (DECISIONS №26): ключ — id, как в строках советов; программа учитывает союзников,
+    # только если это поле есть (старый файл без него убирал личные предметы, BUGLOG №47)
+    result["meta"]["team_items"] = team_items(con, cfg)
     for group, provider in providers.items():
         for lvl in cfg_levels(cfg):
             level_from_counts(con, provider, lvl, f"met_{lvl}", cfg, min_ctx=cfg.conf_mid if lvl == "L1" else 0)

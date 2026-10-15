@@ -159,16 +159,22 @@ def test_download_recs_keeps_old_copy_on_bad_file(tmp_path):
 
 def test_ally_item_removed_from_advice(tmp_path):
     """DECISIONS №26: Y, который мой герой берёт заметно реже при союзнике S, из советов убирается — показывается
-    следующий; купленный Y остаётся с галочкой; подсказка на предмет врага — тоже без Y."""
+    следующий; купленный Y остаётся с галочкой; подсказка на предмет врага — тоже без Y. Старый файл (без
+    командных предметов) и выключенная настройка — ничего не убирают."""
     from copy import deepcopy
     ally = 5
     result = deepcopy(RESULT)
     result["ally"] = {"normal": {"all": {"core": {str(ME): {str(ally): [[ITEMS["monkey_king_bar"].id, 0.0, -6.0, 0.0,
                                                                          2, 900, 0]]}}}}}
+    from dataclasses import replace
+    old_file = tmp_path / "old.zip"  # файл без meta.team_items: таблица ally там убирала личные предметы (BUGLOG №47)
+    write_recs_zip(result, old_file)
+    old = RecsRecommender(RecsSource(old_file), ITEMS, replace(CFG, ally_filter=True))
+    assert old.counters(ME, PA, "butterfly", ally_ids=(ally,)) == ["monkey_king_bar", "bloodthorn"]
+    result["meta"]["team_items"] = {"normal": {str(ITEMS["monkey_king_bar"].id): [0.5, 1000, True]}}
     path = tmp_path / "ally.zip"
     write_recs_zip(result, path)
-    from dataclasses import replace
-    off = RecsRecommender(RecsSource(path), ITEMS, CFG)  # по умолчанию выключено (BUGLOG №47)
+    off = RecsRecommender(RecsSource(path), ITEMS, replace(CFG, ally_filter=False))
     assert off.counters(ME, PA, "butterfly", ally_ids=(ally,)) == ["monkey_king_bar", "bloodthorn"]
     rec = RecsRecommender(RecsSource(path), ITEMS, replace(CFG, ally_filter=True))
     pa = ThreatInput("phantom_assassin", PA, frozenset())

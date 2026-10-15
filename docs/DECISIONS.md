@@ -143,12 +143,13 @@ next_seq.txt в релизе обновляется только после вы
 Не менять без: решения автора (размер можно уменьшить отдельно, если он мешает).
 Где в коде: packaging/DotaTimer.spec, packaging/launcher.py, tools/make_icon.py, app/main.py: selftest; app/__init__.py: __version__
 
-### №26 Учёт союзников: «Y обычно берёт союзник S» — по данным, такой Y убирается из советов H (вариант Б автора)
+### №26 Учёт союзников: командный Y, который при союзнике S берут реже, убирается из советов H (вариант Б автора)
 A_союз = P(H берёт Y | S в команде) − P(H берёт Y | S нет); пара в файле советов (таблица ally), если A_союз значим и ≤ −3 п.п. (порог №22). Программа убирает такой Y из советов и показывает следующий.
 Замер/источник: план и решение автора 05.10. Синтетика: тест находит Vessel, который берёт союзник (A ≈ −35 п.п.). Проверка 8.2 для союзников на полном объёме — на GitHub; цель — знак повторяется от 80% там, где значим; не дотягивает — в программу не включаем. Дата: 05.10.2026
 Проверка 8.2 пройдена (запуск «Проверки советов» 15.10, 4,18 млн матчей, отложены последние сутки): пар 103 598; знак A_союз повторился в 84% из 23 865, где значим на проверке (нужно от 80%), всех — 67% из 87 836. Но по смыслу не годится: убираются в основном личные предметы (BUGLOG №47) — в программе выключено (data/threats.json: ally_filter), ждёт решения автора.
-Не менять без: решения автора.
-Где в коде: tools/compute_recs.py: CTX_SQL["ally"], ally_answers; data/recs_config.json: levels; app/threats/recs_file.py: HERO_TABLES; tools/validate_recs.py: ally_holdout
+15.10 вариант Б автора — только командные предметы. Командный — если пар владельцев в одной команде на деле / ожидаемых при независимой покупке (вероятность — по герою в роли) ≤ 0,85 и ожидаемых пар ≥ 100. Замер 15.10 на 607 352 матчах (обычный режим): Spirit Vessel 0,42, Pipe of Insight 0,56, Vladmir's Offering 0,65, Radiance 0,67, Assault Cuirass 0,72, Guardian Greaves 0,74, Crimson Guard 0,74, Boots of Bearing 0,81 | Smoke of Deceit 0,86, Manta Style 0,98, Blink Dagger 1,06, Aghanim's Scepter 1,15, Black King Bar 1,25; на 4 частях — те же до 0,01. Из 29 632 строк старой таблицы ally остаётся ~2 500 (8,5%, оценка по старому файлу и порогу). Программа учитывает союзников, только если в файле советов есть meta.team_items; ally_filter включён. Хранилище сумм — версия 3 (пересборка).
+Не менять без: решения автора; порог — нового замера отношений.
+Где в коде: tools/compute_recs.py: CTX_SQL["ally"], ally_answers, team_counts, team_items; data/recs_config.json: team_item_max_ratio, team_item_min_pairs; tools/recs_state.py: VERSION, KEYS["team"]; app/threats/recs_advice.py: ally_taken; data/recs_config.json: levels; app/threats/recs_file.py: HERO_TABLES; tools/validate_recs.py: ally_holdout
 
 ### №28 Шрифты окна — Radiance и Reaver из Доты игрока; без Доты — Fira Sans и Forum (OFL, в программе)
 Шрифты Доты берутся из папки игры (game/dota/panorama/fonts) и не копируются; русские буквы в них есть. Свободные — assets/fonts, с текстом лицензии OFL.

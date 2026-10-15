@@ -6,8 +6,8 @@
 - Советы: из куска моего героя (recs.zip → heroes/<id>.json). Если у врага замечен предмет X — сначала ответы на X
   (связка «E с X», иначе «любой враг с X»), потом ответы на самого героя E. Порядок строк уже в файле:
   сначала по механике, потом «по опыту игроков» (DECISIONS №18).
-- Союзники (DECISIONS №26, вариант Б): предмет Y, который мой герой заметно реже берёт, когда в команде союзник S
-  (таблица ally: обычно Y берёт сам S), из советов убирается — показывается следующий.
+- Союзники (DECISIONS №26, вариант Б): командный предмет Y (Spirit Vessel, Pipe of Insight…), который мой герой
+  заметно реже берёт, когда в команде союзник S (таблица ally), из советов убирается — показывается следующий.
 - Отсев в программе (спека 6.4–6.7): уже куплено (сам предмет или его доделка) — галочка; два слота: «сейчас»
   (укладывается в фазу игры по стоимости) и «потом» (лучший вообще); бонус предмету, который в топ-3 против двух
   угроз; гистерезис — совет меняется, только если новый S больше старого на hysteresis.
@@ -35,7 +35,7 @@ class AdviceConfig:
     hysteresis: float  # спека 6.7, в единицах S
     top_for_bonus: int  # в топ-N против двух угроз — бонус (спека 6.6: топ-3)
     show_delta_min_pp: float = 1.0  # подпись «+N%» под советом — только от этой прибавки A
-    ally_filter: bool = False  # учёт союзников (DECISIONS №26); выключен — таблица ally убирает личные предметы (BUGLOG №47)
+    ally_filter: bool = False  # учёт союзников (DECISIONS №26); только по файлу с командными предметами (BUGLOG №47)
 
 
 def advice_config(raw: dict) -> AdviceConfig:
@@ -178,8 +178,11 @@ class RecsRecommender:
         return out
 
     def ally_taken(self, slice_: dict, role: str, ally_ids) -> set[str]:
-        """Предметы, которые при этих союзниках обычно берёт союзник, а не мой герой (таблица ally)."""
-        if not self.config.ally_filter:
+        """Предметы, которые при этих союзниках обычно берёт союзник, а не мой герой (таблица ally).
+
+        Только по файлу, где таблица ally ограничена командными предметами (meta.team_items): в старом файле она
+        убирала личные Blink, BKB, Aghanim's (BUGLOG №47)."""
+        if not self.config.ally_filter or "team_items" not in self.source.meta:
             return set()
         table = slice_.get("ally", {}).get(self.bucket, {}).get("all", {}).get(role, {})
         return {self.by_id[row[0]] for ally in ally_ids for row in table.get(str(ally), []) if row[0] in self.by_id}

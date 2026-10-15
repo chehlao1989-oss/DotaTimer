@@ -9,7 +9,9 @@
 
 Хранилище (папка; на GitHub — state.tar.gz в релизе «recs-state»):
   manifest.json            — эпоха, отпечаток справочников и настроек, посчитанные файлы сырья, сведения о матчах;
-  total/<таблица>.parquet  — суммы: tot, gy, comp, gx_<уровень>, gxy_<уровень> (без L1 — state_config);
+  total/<таблица>.parquet  — суммы: tot, gy, comp, team, gx_<уровень>, gxy_<уровень> (без L1 — state_config);
+                             team — пары владельцев в команде на деле и ожидаемые (командные предметы; вероятности —
+                             по порции, поэтому с расчётом с нуля совпадает с точностью до шума, а не до бита);
   seen.parquet             — номера уже посчитанных матчей (повторы между запусками сбора не считаются дважды).
 Пересборка с нуля — если изменились справочники или настройки расчёта или файл сырья пропал / изменился.
 
@@ -33,18 +35,20 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from tools.compute_recs import (RecsConfig, cfg_levels, count_tables, finish, hero_classes, item_meta,  # noqa: E402
-                                load_config, load_refs, prepare, setup_connection, static_tables, write_recs)
+                                load_config, load_refs, prepare, setup_connection, static_tables, team_counts,
+                                write_recs)
 
 DAY = 86400
-VERSION = 2
+VERSION = 3  # 3 — таблица team (командные предметы, BUGLOG №47): старое хранилище пересобирается
 # Сколько файлов сырья обрабатывать за раз: при пересборке с нуля память ограничена куском, а не всем сырьём
 # (один день ≈ 20 частей по 15 мин ≈ 240 тыс. матчей — замер 02.10).
 FILES_PER_BATCH = 20
 PARQUET = "(FORMAT parquet, COMPRESSION zstd)"  # zstd на 14% меньше snappy (замер 02.10: день 325 → 280 МБ)
 KEYS = {"tot": ["bucket", "role", "hero", "stratum"], "gy": ["bucket", "role", "hero", "y", "stratum"],
         "gx": ["bucket", "role", "hero", "ctx", "stratum"], "gxy": ["bucket", "role", "hero", "ctx", "y", "stratum"],
-        "comp": ["y"]}
-VALUES = {"tot": ["n", "w", "c"], "gy": ["n", "w"], "gx": ["n", "w"], "gxy": ["n", "w"], "comp": ["itself", "players"]}
+        "comp": ["y"], "team": ["bucket", "y"]}
+VALUES = {"tot": ["n", "w", "c"], "gy": ["n", "w"], "gx": ["n", "w"], "gxy": ["n", "w"], "comp": ["itself", "players"],
+          "team": ["pairs", "expected"]}
 
 
 def state_config(cfg: RecsConfig) -> RecsConfig:
@@ -55,7 +59,7 @@ def state_config(cfg: RecsConfig) -> RecsConfig:
 
 
 def table_names(levels: tuple) -> list:
-    return ["tot", "gy", "comp"] + [f"{kind}_{lvl}" for lvl in levels for kind in ("gx", "gxy")]
+    return ["tot", "gy", "comp", "team"] + [f"{kind}_{lvl}" for lvl in levels for kind in ("gx", "gxy")]
 
 
 def kind_of(table: str) -> str:
@@ -86,7 +90,7 @@ def add_to_total(con: duckdb.DuckDBPyConnection, state: Path, table: str, new_ta
     parts = [f"SELECT {keys}, {', '.join(vals)} FROM {new_table}"]
     if total.exists():
         parts.append(f"SELECT {keys}, {', '.join(vals)} FROM read_parquet('{total.as_posix()}')")
-    order = "y" if kind == "comp" else "bucket, role"
+    order = {"comp": "y", "team": "bucket, y"}.get(kind, "bucket, role")
     tmp = total.with_suffix(".tmp.parquet")
     total.parent.mkdir(parents=True, exist_ok=True)
     con.execute(f"""COPY (SELECT {keys}, {', '.join(f'sum({v}) AS {v}' for v in vals)}
@@ -115,6 +119,8 @@ def add_batch(con: duckdb.DuckDBPyConnection, batch: Path, state: Path, manifest
         add_to_total(con, state, f"gx_{lvl}", "d_gx")
         add_to_total(con, state, f"gxy_{lvl}", "d_gxy")
     add_to_total(con, state, "comp", "(SELECT y, itself, players FROM component_share)")
+    team_counts(con)
+    add_to_total(con, state, "team", "team_cnt")
     old = f"UNION ALL SELECT match_id FROM read_parquet('{seen.as_posix()}')" if seen.exists() else ""
     tmp = seen.with_suffix(".tmp.parquet")
     con.execute(f"COPY (SELECT DISTINCT match_id FROM (SELECT match_id FROM pg {old}) ORDER BY match_id) "
@@ -229,6 +235,7 @@ def compute_from_state(state: Path, refs: tuple, cfg: RecsConfig, log=print) -> 
     hero_classes(con, f"SELECT hero, role, sum(c) AS c FROM read_parquet('{(total / 'tot.parquet').as_posix()}') GROUP BY ALL")
     con.execute(f"""CREATE OR REPLACE TABLE component_share AS SELECT y, itself / players AS share, players, itself
                     FROM read_parquet('{(total / 'comp.parquet').as_posix()}')""")
+    con.execute(f"CREATE OR REPLACE TABLE team_cnt AS SELECT * FROM read_parquet('{(total / 'team.parquet').as_posix()}')")
     patches = info0["patches"]
     patch = max(sorted(patches), key=lambda k: patches[k]) if patches else None
     info = {"matches": info0["matches"], "ranked": info0["ranked"], "first_start": info0["first"], "last_start": newest,
