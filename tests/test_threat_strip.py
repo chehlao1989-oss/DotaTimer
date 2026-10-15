@@ -161,3 +161,14 @@ def test_moved_strip_stays_on_screen_after_growing(qapp, tmp_path):
     qapp.processEvents()
     assert screen.contains(strip.geometry())
     strip.close()
+
+
+def test_opacity_dims_only_message_background(qapp, tmp_path):
+    """Прозрачность сообщений — только у подложки, текст на 100% (у автора 60% — уведомления бледные, игра 15.10)."""
+    from app.config import OverlaySettings
+    from app.ui.overlay import FRAME_ALPHA_END, Overlay
+    overlay = Overlay(OverlaySettings(opacity=0.6), tmp_path)
+    overlay.show_message("Руна силы на 6:00", False, 1)
+    assert overlay.windowOpacity() == 1.0
+    assert f"rgba(8, 10, 14, {round(FRAME_ALPHA_END * 0.6)})" in overlay._frames()[-1].styleSheet()
+    overlay.close()

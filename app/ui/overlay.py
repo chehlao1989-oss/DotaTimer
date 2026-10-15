@@ -41,8 +41,9 @@ ICON_HEIGHT_EM = 1.8  # высота иконок в подсказке, в ра
 RAISE_INTERVAL_MS = 2000
 
 # полоса тает влево (цвета подобраны на глаз по оповещению Доты о покупке на скриншоте 01.10)
-FRAME_STYLE = ("QFrame#msg { background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 rgba(8, 10, 14, 0), "
-               "stop:0.22 rgba(8, 10, 14, 190), stop:1 rgba(8, 10, 14, 225)); }")
+FRAME_STYLE = ("QFrame#msg {{ background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 rgba(8, 10, 14, 0), "
+               "stop:0.22 rgba(8, 10, 14, {mid}), stop:1 rgba(8, 10, 14, {end})); }}")
+FRAME_ALPHA_MID, FRAME_ALPHA_END = 190, 225  # при прозрачности 100%
 HINT_FRAME_STYLE = "QFrame#msg {{ background: rgba(12, 14, 18, 215); border-radius: 8px; border-left: 4px solid {accent}; }}"
 FRAME_PAD_X, FRAME_PAD_Y = 12, 8
 FRAME_PAD_LEFT = 48  # слева место под «таяние» полосы
@@ -78,8 +79,14 @@ def set_font_family(family: str) -> None:
 def overlay_font(px: int) -> QFont:
     font = QFont(FONT_FAMILY)
     font.setPixelSize(px)
-    font.setWeight(QFont.DemiBold)
+    # полужирный: шрифт Доты тоньше Segoe UI, в игре буквы читались бледно (игра автора 15.10)
+    font.setWeight(QFont.Bold)
     return font
+
+
+def frame_style(opacity: float) -> str:
+    """Подложка сообщения: прозрачность из настроек меняет только её, текст всегда на 100%."""
+    return FRAME_STYLE.format(mid=round(FRAME_ALPHA_MID * opacity), end=round(FRAME_ALPHA_END * opacity))
 
 
 class DraggableOverlay(QWidget):
@@ -94,7 +101,7 @@ class DraggableOverlay(QWidget):
         self._drag_offset: QPoint | None = None
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setAttribute(Qt.WA_ShowWithoutActivating)
-        self.setWindowOpacity(settings.opacity)
+        self.apply_opacity()
         self.settings.scale = min(SCALE_MAX, max(SCALE_MIN, settings.scale))
         # Дота может перекрыть окно при переключении, поэтому периодически поднимаем его наверх
         self._raise_timer = QTimer(self, interval=RAISE_INTERVAL_MS, timeout=self.raise_)
@@ -114,6 +121,10 @@ class DraggableOverlay(QWidget):
 
     def relayout(self) -> None:
         """Пересчитать размеры после смены масштаба (переопределяется)."""
+
+    def apply_opacity(self) -> None:
+        """Прозрачность из настроек (Ctrl+колесо в режиме настройки). Переопределяется."""
+        self.setWindowOpacity(self.settings.opacity)
 
     def set_layout_mode(self, on: bool) -> None:
         self._layout_mode = on
@@ -145,7 +156,7 @@ class DraggableOverlay(QWidget):
         step = 1 if event.angleDelta().y() > 0 else -1
         if event.modifiers() & Qt.ControlModifier:
             self.settings.opacity = round(min(1.0, max(0.3, self.settings.opacity + 0.05 * step)), 2)
-            self.setWindowOpacity(self.settings.opacity)
+            self.apply_opacity()
         else:
             self.settings.scale = round(min(SCALE_MAX, max(SCALE_MIN, self.settings.scale + 0.1 * step)), 2)
             self.settings.x, self.settings.y = self.x(), self.y()
@@ -165,6 +176,14 @@ class Overlay(DraggableOverlay):
         self._box.setSpacing(6)
         self._box.addStretch(1)  # растяжка внизу: сообщения копятся сверху вниз, верх окна — под оповещениями Доты
         self.relayout()
+
+    def apply_opacity(self) -> None:
+        # Прозрачность всего окна делала бледными и буквы: у автора стояло 60%, уведомления в игре было
+        # плохо видно (игра 15.10). Теперь прозрачность — только у тёмной подложки, текст и иконки — на 100%.
+        self.setWindowOpacity(1.0)
+        if hasattr(self, "_box"):
+            for frame in self._frames() + ([self._hint] if self._hint else []):
+                self._style(frame)
 
     # --- размеры и положение ---
     def _font_px(self) -> int:
@@ -219,7 +238,8 @@ class Overlay(DraggableOverlay):
 
     def _style(self, frame: QFrame) -> None:
         accent = frame.property("accent")
-        frame.setStyleSheet(HINT_FRAME_STYLE.format(accent=accent) if accent == ACCENT_LAYOUT else FRAME_STYLE)
+        frame.setStyleSheet(HINT_FRAME_STYLE.format(accent=accent) if accent == ACCENT_LAYOUT
+                            else frame_style(self.settings.opacity))
         for icon, pixmap in frame.icons:
             w, h = self._icon_size(pixmap)
             icon.setPixmap(pixmap.scaled(w, h, Qt.KeepAspectRatio, Qt.SmoothTransformation))

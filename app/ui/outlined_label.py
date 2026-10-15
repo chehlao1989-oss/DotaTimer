@@ -13,7 +13,7 @@ from PySide6.QtWidgets import QWidget
 
 OUTLINE_COLOR = QColor(0, 0, 0, 235)
 TEXT_COLOR = QColor("#ffffff")
-HIGHLIGHT_COLOR = QColor("#e8be6e")  # золото, как цена и названия в интерфейсе Доты (на глаз по скриншоту 01.10)
+HIGHLIGHT_COLOR = QColor("#ffd27a")  # золото, как в Доте; ярче прежнего #e8be6e (просьба автора 15.10)
 
 
 class OutlinedLabel(QWidget):
