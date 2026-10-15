@@ -2,7 +2,7 @@
 # Сборка DotaTimer.exe (фаза 3): папка с программой (onedir), без окна консоли.
 # Запуск: pyinstaller packaging/DotaTimer.spec  → dist/DotaTimer/DotaTimer.exe
 # Данные (data/*.json) кладутся рядом с модулями: программа ищет их от своих файлов (Path(__file__).parents[2] / "data").
-# Настройки, кеш, голос и логи — в %APPDATA%\DotaTimer, как и без сборки.
+# Настройки, кеш и логи — в %APPDATA%\DotaTimer, как и без сборки; голосовые фразы — в сборке (assets/voice).
 from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_submodules
@@ -13,8 +13,10 @@ ICON = ROOT / "packaging" / "dotatimer.ico"  # рисует tools/make_icon.py
 a = Analysis(
     [str(ROOT / "packaging" / "launcher.py")],
     pathex=[str(ROOT)],
-    # assets/fonts — свободные шрифты (OFL, с текстом лицензии) на случай, если Дота у игрока не найдена
-    datas=[(str(ROOT / "data"), "data"), (str(ROOT / "assets" / "fonts"), "assets/fonts")],
+    # assets/fonts — свободные шрифты (OFL, с текстом лицензии) на случай, если Дота у игрока не найдена;
+    # assets/voice — голосовые фразы (DECISIONS №29: без них у новых игроков голоса не было, BUGLOG №50)
+    datas=[(str(ROOT / "data"), "data"), (str(ROOT / "assets" / "fonts"), "assets/fonts"),
+           (str(ROOT / "assets" / "voice"), "assets/voice")],
     # edge_tts импортируется только при генерации голоса, pynput выбирает модуль под Windows на лету — сборщик
     # сам их не находит
     hiddenimports=collect_submodules("edge_tts") + ["pynput.keyboard._win32", "pynput.mouse._win32",

@@ -2,7 +2,8 @@
 
 Откуда берётся фраза <ключ>:
 1. файл пользователя %APPDATA%\\DotaTimer\\voice\\<ключ>.wav или .mp3 — можно подменить любую фразу;
-2. сгенерированная при первом запуске %APPDATA%\\DotaTimer\\voice_cache\\<ключ>.mp3 (voice_gen.py).
+2. из программы: assets/voice/<ключ>.mp3, если записан с нынешним текстом (DECISIONS №29);
+3. сгенерированная %APPDATA%\\DotaTimer\\voice_cache\\<ключ>.mp3 — если текст поменяли, а файл в программе старый.
 Одновременно звучит одна фраза, следующая ждёт окончания текущей.
 Работает только в потоке интерфейса Qt.
 """
@@ -13,6 +14,7 @@ from PySide6.QtCore import QObject, QUrl
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 
 from app import paths
+from app.i18n import ru
 from app.notify import voice_gen
 
 log = logging.getLogger(__name__)
@@ -26,13 +28,17 @@ def user_voice_dir() -> Path:
     return path
 
 
-def find_voice_file(key: str, user_dir: Path | None = None, generated_dir: Path | None = None) -> Path | None:
-    """Файл фразы: сначала пользовательский, потом сгенерированный."""
+def find_voice_file(key: str, user_dir: Path | None = None, generated_dir: Path | None = None,
+                    bundled_dir: Path | None = None) -> Path | None:
+    """Файл фразы: сначала пользовательский, потом из программы, потом сгенерированный."""
     user_dir = user_dir if user_dir is not None else user_voice_dir()
     for ext in USER_EXTS:
         candidate = user_dir / f"{key}{ext}"
         if candidate.is_file():
             return candidate
+    bundled = voice_gen.bundled_file(key, ru.VOICE_PHRASES.get(key, ""), bundled_dir)
+    if bundled is not None:
+        return bundled
     generated = (generated_dir or voice_gen.cache_dir()) / f"{key}{voice_gen.EXT}"
     return generated if generated.is_file() else None
 

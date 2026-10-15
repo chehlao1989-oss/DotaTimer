@@ -1,10 +1,9 @@
-"""Сгенерировать голосовые фразы вручную (то же, что программа делает при первом запуске).
+"""Записать голосовые фразы программы заново в assets/voice/ (DECISIONS №29): нужен после правки текстов в ru.py.
 
-Запуск: python tools/gen_voice.py [--force]
---force — удалить уже сгенерированные фразы и сделать заново (например, после правки текста).
-Фразы попадают в %APPDATA%\\DotaTimer\\voice_cache\\, в репозиторий не кладутся.
+Запуск: python tools/gen_voice.py
+Фразы и опись phrases.json кладутся в репозиторий и попадают в сборку. Тест test_voice.py::test_bundle_matches_texts
+падает, если текст фразы в ru.py поменяли, а файл не перезаписали.
 """
-import argparse
 import sys
 from pathlib import Path
 
@@ -16,16 +15,9 @@ from app.notify import voice_gen  # noqa: E402
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Генерация голосовых фраз")
-    parser.add_argument("--force", action="store_true")
-    args = parser.parse_args()
-    if args.force:
-        for path in voice_gen.cache_dir().glob(f"*{voice_gen.EXT}"):
-            path.unlink()
-    done = voice_gen.generate_missing()
-    left = voice_gen.missing_phrases()
-    print(f"Сгенерировано: {done}, не хватает: {len(left)} {left if left else ''}")
-    print(f"Папка: {voice_gen.cache_dir()}")
+    done = voice_gen.build_bundle()
+    print(f"Записано фраз: {done}")
+    print(f"Папка: {voice_gen.BUNDLED_DIR}")
 
 
 if __name__ == "__main__":

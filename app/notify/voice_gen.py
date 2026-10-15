@@ -1,11 +1,13 @@
-"""Генерация голосовых фраз у пользователя при первом запуске (edge-tts, нужен интернет).
+"""Голосовые фразы: готовые в сборке (assets/voice) и генерация недостающих (edge-tts, нужен интернет).
 
-Готовые звуки не распространяются вместе с программой: у голосов Microsoft Edge нет
-явного разрешения на распространение. Поэтому каждый пользователь генерирует фразы
-у себя, один раз; дальше они лежат в %APPDATA%\\DotaTimer\\voice_cache\\ и работают офлайн.
-Без интернета программа показывает только надписи и пробует сгенерировать позже.
+DECISIONS №29 (решение автора 15.10): фразы голосом Microsoft лежат в программе — assets/voice/*.mp3 и опись
+phrases.json (какая фраза каким текстом записана). Раньше каждый игрок генерировал их у себя при первом запуске,
+и когда Microsoft поменял правила, у новых игроков голоса не было вовсе (BUGLOG №50).
+Генерация осталась запасной: если текст фразы в ru.py поменяли, а файл в сборке старый, фраза делается заново
+в %APPDATA%\\DotaTimer\\voice_cache\\. Пересобрать фразы сборки: python tools/gen_voice.py
 """
 import asyncio
+import json
 import logging
 from pathlib import Path
 
@@ -18,6 +20,8 @@ VOICE = "ru-RU-DmitryNeural"  # выбран автором 28.09.2026
 RATE = "+10%"
 ATTEMPTS = 4
 EXT = ".mp3"
+BUNDLED_DIR = Path(__file__).resolve().parents[2] / "assets" / "voice"
+MANIFEST = "phrases.json"
 
 
 def cache_dir() -> Path:
@@ -30,8 +34,25 @@ def generated_path(key: str) -> Path:
     return cache_dir() / f"{key}{EXT}"
 
 
-def missing_phrases(phrases: dict[str, str] = ru.VOICE_PHRASES) -> list[str]:
-    return [key for key in phrases if not generated_path(key).is_file()]
+def bundled_phrases(folder: Path | None = None) -> dict[str, str]:
+    """Опись фраз сборки: ключ → текст, которым записан файл. Нет описи — пусто."""
+    try:
+        return json.loads(((folder or BUNDLED_DIR) / MANIFEST).read_text(encoding="utf-8"))["phrases"]
+    except (OSError, ValueError, KeyError):
+        return {}
+
+
+def bundled_file(key: str, text: str, folder: Path | None = None) -> Path | None:
+    """Файл фразы из сборки, если он записан с тем же текстом, что сейчас в ru.py."""
+    folder = folder or BUNDLED_DIR
+    path = folder / f"{key}{EXT}"
+    return path if path.is_file() and bundled_phrases(folder).get(key) == text else None
+
+
+def missing_phrases(phrases: dict[str, str] = ru.VOICE_PHRASES, bundled_dir: Path | None = None) -> list[str]:
+    """Фразы, которых нет ни в сборке (с тем же текстом), ни среди сгенерированных."""
+    return [key for key, text in phrases.items()
+            if bundled_file(key, text, bundled_dir) is None and not generated_path(key).is_file()]
 
 
 async def _synth(text: str, target: Path, communicate_cls) -> None:
@@ -50,7 +71,8 @@ async def _synth(text: str, target: Path, communicate_cls) -> None:
             await asyncio.sleep(2 * attempt)
 
 
-def generate_missing(phrases: dict[str, str] = ru.VOICE_PHRASES, communicate_cls=None) -> int:
+def generate_missing(phrases: dict[str, str] = ru.VOICE_PHRASES, communicate_cls=None,
+                     bundled_dir: Path | None = None) -> int:
     """Сгенерировать недостающие фразы. Вызывать в фоновом потоке. Возвращает, сколько сделано."""
     if communicate_cls is None:
         import edge_tts
@@ -59,7 +81,7 @@ def generate_missing(phrases: dict[str, str] = ru.VOICE_PHRASES, communicate_cls
 
     async def run():
         nonlocal done
-        for key in missing_phrases(phrases):
+        for key in missing_phrases(phrases, bundled_dir):
             try:
                 await _synth(phrases[key], generated_path(key), communicate_cls)
                 done += 1
@@ -71,3 +93,21 @@ def generate_missing(phrases: dict[str, str] = ru.VOICE_PHRASES, communicate_cls
     if done:
         log.info("Сгенерировано голосовых фраз: %d", done)
     return done
+
+
+def build_bundle(phrases: dict[str, str] = ru.VOICE_PHRASES, folder: Path | None = None, communicate_cls=None) -> int:
+    """Записать все фразы заново в папку сборки и опись к ним (tools/gen_voice.py). Возвращает, сколько записано."""
+    if communicate_cls is None:
+        import edge_tts
+        communicate_cls = edge_tts.Communicate
+    folder = folder or BUNDLED_DIR
+    folder.mkdir(parents=True, exist_ok=True)
+
+    async def run():
+        for key, text in phrases.items():
+            await _synth(text, folder / f"{key}{EXT}", communicate_cls)
+
+    asyncio.run(run())
+    manifest = {"voice": VOICE, "rate": RATE, "phrases": dict(phrases)}
+    (folder / MANIFEST).write_text(json.dumps(manifest, ensure_ascii=False, indent=1), encoding="utf-8")
+    return len(phrases)

@@ -96,6 +96,14 @@ def selftest(report: Path) -> int:
     if app and settings and server:
         overlay = step("оверлей", lambda: Overlay(settings.overlay))
         voice = step("голос", lambda: VoicePlayer(settings.volume))
+
+        def bundled_voice():
+            # фразы должны быть в сборке: генерация у игрока зависит от Microsoft (BUGLOG №50, DECISIONS №29)
+            missing = [k for k, t in ru.VOICE_PHRASES.items() if voice_gen.bundled_file(k, t) is None]
+            if missing:
+                raise RuntimeError(f"нет в сборке: {', '.join(missing)}")
+            return f"{len(ru.VOICE_PHRASES)} фраз"
+        step("голосовые фразы в программе", bundled_voice)
         core = step("таймеры", lambda: TimerApp(settings, overlay, voice))
         hotkeys = step("горячие клавиши", HotkeyManager)
         threats = step("угрозы", lambda: ThreatsService(settings.threats, core.say,

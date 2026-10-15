@@ -1,0 +1,19 @@
+{
+ "voice": "ru-RU-DmitryNeural",
+ "rate": "+10%",
+ "phrases": {
+  "power_rune_30": "Активка через тридцать",
+  "power_rune": "Ру́на!",
+  "bounty": "Баунти",
+  "water": "Вода",
+  "shrine": "Мудрость",
+  "lotus": "Лотос",
+  "siege": "Катапульты",
+  "night": "Скоро ночь",
+  "day": "Рассвет",
+  "tormentor": "Терзатель",
+  "neutral": "Нейтралки",
+  "threat": "Угроза",
+  "item_hint": "Совет по предметам"
+ }
+}
