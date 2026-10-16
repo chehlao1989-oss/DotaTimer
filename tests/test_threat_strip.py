@@ -119,18 +119,28 @@ def test_messages_never_overflow_window(qapp):
     overlay.close()
 
 
-def test_strip_has_no_item_names(qapp, tmp_path):
-    """Названий предметов под иконками нет: полоска с ними закрывала лавку (вариант 3 автора 15.10, DECISIONS №13).
-    Имя героя остаётся."""
+def test_item_name_only_when_advice_appears_or_changes(qapp, tmp_path):
+    """Название под иконкой — 5 с, когда совет появился или сменился (выбор автора 16.10), потом пропадает:
+    постоянные названия закрывали лавку (BUGLOG №49). Имя героя — всегда."""
     from app.ui.outlined_label import OutlinedLabel
     from app.ui.threat_strip import ThreatStrip
     strip = ThreatStrip(StripSettings(), tmp_path)
-    strip.update_recommendations([ThreatRecommendation("axe", (RecItem("blade_mail", 1, "hero", 6.0, 900),))],
-                                 {"axe": "Axe", "blade_mail": "Blade Mail"})
+    titles = {"axe": "Axe", "blade_mail": "Blade Mail", "black_king_bar": "Black King Bar"}
+
+    def texts():
+        qapp.processEvents()
+        return [w.text() for w in strip.findChildren(OutlinedLabel) if w.isVisible()]
+
+    strip.update_recommendations([ThreatRecommendation("axe", (RecItem("blade_mail", 1, "hero", 6.0, 900),))], titles)
     strip.show()
-    qapp.processEvents()
-    texts = [w.text() for w in strip.findChildren(OutlinedLabel) if w.isVisible()]
-    assert "Blade Mail" not in texts and "Axe" in texts
+    assert "Blade Mail" in texts() and "Axe" in texts()  # совет появился
+    strip._unname(("axe", "blade_mail"))
+    assert "Blade Mail" not in texts() and "Axe" in texts()  # через 5 с
+    strip.update_recommendations([ThreatRecommendation("axe", (RecItem("blade_mail", 1, "hero", 6.0, 900),))], titles)
+    assert "Blade Mail" not in texts()  # тот же совет — без названия
+    strip.update_recommendations([ThreatRecommendation("axe", (RecItem("black_king_bar", 1, "hero", 4.0, 900,
+                                                                       changed=True),))], titles)
+    assert "Black King Bar" in texts()  # совет сменился
     strip.close()
 
 

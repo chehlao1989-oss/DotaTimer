@@ -4,8 +4,8 @@
 - купленный совет — с зелёной галочкой, рядом следующий;
 - если хватает золота — золотая рамка;
 - совет только что сменился — яркая жёлтая рамка на 5 секунд;
-- под иконкой — прибавка («+6%»), если совет из статистики; названий предметов нет (полоска закрывала
-  лавку, вариант 3 автора 15.10) — название видно в подсказке по клику на врага.
+- под иконкой — прибавка («+6%»), если совет из статистики; название предмета — только 5 секунд, когда совет
+  появился или сменился (выбор автора 16.10; постоянные названия закрывали лавку, BUGLOG №49).
 Клики проходят насквозь. Место, размер (80–150%) и прозрачность настраиваются,
 Ctrl+Alt+H скрывает и показывает.
 """
@@ -26,6 +26,7 @@ from app.ui.overlay import DraggableOverlay, overlay_font
 PORTRAIT_W, PORTRAIT_H = 77, 43
 ICON_W, ICON_H = 37, 27
 CAPTION_PX = 12
+NAME_WRAP_ICONS = 1.9  # название под иконкой переносится по ширине ~1,9 иконки (2 строки)
 HIGHLIGHT_MS = 5000
 MARGIN = 20
 # DECISIONS №13: справа вверху, под полосой FPS (замер по скриншоту автора: 0–36 px при высоте 1080). Слева игра
@@ -35,6 +36,7 @@ COLOR_BOUGHT = QColor("#3fb950")
 COLOR_AFFORDABLE = QColor("#c9a45c")
 COLOR_HIGHLIGHT = QColor("#ffd33d")
 CAPTION_COLOR = QColor("#dfe6ee")
+NAME_COLOR = QColor("#ffd27a")  # название предмета — золотом, как цены в магазине Доты
 PANEL_STYLE = "QWidget#panel { background: rgba(12, 14, 18, 200); border-radius: 8px; }"
 
 
@@ -72,6 +74,8 @@ class ThreatStrip(DraggableOverlay):
         self._recs: list[ThreatRecommendation] = []
         self._titles: dict[str, str] = {}
         self._highlight: set[tuple[str, str]] = set()  # (угроза, предмет), подсвеченные сейчас
+        self._named: set[tuple[str, str]] = set()  # (угроза, предмет), под которыми сейчас видно название
+        self._seen: set[tuple[str, str]] = set()  # советы, уже показанные в этой катке
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         self._panel = QWidget(self, objectName="panel")
@@ -90,10 +94,14 @@ class ThreatStrip(DraggableOverlay):
         self._recs, self._titles = recs, titles
         for rec in recs:
             for item in rec.items:
+                key = (rec.hero, item.item)
                 if item.changed:
-                    key = (rec.hero, item.item)
                     self._highlight.add(key)
                     QTimer.singleShot(HIGHLIGHT_MS, lambda k=key: self._unhighlight(k))
+                if item.changed or key not in self._seen:  # совет появился или сменился — 5 с с названием
+                    self._seen.add(key)
+                    self._named.add(key)
+                    QTimer.singleShot(HIGHLIGHT_MS, lambda k=key: self._unname(k))
         self._render()
         if recs and self.settings.visible and not self.isVisible():
             self.show()
@@ -102,12 +110,18 @@ class ThreatStrip(DraggableOverlay):
         """Катка закончилась или Дота закрыта — убрать полоску с экрана."""
         self._recs, self._titles = [], {}
         self._highlight.clear()
+        self._named.clear()
+        self._seen.clear()
         if not self._layout_mode:
             self.hide()
         self._render()
 
     def _unhighlight(self, key) -> None:
         self._highlight.discard(key)
+        self._render()
+
+    def _unname(self, key) -> None:
+        self._named.discard(key)
         self._render()
 
     def toggle(self) -> None:
@@ -156,6 +170,11 @@ class ThreatStrip(DraggableOverlay):
                 icon.setPixmap(item_icon(self.images_dir / "items" / f"{item.item}.png", iw, ih, item.bought,
                                          item.affordable, (rec.hero, item.item) in self._highlight))
                 cell.addWidget(icon, alignment=Qt.AlignHCenter)
+                name = self._titles.get(item.item)
+                if name and (rec.hero, item.item) in self._named:
+                    cell.addWidget(OutlinedLabel(name, overlay_font(round((CAPTION_PX - 1) * f)),
+                                                 round(iw * NAME_WRAP_ICONS), color=NAME_COLOR),
+                                   alignment=Qt.AlignHCenter)
                 caption = OutlinedLabel(self._caption(item), overlay_font(round((CAPTION_PX - 1) * f)),
                                         color=CAPTION_COLOR)
                 cell.addWidget(caption, alignment=Qt.AlignHCenter)
