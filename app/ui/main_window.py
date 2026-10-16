@@ -18,6 +18,7 @@ from app.hotkeys import DEFAULT_BINDINGS, HotkeyManager, parse_binding
 from app.i18n import ru
 from app.timers.timings import MODE_NORMAL, MODE_TURBO
 from app.ui.background import BackgroundWidget
+from app.ui.donate import donate_url, open_donate
 from app.ui.theme import app_icon
 
 log = logging.getLogger(__name__)
@@ -50,7 +51,17 @@ class MainWindow(QMainWindow):
         header_layout = QVBoxLayout(header)
         header_layout.setContentsMargins(10, 6, 10, 8)
         self.status = QLabel(objectName="status")
-        header_layout.addWidget(self.status)
+        status_row = QHBoxLayout()
+        status_row.addWidget(self.status)
+        status_row.addStretch(1)
+        self.donate_url = donate_url()
+        if self.donate_url:
+            # донат — маленькой ссылкой справа от статуса: видно, но не мешает (просьба автора 16.10, ТЗ п. 9)
+            donate = QPushButton(ru.DONATE_BUTTON, objectName="donate", toolTip=ru.DONATE_TOOLTIP)
+            donate.setCursor(Qt.PointingHandCursor)
+            donate.clicked.connect(lambda: open_donate(self.donate_url))
+            status_row.addWidget(donate, alignment=Qt.AlignVCenter)
+        header_layout.addLayout(status_row)
         self.status_hint = QLabel(ru.STATUS_WAITING_HINT, objectName="hint", wordWrap=True)
         header_layout.addWidget(self.status_hint)
         layout.addWidget(header)
@@ -379,6 +390,13 @@ class MainWindow(QMainWindow):
         text = QLabel(ru.ABOUT_TEXT)
         text.setWordWrap(True)
         layout.addWidget(text)
+        if self.donate_url:
+            layout.addSpacing(16)
+            layout.addWidget(QLabel(ru.ABOUT_DONATE, wordWrap=True))
+            button = QPushButton(ru.ABOUT_DONATE_BUTTON, toolTip=self.donate_url)
+            button.setCursor(Qt.PointingHandCursor)
+            button.clicked.connect(lambda: open_donate(self.donate_url))
+            layout.addWidget(button, alignment=Qt.AlignLeft)
         layout.addStretch(1)
         return tab
 
@@ -392,6 +410,8 @@ class MainWindow(QMainWindow):
         self.pause_action.setCheckable(True)
         self.pause_action.toggled.connect(self._on_pause)
         menu.addSeparator()
+        if self.donate_url:
+            menu.addAction(ru.TRAY_DONATE, lambda: open_donate(self.donate_url))
         menu.addAction(ru.TRAY_EXIT, self.quit)
         self.tray.setContextMenu(menu)
         self.tray.activated.connect(

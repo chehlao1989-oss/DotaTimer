@@ -36,6 +36,10 @@ QPushButton { background: rgba(18,12,10,235); color: #ffd27a; border: 1px solid 
               border-radius: 6px; padding: 7px 14px; font-weight: 600; }
 QPushButton:hover { background: rgba(110,31,21,240); color: #ffffff; border-color: #ffd27a; }
 QPushButton:pressed { background: rgba(155,46,31,245); }
+/* донат в шапке — ссылкой, а не яркой кнопкой (ТЗ п. 9: без навязчивости) */
+QPushButton#donate { background: transparent; color: #e3b341; border: 1px solid rgba(227,179,65,90); border-radius: 12px;
+                     padding: 3px 12px; font-size: 12px; }
+QPushButton#donate:hover { background: rgba(110,31,21,200); color: #ffffff; border-color: #ffd27a; }
 QComboBox, QKeySequenceEdit, QLineEdit { background: rgba(0,0,0,150); border: 1px solid rgba(227,179,65,90);
                                          border-radius: 4px; padding: 3px 8px; }
 QComboBox::drop-down { border: none; width: 22px; }

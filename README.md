@@ -57,3 +57,6 @@ Dota таймер — неофициальный проект, **не связа
 Статистика: [OpenDota](https://www.opendota.com), Steam Web API.
 
 Лицензия: [GNU GPL v3.0](LICENSE).
+
+## Поддержать автора
+Программа бесплатная. Если она помогает в игре — [boosty.to/dota2timer](https://boosty.to/dota2timer).
