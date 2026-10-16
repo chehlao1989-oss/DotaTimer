@@ -8,10 +8,11 @@
 Работает только в потоке интерфейса Qt.
 """
 import logging
+import time
 from pathlib import Path
 
 from PySide6.QtCore import QObject, QUrl
-from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
+from PySide6.QtMultimedia import QAudioOutput, QMediaDevices, QMediaPlayer
 
 from app import paths
 from app.i18n import ru
@@ -20,6 +21,13 @@ from app.notify import voice_gen
 log = logging.getLogger(__name__)
 
 USER_EXTS = (".wav", ".mp3")
+# фразы ~2,3 с (замер 15.10, power_rune_30.mp3); дольше — фраза зависла, очередь не должна ждать её вечно (BUGLOG №52)
+PHRASE_MAX_SEC = 10
+
+
+def default_output():
+    """Звуковое устройство Windows по умолчанию — то, куда сейчас играет Дота."""
+    return QMediaDevices.defaultAudioOutput()
 
 
 def user_voice_dir() -> Path:
@@ -50,7 +58,9 @@ class VoicePlayer(QObject):
         self._outputs: dict[str, QAudioOutput] = {}
         self._queue: list[str] = []
         self._current: QMediaPlayer | None = None
+        self._started_at = 0.0
         self._volume = volume
+        self._device = None  # устройство, на которое настроены все фразы
 
     def set_volume(self, volume: float) -> None:
         """Громкость 0.0–1.0, отдельно от системной."""
@@ -66,10 +76,13 @@ class VoicePlayer(QObject):
                 return None
             output = QAudioOutput(self)
             output.setVolume(self._volume)
+            if self._device is not None:
+                output.setDevice(self._device)
             player = QMediaPlayer(self)
             player.setAudioOutput(output)
             player.setSource(QUrl.fromLocalFile(str(path)))
             player.mediaStatusChanged.connect(self._on_status)
+            player.errorOccurred.connect(lambda error, text, k=key: log.warning("Голос %s: ошибка %s", k, text))
             self._players[key], self._outputs[key] = player, output
         return self._players[key]
 
@@ -84,7 +97,25 @@ class VoicePlayer(QObject):
         self._outputs.clear()
 
     def is_playing(self) -> bool:
-        return self._current is not None and self._current.playbackState() == QMediaPlayer.PlayingState
+        if self._current is None or self._current.playbackState() != QMediaPlayer.PlayingState:
+            return False
+        if time.monotonic() - self._started_at > PHRASE_MAX_SEC:
+            log.warning("Голос: фраза играет дольше %d с — остановлена", PHRASE_MAX_SEC)
+            self._current.stop()
+            return False
+        return True
+
+    def follow_default_device(self) -> None:
+        """Играть туда же, куда Дота: устройство по умолчанию могло смениться после запуска программы
+        (колонка, наушники, звук монитора) — фразы уходили в старое устройство (BUGLOG №52)."""
+        device = default_output()
+        if self._device is not None and device == self._device:
+            return
+        if self._device is not None:
+            log.info("Голос: устройство вывода сменилось на %s", device.description())
+        self._device = device
+        for output in self._outputs.values():
+            output.setDevice(device)
 
     def play(self, key: str) -> None:
         if self.is_playing():
@@ -92,7 +123,10 @@ class VoicePlayer(QObject):
             return
         player = self._player(key)
         if player is not None:
+            self.follow_default_device()
+            log.info("Голос: %s", key)
             self._current = player
+            self._started_at = time.monotonic()
             player.setPosition(0)
             player.play()
 

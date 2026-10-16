@@ -71,3 +71,59 @@ def test_bundled_file_preferred_unless_text_changed(tmp_path, monkeypatch):
     assert find_voice_file("threat", user, generated, bundled) == generated / "threat.mp3"
     assert voice_gen.missing_phrases({"threat": "новый"}, bundled) == []  # сгенерированная есть
 
+
+
+class FakeOutput:
+    def __init__(self):
+        self.device = None
+
+    def setDevice(self, device):
+        self.device = device
+
+
+def test_voice_follows_default_device(qapp, monkeypatch):
+    """Устройство по умолчанию сменилось после запуска (колонка, звук монитора) — фразы идут туда же,
+    куда Дота, а не в старое устройство (BUGLOG №52)."""
+    import app.notify.voice as voice_mod
+    player = voice_mod.VoicePlayer()
+    outputs = {"rune": FakeOutput(), "bounty": FakeOutput()}
+    player._outputs = outputs
+    device = ["Realtek"]
+    monkeypatch.setattr(voice_mod, "default_output", lambda: FakeDevice(device[0]))
+    player.follow_default_device()
+    device[0] = "VK Capsula"
+    player.follow_default_device()
+    assert [o.device.name for o in outputs.values()] == ["VK Capsula", "VK Capsula"]
+
+
+class FakeDevice:
+    def __init__(self, name):
+        self.name = name
+
+    def __eq__(self, other):
+        return isinstance(other, FakeDevice) and other.name == self.name
+
+    def description(self):
+        return self.name
+
+
+def test_stuck_phrase_does_not_block_queue(qapp, monkeypatch):
+    """Фраза «играет» дольше PHRASE_MAX_SEC — зависла: следующая не ждёт её вечно (BUGLOG №52)."""
+    import app.notify.voice as voice_mod
+    from PySide6.QtMultimedia import QMediaPlayer
+
+    class Stuck:
+        stopped = False
+
+        def playbackState(self):
+            return QMediaPlayer.PlayingState
+
+        def stop(self):
+            Stuck.stopped = True
+
+    player = voice_mod.VoicePlayer()
+    player._current, player._started_at = Stuck(), 100.0
+    monkeypatch.setattr(voice_mod.time, "monotonic", lambda: 101.0)
+    assert player.is_playing()
+    monkeypatch.setattr(voice_mod.time, "monotonic", lambda: 100.0 + voice_mod.PHRASE_MAX_SEC + 1)
+    assert not player.is_playing() and Stuck.stopped
