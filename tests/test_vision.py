@@ -105,3 +105,21 @@ def test_topbar_duplicates_are_rejected():
                           tuple(Match(h, 0.8, 0.3) for h in ("lina", "lion", "zuus", "axe", "tiny")))
     assert result.heroes("radiant") == [None, None, None, None, "sven"]
     assert result.heroes("dire") == ["lina", "lion", "zuus", "axe", "tiny"]
+
+
+def test_gold_hero_name_is_read(qapp):
+    """Имя выделенного героя бывает золотым (враг, иногда свой) — раньше читались только белые буквы, и в катке 16.10
+    21:23 программа не узнала ни одного кадра: событий «новые предметы» — 0 (BUGLOG №55). Кадры — из видео автора."""
+    import cv2
+    from pathlib import Path
+    from app.vision.geometry import HudLayout
+    from app.vision.names import NameMatcher
+    folder = Path(__file__).parent / "fixtures" / "names"
+    names = {"windrunner": "Windranger", "bloodseeker": "Bloodseeker", "necrolyte": "Necrophos",
+             "templar_assassin": "Templar Assassin", "meepo": "Meepo", "spirit_breaker": "Spirit Breaker"}
+    matcher = NameMatcher(names)
+    scale = HudLayout(1920, 1080).scale
+    assert matcher.match(cv2.imread(str(folder / "gold_windranger.png")), scale) == "windrunner"
+    assert matcher.match(cv2.imread(str(folder / "gold_meepo.png")), scale) == "meepo"
+    # на этом кадре слабые пороги давали Bloodseeker — предметы своего героя приписались бы врагу
+    assert matcher.match(cv2.imread(str(folder / "gold_windranger_trap.png")), scale) in ("windrunner", None)

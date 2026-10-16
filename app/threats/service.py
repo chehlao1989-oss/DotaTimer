@@ -157,7 +157,8 @@ class ThreatsService(QObject):
         cfg = raw_config.get("item_hints", {})
         if not cfg.get("enabled"):
             return
-        table = CounterTable.load(self.mechanics_config)
+        table = CounterTable.load(self.mechanics_config, consumables={
+            k for k, i in self.data.items.items() if i.qual in IGNORED_QUALITIES})
         if table is None:
             return
         self._fallback_share = cfg["fallback_buys_share"]

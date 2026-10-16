@@ -23,6 +23,7 @@ log = logging.getLogger(__name__)
 ROLE_AUTO = "auto"
 TOPBAR_RETRY_SEC = 20  # если не все враги узнаны, повторяем снимок через столько секунд игры
 TOPBAR_MAX_TRIES = 5
+OVERLAY_SLOTS = {0, 1}  # места на панели, которые закрывает строка оверлея FPS слева вверху (BUGLOG №55)
 
 
 @dataclass
@@ -151,7 +152,12 @@ class ThreatsController:
         if known and known != self.enemies:
             self.set_enemies(known)
         if len(known) < 5 and self._next_topbar_at is None and self._topbar_tries >= TOPBAR_MAX_TRIES:
-            self.show(ru.TOPBAR_PARTIAL if known else ru.TOPBAR_FAILED, False, None)
+            missing = [i for i, e in enumerate(enemies) if not e]
+            # пропали только крайние левые портреты Сил Света — их закрывает оверлей FPS (видео автора 16.10)
+            overlay = side == "radiant" and missing and set(missing) <= OVERLAY_SLOTS
+            text = ru.TOPBAR_OVERLAY if overlay else (ru.TOPBAR_PARTIAL if known else ru.TOPBAR_FAILED)
+            log.info("Врагов узнано %d из 5, подсказка: %s", len(known), text)
+            self.show(text, False, None)
         return [h for h in result.heroes("radiant") + result.heroes("dire") if h]
 
     def set_enemies(self, enemies: list[str], show_card: bool = True) -> None:

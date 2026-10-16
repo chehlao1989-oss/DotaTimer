@@ -39,8 +39,11 @@ class Choice:
 
 
 class CounterTable:
-    def __init__(self, table: dict, checked: dict, rules: dict[str, tuple[str, ...]], hero_counters: dict):
-        """rules: свойство врага → типы ответа (из правил mechanics.json). hero_counters: герой → контр-предметы."""
+    def __init__(self, table: dict, checked: dict, rules: dict[str, tuple[str, ...]], hero_counters: dict,
+                 consumables: set[str] = frozenset()):
+        """rules: свойство врага → типы ответа (из правил mechanics.json). hero_counters: герой → контр-предметы.
+        consumables: расходники — со страниц Counters не советуем (Town Portal Scroll у всех и так; по доле покупки
+        ~100% он встал бы первым), кроме тех, что прямо стоят в таблице ответов (Dust, Sentry Ward, Gem)."""
         self.rules = rules
         verified = checked.get("threat_items", {})
         self._props = {item: tuple(p for p in spec["props"] if verified.get(item, {}).get(p, {}).get("verified"))
@@ -50,10 +53,13 @@ class CounterTable:
         self._counters = {answer: tuple(k for k in keys if ok.get(answer, {}).get(k, {}).get("verified"))
                           for answer, keys in table.get("counters", {}).items()}
         self._sources = {(answer, k): row.get("source") for answer, rows in ok.items() for k, row in rows.items()}
-        self.hero_counters = hero_counters
+        allowed = {k for keys in self._counters.values() for k in keys}
+        skip = set(consumables) - allowed
+        self.hero_counters = {h: tuple(k for k in keys if k not in skip) for h, keys in hero_counters.items()}
 
     @classmethod
-    def load(cls, mechanics_config: dict, data_dir: Path = DATA_DIR) -> "CounterTable | None":
+    def load(cls, mechanics_config: dict, data_dir: Path = DATA_DIR,
+             consumables: set[str] = frozenset()) -> "CounterTable | None":
         try:
             table = json.loads((data_dir / "item_counters.json").read_text(encoding="utf-8"))
             checked = json.loads((data_dir / "item_counters_checked.json").read_text(encoding="utf-8"))
@@ -66,7 +72,7 @@ class CounterTable:
             rules.setdefault(rule["enemy"], ())
             rules[rule["enemy"]] += tuple(rule["answers"])
         heroes = {h: tuple(v.get("counter_items", ())) for h, v in wiki.get("heroes", {}).items()}
-        return cls(table, checked, rules, heroes)
+        return cls(table, checked, rules, heroes, consumables)
 
     def is_threat(self, item: str) -> bool:
         """Есть ли подсказка на этот предмет врага (только подтверждённые свойства)."""

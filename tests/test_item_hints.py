@@ -75,6 +75,14 @@ def test_hero_counters_from_wiki():
     assert all(c.answer == WIKI_HERO for c in t.vs_hero("axe"))
 
 
+def test_consumables_not_advised_vs_hero():
+    """Town Portal Scroll со страницы Counters (Razor) не советуем: он у всех и так; Dust/Sentry/Gem — можно."""
+    t = CounterTable.load(load_mechanics_config(), consumables={"tpscroll", "dust", "ward_sentry", "tango"})
+    assert "tpscroll" not in {c.item for c in t.vs_hero("razor")}
+    assert "tpscroll" in {c.item for c in table().vs_hero("razor")}  # на странице вики он есть
+    assert {"dust", "ward_sentry"} <= {c.item for c in t.vs_item("invis_sword")}
+
+
 def test_controller_hint_text(qapp):
     """Подсказка: «У Phantom Assassin появился Butterfly → Bloodthorn (пробивает уклонение)»; на Magic Wand — нет."""
     from app.threats.controller import ThreatsController, ThreatSettings

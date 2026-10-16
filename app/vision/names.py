@@ -1,8 +1,9 @@
 """Какой герой выделен: по надписи с именем над портретом в нижней панели.
 
-Надпись — белые заглавные буквы с тенью на меняющемся фоне. Берём только почти белые
-пиксели в полосе высотой с текст и сравниваем с именами кандидатов (10 героев матча),
-нарисованными похожим шрифтом. Из 10 вариантов выбрать правильный надёжно.
+Надпись — заглавные буквы с тенью на меняющемся фоне: белые или золотистые (у выделенного врага и иногда у своего
+героя имя золотое — видео автора 16.10, BUGLOG №55). Берём почти белые пиксели в полосе высотой с текст и сравниваем
+с именами кандидатов (10 героев матча), нарисованными похожим шрифтом; не нашлось — то же по золотистым пикселям
+со строгими порогами. Из 10 вариантов выбрать правильный надёжно.
 """
 import cv2
 import numpy as np
@@ -17,6 +18,12 @@ BLUR_SIGMA = 1.0
 # Пороги по скриншотам автора: верные ответы 0.23–0.81, отрыв от второго места ≥ 0.15
 MIN_SCORE = 0.2
 MIN_MARGIN = 0.1
+# Золотые надписи (BUGLOG №55): красный ярче 160, R ≥ G ≥ B, синий от 90, разница R − B от 25 до 110 (замер по
+# видео 16.10: буквы ≈ B 137, G 163, R 194). Пороги строже белых: на 230 кадрах двух видео ошибки (WINDRANGER →
+# Bloodseeker) — оценка ≤ 0.32 и отрыв ≤ 0.17, верные — оценка ≥ 0.38 и отрыв ≥ 0.35; пороги — посередине разрыва
+GOLD_R_MIN, GOLD_B_MIN, GOLD_RB_MIN, GOLD_RB_MAX = 160, 90, 25, 110
+GOLD_MIN_SCORE = 0.35
+GOLD_MIN_MARGIN = 0.25
 RENDER_W, RENDER_H = 800, 64
 RENDER_FONT, RENDER_PT, RENDER_SPACING = "Segoe UI", 24, 135
 
@@ -27,6 +34,12 @@ def white_mask(bgr: np.ndarray) -> np.ndarray:
     return ((mn > WHITE_MIN) & (mx - mn < WHITE_SPREAD)).astype(np.uint8) * 255
 
 
+def gold_mask(bgr: np.ndarray) -> np.ndarray:
+    b, g, r = (bgr[:, :, i].astype(int) for i in range(3))
+    return ((r > GOLD_R_MIN) & (r >= g) & (g >= b) & (b > GOLD_B_MIN)
+            & (r - b > GOLD_RB_MIN) & (r - b < GOLD_RB_MAX)).astype(np.uint8) * 255
+
+
 def _crop_to_content(mask: np.ndarray) -> np.ndarray | None:
     ys, xs = np.nonzero(mask)
     if len(xs) < 10:
@@ -34,9 +47,9 @@ def _crop_to_content(mask: np.ndarray) -> np.ndarray | None:
     return mask[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
 
 
-def text_mask(bgr: np.ndarray, scale: float) -> np.ndarray | None:
+def text_mask(bgr: np.ndarray, scale: float, mask_fn=white_mask) -> np.ndarray | None:
     """Бинарная картинка надписи, обрезанная по краям букв. None, если надписи нет."""
-    mask = white_mask(bgr)
+    mask = mask_fn(bgr)
     # полоса высотой с текст, где больше всего белых пикселей (отсекает светлые края панели)
     band = max(3, round(TEXT_HEIGHT_REF * scale))
     rows = (mask > 0).sum(axis=1).astype(float)
@@ -93,7 +106,12 @@ class NameMatcher:
         self.templates = {key: t for key, name in candidates.items() if (t := render_name(name)) is not None}
 
     def match(self, bgr: np.ndarray, scale: float) -> str | None:
-        text = text_mask(bgr, scale)
+        """Сначала белые буквы, не нашлось — золотые (строже: на них ложные совпадения чаще)."""
+        return (self._match(bgr, scale, white_mask, MIN_SCORE, MIN_MARGIN)
+                or self._match(bgr, scale, gold_mask, GOLD_MIN_SCORE, GOLD_MIN_MARGIN))
+
+    def _match(self, bgr: np.ndarray, scale: float, mask_fn, min_score: float, min_margin: float) -> str | None:
+        text = text_mask(bgr, scale, mask_fn)
         if text is None:
             return None
         h, w = text.shape
@@ -107,8 +125,8 @@ class NameMatcher:
             ratio = (w / h) / (tmpl.shape[1] / tmpl.shape[0])
             scored.append((ncc * min(ratio, 1 / ratio) ** 2, key))  # штраф за непохожую длину надписи
         scored.sort(reverse=True)
-        if not scored or scored[0][0] < MIN_SCORE:
+        if not scored or scored[0][0] < min_score:
             return None
-        if len(scored) > 1 and scored[0][0] - scored[1][0] < MIN_MARGIN:
+        if len(scored) > 1 and scored[0][0] - scored[1][0] < min_margin:
             return None
         return scored[0][1]

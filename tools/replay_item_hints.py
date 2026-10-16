@@ -73,7 +73,8 @@ def main() -> None:
         sys.stdout.reconfigure(encoding="utf-8")  # BUGLOG №39
     import json
     data = GameData.from_cache(DataCache())
-    table = CounterTable.load(load_mechanics_config())
+    table = CounterTable.load(load_mechanics_config(),
+                              consumables={k for k, i in data.items.items() if i.qual == "consumable"})
     hints_cfg = json.loads((ROOT / "data" / "threats.json").read_text(encoding="utf-8"))
     cfg = hints_cfg["item_hints"]
     recs_path = Path(os.environ.get("APPDATA", ".")) / "DotaTimer" / "recs.zip"

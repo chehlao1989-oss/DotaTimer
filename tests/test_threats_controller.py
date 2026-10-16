@@ -108,3 +108,21 @@ def test_no_hint_without_counter():
     shown.clear()
     ctrl.on_inventory(InventorySnapshot("alchemist", ("heart",), (None, None, None), None), 1200)
     assert shown == []
+
+
+def test_overlay_hint_when_left_portraits_missing():
+    """Не узнаны только два крайних левых портрета Сил Света — подсказка про оверлей FPS (видео автора 16.10:
+    строка MSI Afterburner лежит на портретах), иначе — обычная «Ctrl+Alt+P» (BUGLOG №55)."""
+    from app.i18n import ru
+    from app.threats.controller import TOPBAR_MAX_TRIES
+    for missing, expected in (({0, 1}, ru.TOPBAR_OVERLAY), ({3}, ru.TOPBAR_PARTIAL)):
+        ctrl, shown = make()
+        radiant = [None if i in missing else h for i, h in enumerate(["alchemist", "medusa", "lion", "pudge", "viper"])]
+        result = TopbarResult(tuple(Match(h, 0.8 if h else 0.3, 0.3) for h in radiant),
+                              tuple(Match(h, 0.8, 0.3) for h in ["sven", "axe", "tiny", "lina", "zuus"]))
+        clock = 0
+        for _ in range(TOPBAR_MAX_TRIES):
+            while not ctrl.on_game_state(clock, True, "npc_dota_hero_sven", "dire", True):
+                clock += 1
+            ctrl.on_topbar(result)
+        assert shown[-1][0] == expected

@@ -113,17 +113,39 @@ def real_threats():
     data = GameData.from_cache(DataCache())
     if source is None or not data.ready:
         return None
-    raw = json.loads((ROOT / "data" / "threats.json").read_text(encoding="utf-8"))["recs_advice"]
+    raw_all = json.loads((ROOT / "data" / "threats.json").read_text(encoding="utf-8"))
+    raw = raw_all["recs_advice"]
     rec = RecsRecommender(source, data.items, AdviceConfig(raw["phase_base_cost"], raw["phase_cost_per_min"],
                                                             raw["multi_threat_bonus"], raw["hysteresis"],
                                                             raw["top_for_bonus"]))
     me = data.hero_by_name(REAL_SCENARIO["hero"])
     inputs = [ThreatInput(e, data.hero_by_name(e).id, frozenset(REAL_SCENARIO["enemy_items"].get(e, set())))
               for e in REAL_SCENARIO["enemies"]]
-    threats = rec.recommend(me.id, inputs, set(), REAL_SCENARIO["minute"] * 60, REAL_SCENARIO["gold"])
+    if raw_all.get("item_hints", {}).get("enabled"):
+        threats = hints_v2_threats(rec, data, me.id, raw_all["item_hints"])  # как в программе (DECISIONS №30)
+    else:
+        threats = rec.recommend(me.id, inputs, set(), REAL_SCENARIO["minute"] * 60, REAL_SCENARIO["gold"])
     titles = {e: data.hero_by_name(e).localized for e in REAL_SCENARIO["enemies"]}
     titles.update({i.item: data.items[i.item].dname for t in threats for i in t.items if i.item in data.items})
     return threats, titles
+
+
+def hints_v2_threats(rec, data, my_id: int, cfg: dict):
+    """Полоска по подсказкам v2: против угрозы — ответы на её опасные предметы, потом со страницы Counters вики;
+    1–2 по доле покупки на моём герое; под иконкой — ничего (решение автора 16.10)."""
+    from app.threats.item_hints import CounterTable, choose
+    from app.threats.mechanics import load_mechanics_config
+    table = CounterTable.load(load_mechanics_config(),
+                              consumables={k for k, i in data.items.items() if i.qual == "consumable"})
+    shares = rec.buy_shares(my_id, cfg["fallback_buys_share"])
+    out = []
+    for enemy in REAL_SCENARIO["enemies"]:
+        items = REAL_SCENARIO["enemy_items"].get(enemy, set())
+        counters = [c for x in sorted(items) for c in table.vs_item(x)] + table.vs_hero(enemy)
+        picked = choose(counters, shares.get, lambda k: False, cfg["min_own_share"], cfg["limit"])
+        out.append(ThreatRecommendation(enemy, tuple(RecItem(c.item, c.share or 0.0, "mechanic", None, 0, c.answer)
+                                                     for c in picked)))
+    return out
 
 
 def build_windows(w: int, h: int, images_dir: Path, overlay_settings: OverlaySettings,
