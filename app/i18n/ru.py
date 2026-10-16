@@ -236,6 +236,11 @@ MECHANIC_REASONS = {
     "armor_reduction": "снижает броню",
 }
 LOW_DATA = "мало данных"
+# подсказки v2: ответ взят из списка механики, но на твоём герое его почти не собирают
+HINT_RARE = "редко на твоём герое"
+HINT_CHOICE = "{item} ({reason})"
+HINT_CHOICE_RARE = "{item} ({reason}; редко на твоём герое)"
+HINT_CHOICE_HERO_RARE = "{item} (редко на твоём герое)"
 
 # --- Полоска угроз ---
 STRIP_BOUGHT = "есть ✓"

@@ -238,6 +238,27 @@ class RecsRecommender:
             result.append(ThreatRecommendation(threat.hero, tuple(items)))
         return result
 
+    def buy_shares(self, my_hero_id: int | None, fallback_share: float, main_role: bool = False) -> dict[str, float]:
+        """Как часто герой в своей роли покупает предмет, % игр (подсказки v2). Старый файл без buy_share —
+        предметы из buys (от min_buy_share) с долей fallback_share. main_role — роль героя по данным (для врага),
+        иначе — как выбрал игрок для своего героя."""
+        if my_hero_id is None:
+            return {}
+        slice_ = self.source.hero(my_hero_id)
+        if main_role:
+            roles = slice_.get("buys", {}).get(self.bucket, {})
+            role = self.source.main_role(my_hero_id)
+            role = role if role in roles else max(roles, key=lambda r: len(roles[r]), default=None)
+        else:
+            role = self._role(my_hero_id, slice_)
+        if role is None:
+            return {}
+        rows = slice_.get("buy_share", {}).get(self.bucket, {}).get(role)
+        if rows is not None:
+            return {self.by_id[y]: float(v) for y, v in rows if y in self.by_id}
+        return {self.by_id[y]: fallback_share for y in slice_.get("buys", {}).get(self.bucket, {}).get(role, [])
+                if y in self.by_id}
+
     def counters(self, my_hero_id: int | None, enemy_hero_id: int, item: str, limit: int = 2,
                  ally_ids=()) -> list[str]:
         """Советы на предмет врага для подсказки «у врага появился X»: ключи предметов."""

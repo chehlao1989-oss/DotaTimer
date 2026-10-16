@@ -15,9 +15,11 @@ from app.i18n import ru
 from app.threats.advisor import Advisor
 from app.threats.controller import ThreatSettings, ThreatsController
 from app.threats.data import DataCache, DataUpdater, GameData
+from app.threats.item_hints import CounterTable, pick_parent
 from app.threats.mechanics import MechanicsTagger, load_mechanics_config
 from app.paths import app_data_dir
-from app.threats.recommend import TIER_HERO, Recommender, ThreatInput, format_delta, recommend_config
+from app.threats.recommend import (TIER_HERO, TIER_MECHANIC, RecItem, Recommender, ThreatInput, ThreatRecommendation,
+                                   format_delta, recommend_config)
 from app.threats.recs_advice import RecsRecommender, RecsSource, advice_config, rank_threats
 from app.threats.recs_file import download_recs
 from app.threats.scoring import load_threat_config
@@ -76,6 +78,10 @@ class ThreatsService(QObject):
         self._rec_key = None  # с какими данными пересчитывали рекомендации в последний раз
         self._last_recs = {}
         self._gold: int | None = None
+        self._v2_first: dict[str, str] = {}  # подсказки v2: угроза → первый совет на полоске (подсветка смены)
+        self._v2_choices: dict[str, list] = {}  # угроза → выбранные ответы (для карточки, с пометкой «редко»)
+        self._shares_key = None
+        self._shares: dict[str, float] = {}
         self.data_ready.connect(self._rebuild)
         self._rebuild()
         threading.Thread(target=self._update_data, name="threats-data", daemon=True).start()
@@ -116,6 +122,7 @@ class ThreatsService(QObject):
         self.recommender = Recommender(tagger, self.stats, buyable, costs,
                                        recommend_config(raw_config))
         self._use_recs_file(data, raw_config)
+        self._use_counter_table(raw_config)
         if self.vision is None and (self.cache.root / "images" / "heroes").is_dir():
             self.vision = VisionService(data, self.cache)
             self.vision.topbar_ready.connect(self._on_topbar)
@@ -144,6 +151,66 @@ class ThreatsService(QObject):
         controller.item_counters = counters
         controller.hint_duration = raw_config["recs_advice"].get("hint_display_sec")
         log.info("Советы из %s: матчей %s, патч %s", path.name, self.recs.meta.get("matches"), self.recs.meta.get("patch"))
+
+    def _use_counter_table(self, raw_config: dict) -> None:
+        """Подсказки v2 (BUGLOG №54): ответы из таблицы механик и страниц Counters вики, выбор — под моего героя."""
+        cfg = raw_config.get("item_hints", {})
+        if not cfg.get("enabled"):
+            return
+        table = CounterTable.load(self.mechanics_config)
+        if table is None:
+            return
+        self._fallback_share = cfg["fallback_buys_share"]
+        self.controller.use_counter_table(table, self._own_shares, cfg["min_own_share"], cfg["limit"],
+                                          self._likely_parent)
+        log.info("Подсказки v2: опасных предметов в таблице %d, героев со страницей Counters %d",
+                 len(table.threat_items()), len(table.hero_counters))
+
+    def _own_shares(self) -> dict[str, float]:
+        """Доли покупки предметов моим героем в роли (recs.zip); пересчитываются при смене героя или режима."""
+        if not isinstance(self.recommender, RecsRecommender) or self.controller is None:
+            return {}
+        bucket = BUCKET_TURBO if self.turbo() else BUCKET_NORMAL
+        key = (self.controller.my_hero_id(), bucket, self.settings.role_mode)
+        if key != self._shares_key:
+            self.recommender.bucket, self.recommender.role_mode = bucket, self.settings.role_mode
+            self._shares = self.recommender.buy_shares(key[0], self._fallback_share)
+            self._shares_key = key
+        return self._shares
+
+    def _likely_parent(self, hero: str, candidates: list[str]) -> str | None:
+        """Во что враг соберёт деталь: тот из предметов, который этот герой покупает чаще (recs.zip, его основная
+        роль); ни один не покупает — None (подсказку «собирает» не даём)."""
+        enemy = self.data.hero_by_name(hero)
+        if enemy is None or not isinstance(self.recommender, RecsRecommender):
+            return None
+        self.recommender.bucket = BUCKET_TURBO if self.turbo() else BUCKET_NORMAL
+        return pick_parent(self.recommender.buy_shares(enemy.id, self._fallback_share, main_role=True), candidates)
+
+    def _recs_v2(self) -> list[ThreatRecommendation]:
+        """Полоска по подсказкам v2: против угрозы — ответы на её опасные предметы (последний увиденный первым),
+        потом со страницы Counters героя; купленный ответ — с галочкой, рядом следующий."""
+        controller, table = self.controller, self.controller.counter_table
+        result = []
+        for threat in controller.threats:
+            hero = threat.hero.name
+            known = controller.tracker.enemies.get(hero)
+            seen = sorted((x for x in (known.items if known else {}) if table.is_threat(x)),
+                          key=lambda x: -known.items[x])
+            counters = [c for x in seen for c in table.vs_item(x)] + table.vs_hero(hero)
+            bought = next((c.item for c in counters if controller.owned(c.item)), None)
+            items = [RecItem(bought, 0.0, "bought", None, 0, bought=True)] if bought else []
+            choices = controller.choices(counters)
+            self._v2_choices[hero] = choices
+            for index, choice in enumerate(choices):
+                changed = index == 0 and hero in self._v2_first and self._v2_first[hero] != choice.item
+                if index == 0:
+                    self._v2_first[hero] = choice.item
+                cost = self.data.items[choice.item].cost if choice.item in self.data.items else 0
+                items.append(RecItem(choice.item, choice.share or 0.0, TIER_MECHANIC, None, 0, choice.answer,
+                                     changed=changed, affordable=self._gold is not None and self._gold >= cost))
+            result.append(ThreatRecommendation(hero, tuple(items)))
+        return result
 
     def _update_data(self) -> None:
         """Фон: обновить справочники, иконки, статистику и матчапы (только вне катки)."""
@@ -235,8 +302,11 @@ class ThreatsService(QObject):
         self.recommender.bucket = BUCKET_TURBO if self.turbo() else BUCKET_NORMAL
         self.recommender.stats = self.stats
         self.recommender.role_mode = self.settings.role_mode
-        recs = self.recommender.recommend(self.controller.my_hero_id(), inputs, set(self.controller.own_items),
-                                          self.last_clock or 0, self._gold, allies)
+        if self.controller.counter_table is not None:
+            recs = self._recs_v2()
+        else:
+            recs = self.recommender.recommend(self.controller.my_hero_id(), inputs, set(self.controller.own_items),
+                                              self.last_clock or 0, self._gold, allies)
         self._last_recs = {r.hero: r for r in recs}
         if self.strip is not None and self.overlays_enabled:
             titles = {t.hero.name: t.hero.localized for t in self.controller.threats}
@@ -251,6 +321,9 @@ class ThreatsService(QObject):
         rec = self._last_recs.get(hero)
         if rec is None:
             return ""
+        if self.controller.counter_table is not None:
+            return ru.CARD_ITEMS_JOIN.join(self.controller.format_choices([c])
+                                           for c in self._v2_choices.get(hero, []))
         if self.recs is not None:
             return self._card_items_short(rec)
         parts = []
@@ -339,3 +412,4 @@ class ThreatsService(QObject):
         if self.vision is not None:
             self.vision.stop()
         self._in_match = True  # останавливает докачку матчапов
+

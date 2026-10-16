@@ -55,5 +55,14 @@
     "core_rank": 2.8,
     "late_notable": 3.0,
     "matchup_notable": 3.0
+  },
+  "item_hints": {
+    "note": "Подсказки v2 (docs/TASK_ITEM_HINTS_V2.md, ок автора 16.10): что может быть ответом — таблица механик с подтверждением по Dota 2 Wiki (data/item_counters.json) и страницы Counters героев; показываются 1–2 ответа, которые на моём герое берут не реже min_own_share % игр (доля покупки из recs.zip). enabled: false — старая схема по A (DECISIONS №18, №22).",
+    "enabled": true,
+    "note_min_own_share": "Порог «реально собирают на твоём герое», % игр в роли — из задачи автора (~2%). Ниже ни у кого — показывается самый универсальный с пометкой «редко на твоём герое».",
+    "min_own_share": 2.0,
+    "note_fallback_buys_share": "Старый файл советов без buy_share: предметы из списка buys (берут от min_buy_share = 3% игр, data/recs_config.json) считаются с такой долей, остальные — 0.",
+    "fallback_buys_share": 3.0,
+    "limit": 2
   }
 }

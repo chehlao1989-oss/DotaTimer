@@ -1,0 +1,893 @@
+{
+ "note": "Создано tools/check_item_counters.py по data/item_counters.json — руками не править.",
+ "checked_patch": "7.41",
+ "license": "Dota 2 Wiki (Fandom), CC BY-SA 3.0; attribution: Dota 2 Wiki contributors",
+ "threat_items": {
+  "heart": {
+   "heal": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Heart_of_Tarrasque",
+    "rev": "2026-10-05T18:10:35Z",
+    "evidence": "health regen"
+   }
+  },
+  "satanic": {
+   "heal": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Satanic",
+    "rev": "2023-09-11T21:34:31Z",
+    "evidence": "lifesteal"
+   }
+  },
+  "mask_of_madness": {
+   "heal": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Mask_of_Madness",
+    "rev": "2023-12-15T13:01:04Z",
+    "evidence": "lifesteal"
+   },
+   "physical_damage": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Mask_of_Madness",
+    "rev": "2023-12-15T13:01:04Z",
+    "evidence": "attack damage"
+   }
+  },
+  "vladmir": {
+   "heal": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Vladmir%27s_Offering",
+    "rev": "2024-02-22T06:54:08Z",
+    "evidence": "lifesteal"
+   }
+  },
+  "bloodstone": {
+   "heal": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Bloodstone",
+    "rev": "2024-02-22T20:19:22Z",
+    "evidence": "lifesteal"
+   },
+   "magic_damage": {
+    "verified": false,
+    "source": "https://dota2.fandom.com/wiki/Bloodstone",
+    "rev": "2024-02-22T20:19:22Z",
+    "why": "на странице нет подтверждения"
+   }
+  },
+  "holy_locket": {
+   "heal": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Holy_Locket",
+    "rev": "2024-01-26T06:42:39Z",
+    "evidence": "lifesteal"
+   }
+  },
+  "guardian_greaves": {
+   "heal": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Guardian_Greaves",
+    "rev": "2024-01-26T06:44:03Z",
+    "evidence": "health regen"
+   }
+  },
+  "kaya_and_sange": {
+   "heal": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Kaya_and_Sange",
+    "rev": "2024-02-22T06:05:23Z",
+    "evidence": "lifesteal"
+   },
+   "magic_damage": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Kaya_and_Sange",
+    "rev": "2024-02-22T06:05:23Z",
+    "evidence": "spell damage"
+   }
+  },
+  "sange_and_yasha": {
+   "heal": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Sange_and_Yasha",
+    "rev": "2025-05-21T14:17:09Z",
+    "evidence": "lifesteal"
+   },
+   "physical_damage": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Sange_and_Yasha",
+    "rev": "2025-05-21T14:17:09Z",
+    "evidence": "attack speed"
+   }
+  },
+  "yasha_and_kaya": {
+   "magic_damage": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Yasha_and_Kaya",
+    "rev": "2024-02-22T06:59:58Z",
+    "evidence": "magical damage"
+   }
+  },
+  "trident": {
+   "heal": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Trident",
+    "rev": "2023-05-21T19:26:04Z",
+    "evidence": "lifesteal"
+   },
+   "magic_damage": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Trident",
+    "rev": "2023-05-21T19:26:04Z",
+    "evidence": "spell damage"
+   },
+   "physical_damage": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Trident",
+    "rev": "2023-05-21T19:26:04Z",
+    "evidence": "attack damage"
+   }
+  },
+  "butterfly": {
+   "evasion": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Butterfly",
+    "rev": "2024-01-02T16:47:45Z",
+    "evidence": "evasion"
+   },
+   "physical_damage": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Butterfly",
+    "rev": "2024-01-02T16:47:45Z",
+    "evidence": "attack damage"
+   }
+  },
+  "heavens_halberd": {
+   "evasion": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Heaven%27s_Halberd",
+    "rev": "2024-02-22T05:56:19Z",
+    "evidence": "evasion"
+   },
+   "hard_disable": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Heaven%27s_Halberd",
+    "rev": "2024-02-22T05:56:19Z",
+    "evidence": "disarm"
+   }
+  },
+  "invis_sword": {
+   "invisibility": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Shadow_Blade",
+    "rev": "2024-03-23T23:40:28Z",
+    "evidence": "invisib"
+   }
+  },
+  "silver_edge": {
+   "invisibility": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Silver_Edge",
+    "rev": "2024-03-23T23:39:17Z",
+    "evidence": "invisib"
+   },
+   "physical_damage": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Silver_Edge",
+    "rev": "2024-03-23T23:39:17Z",
+    "evidence": "attack damage"
+   }
+  },
+  "glimmer_cape": {
+   "invisibility": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Glimmer_Cape",
+    "rev": "2025-02-16T13:14:54Z",
+    "evidence": "invisib"
+   },
+   "saves": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Glimmer_Cape",
+    "rev": "2025-02-16T13:14:54Z",
+    "evidence": "invulnerab"
+   }
+  },
+  "manta": {
+   "illusions": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Manta_Style",
+    "rev": "2024-03-26T00:26:31Z",
+    "evidence": "illusion"
+   },
+   "saves": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Manta_Style",
+    "rev": "2024-03-26T00:26:31Z",
+    "evidence": "invulnerab"
+   }
+  },
+  "black_king_bar": {
+   "magic_immunity": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Black_King_Bar",
+    "rev": "2026-06-04T20:33:28Z",
+    "evidence": "debuff immunity"
+   }
+  },
+  "aeon_disk": {
+   "saves": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Aeon_Disk",
+    "rev": "2023-09-22T21:16:00Z",
+    "evidence": "combo breaker"
+   }
+  },
+  "ethereal_blade": {
+   "saves": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Ethereal_Blade",
+    "rev": "2023-12-20T09:53:22Z",
+    "evidence": "ethereal"
+   },
+   "magic_damage": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Ethereal_Blade",
+    "rev": "2023-12-20T09:53:22Z",
+    "evidence": "magical damage"
+   }
+  },
+  "force_staff": {
+   "mobility": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Force_Staff",
+    "rev": "2024-10-09T16:15:50Z",
+    "evidence": "push"
+   },
+   "saves": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Force_Staff",
+    "rev": "2024-10-09T16:15:50Z",
+    "evidence": "push"
+   }
+  },
+  "hurricane_pike": {
+   "mobility": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Hurricane_Pike",
+    "rev": "2023-10-18T18:21:38Z",
+    "evidence": "push"
+   },
+   "saves": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Hurricane_Pike",
+    "rev": "2023-10-18T18:21:38Z",
+    "evidence": "push"
+   }
+  },
+  "blink": {
+   "mobility": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Blink_Dagger",
+    "rev": "2025-10-03T13:54:54Z",
+    "evidence": "teleport"
+   }
+  },
+  "arcane_blink": {
+   "mobility": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Arcane_Blink",
+    "rev": "2025-10-03T13:48:52Z",
+    "evidence": "teleport"
+   }
+  },
+  "swift_blink": {
+   "mobility": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Swift_Blink",
+    "rev": "2025-10-03T13:53:21Z",
+    "evidence": "teleport"
+   }
+  },
+  "overwhelming_blink": {
+   "mobility": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Overwhelming_Blink",
+    "rev": "2025-10-03T13:56:09Z",
+    "evidence": "teleport"
+   }
+  },
+  "wind_waker": {
+   "mobility": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Wind_Waker",
+    "rev": "2024-07-28T13:27:22Z",
+    "evidence": "movement speed"
+   },
+   "saves": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Wind_Waker",
+    "rev": "2024-07-28T13:27:22Z",
+    "evidence": "cyclone"
+   }
+  },
+  "harpoon": {
+   "mobility": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Harpoon",
+    "rev": "2024-01-10T07:07:24Z",
+    "evidence": "pull"
+   }
+  },
+  "sphere": {
+   "spell_block": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Linken%27s_Sphere",
+    "rev": "2024-01-27T16:13:58Z",
+    "evidence": "block"
+   }
+  },
+  "dagon": {
+   "magic_damage": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Dagon",
+    "rev": "2024-02-22T05:26:57Z",
+    "evidence": "magical damage"
+   }
+  },
+  "dagon_2": {
+   "magic_damage": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Dagon",
+    "rev": "2024-02-22T05:26:57Z",
+    "evidence": "magical damage"
+   }
+  },
+  "dagon_3": {
+   "magic_damage": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Dagon",
+    "rev": "2024-02-22T05:26:57Z",
+    "evidence": "magical damage"
+   }
+  },
+  "dagon_4": {
+   "magic_damage": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Dagon",
+    "rev": "2024-02-22T05:26:57Z",
+    "evidence": "magical damage"
+   }
+  },
+  "dagon_5": {
+   "magic_damage": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Dagon",
+    "rev": "2024-02-22T05:26:57Z",
+    "evidence": "magical damage"
+   }
+  },
+  "radiance": {
+   "magic_damage": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Radiance",
+    "rev": "2024-02-22T06:31:53Z",
+    "evidence": "magical damage"
+   }
+  },
+  "maelstrom": {
+   "magic_damage": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Maelstrom",
+    "rev": "2026-07-17T06:40:37Z",
+    "evidence": "magical damage"
+   }
+  },
+  "mjollnir": {
+   "magic_damage": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Mjollnir",
+    "rev": "2024-03-26T00:23:32Z",
+    "evidence": "magical damage"
+   }
+  },
+  "gungir": {
+   "magic_damage": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Gleipnir",
+    "rev": "2025-10-08T16:22:23Z",
+    "evidence": "magical damage"
+   },
+   "hard_disable": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Gleipnir",
+    "rev": "2025-10-08T16:22:23Z",
+    "evidence": "root"
+   }
+  },
+  "shivas_guard": {
+   "magic_damage": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Shiva%27s_Guard",
+    "rev": "2024-02-22T06:43:06Z",
+    "evidence": "magical damage"
+   },
+   "armor": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Shiva%27s_Guard",
+    "rev": "2024-02-22T06:43:06Z",
+    "evidence": "armor"
+   }
+  },
+  "greater_crit": {
+   "physical_damage": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Daedalus",
+    "rev": "2024-01-04T16:24:57Z",
+    "evidence": "attack damage"
+   }
+  },
+  "desolator": {
+   "physical_damage": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Desolator",
+    "rev": "2023-08-08T23:16:53Z",
+    "evidence": "attack damage"
+   }
+  },
+  "bfury": {
+   "physical_damage": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Battle_Fury",
+    "rev": "2024-03-24T19:53:08Z",
+    "evidence": "attack damage"
+   }
+  },
+  "monkey_king_bar": {
+   "physical_damage": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Monkey_King_Bar",
+    "rev": "2024-04-10T22:39:26Z",
+    "evidence": "attack damage"
+   }
+  },
+  "rapier": {
+   "physical_damage": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Divine_Rapier",
+    "rev": "2024-03-28T05:32:01Z",
+    "evidence": "attack damage"
+   }
+  },
+  "armlet": {
+   "physical_damage": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Armlet_of_Mordiggian",
+    "rev": "2023-11-11T18:31:01Z",
+    "evidence": "attack damage"
+   }
+  },
+  "abyssal_blade": {
+   "physical_damage": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Abyssal_Blade",
+    "rev": "2025-05-14T12:57:56Z",
+    "evidence": "attack damage"
+   },
+   "hard_disable": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Abyssal_Blade",
+    "rev": "2025-05-14T12:57:56Z",
+    "evidence": "mute"
+   }
+  },
+  "bloodthorn": {
+   "physical_damage": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Bloodthorn",
+    "rev": "2026-10-05T21:28:42Z",
+    "evidence": "attack damage"
+   },
+   "hard_disable": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Bloodthorn",
+    "rev": "2026-10-05T21:28:42Z",
+    "evidence": "silence"
+   }
+  },
+  "orchid": {
+   "hard_disable": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Orchid_Malevolence",
+    "rev": "2024-03-26T00:30:01Z",
+    "evidence": "silence"
+   }
+  },
+  "sheepstick": {
+   "hard_disable": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Scythe_of_Vyse",
+    "rev": "2026-09-24T00:14:03Z",
+    "evidence": "mute"
+   }
+  },
+  "rod_of_atos": {
+   "hard_disable": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Rod_of_Atos",
+    "rev": "2023-12-13T13:20:54Z",
+    "evidence": "root"
+   }
+  },
+  "nullifier": {
+   "hard_disable": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Nullifier",
+    "rev": "2025-05-12T23:26:09Z",
+    "evidence": "mute"
+   }
+  },
+  "assault": {
+   "armor": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Assault_Cuirass",
+    "rev": "2023-12-14T13:49:25Z",
+    "evidence": "armor"
+   },
+   "physical_damage": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Assault_Cuirass",
+    "rev": "2023-12-14T13:49:25Z",
+    "evidence": "attack speed"
+   }
+  },
+  "necronomicon_3": {
+   "summons": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Necronomicon",
+    "rev": "2023-09-01T21:49:00Z",
+    "evidence": "summon"
+   }
+  },
+  "helm_of_the_overlord": {
+   "summons": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Helm_of_the_Overlord",
+    "rev": "2025-08-16T20:27:50Z",
+    "evidence": "dominat"
+   }
+  },
+  "angels_demise": {
+   "magic_damage": {
+    "verified": false,
+    "source": "https://dota2.fandom.com/wiki/Khanda",
+    "rev": "2026-01-25T18:56:58Z",
+    "why": "на странице нет подтверждения"
+   }
+  },
+  "revenants_brooch": {
+   "magic_damage": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Revenant%27s_Brooch",
+    "rev": "2024-04-26T15:56:23Z",
+    "evidence": "magical damage"
+   }
+  },
+  "hydras_breath": {
+   "physical_damage": {
+    "verified": false,
+    "why": "нет страницы на вики"
+   }
+  }
+ },
+ "counters": {
+  "heal_reduction": {
+   "skadi": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Eye_of_Skadi",
+    "rev": "2026-07-03T07:00:55Z",
+    "evidence": "reduc + heal"
+   },
+   "spirit_vessel": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Spirit_Vessel",
+    "rev": "2023-10-28T20:48:17Z",
+    "evidence": "reduc + heal"
+   },
+   "shivas_guard": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Shiva%27s_Guard",
+    "rev": "2024-02-22T06:43:06Z",
+    "evidence": "reduc + heal"
+   }
+  },
+  "true_strike": {
+   "monkey_king_bar": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Monkey_King_Bar",
+    "rev": "2024-04-10T22:39:26Z",
+    "evidence": "pierc"
+   },
+   "bloodthorn": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Bloodthorn",
+    "rev": "2026-10-05T21:28:42Z",
+    "evidence": "true strike"
+   }
+  },
+  "true_sight": {
+   "dust": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Dust_of_Appearance",
+    "rev": "2024-11-05T15:08:01Z",
+    "evidence": "invisib"
+   },
+   "ward_sentry": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Sentry_Ward",
+    "rev": "2024-04-12T23:23:49Z",
+    "evidence": "true sight"
+   },
+   "gem": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Gem_of_True_Sight",
+    "rev": "2024-01-05T11:01:02Z",
+    "evidence": "true sight"
+   }
+  },
+  "multi_target": {
+   "bfury": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Battle_Fury",
+    "rev": "2024-03-24T19:53:08Z",
+    "evidence": "cleave"
+   },
+   "mjollnir": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Mjollnir",
+    "rev": "2024-03-26T00:23:32Z",
+    "evidence": "chain"
+   },
+   "radiance": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Radiance",
+    "rev": "2024-02-22T06:31:53Z",
+    "evidence": "burn"
+   },
+   "shivas_guard": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Shiva%27s_Guard",
+    "rev": "2024-02-22T06:43:06Z",
+    "evidence": "radius"
+   },
+   "gungir": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Gleipnir",
+    "rev": "2025-10-08T16:22:23Z",
+    "evidence": "chain"
+   }
+  },
+  "illusion_kill": {
+   "mjollnir": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Mjollnir",
+    "rev": "2024-03-26T00:23:32Z",
+    "evidence": "illusion"
+   },
+   "radiance": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Radiance",
+    "rev": "2024-02-22T06:31:53Z",
+    "evidence": "illusion"
+   },
+   "bfury": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Battle_Fury",
+    "rev": "2024-03-24T19:53:08Z",
+    "evidence": "illusion"
+   }
+  },
+  "break": {
+   "silver_edge": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Silver_Edge",
+    "rev": "2024-03-23T23:39:17Z",
+    "evidence": "break"
+   }
+  },
+  "bkb_pierce": {
+   "abyssal_blade": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Abyssal_Blade",
+    "rev": "2025-05-14T12:57:56Z",
+    "evidence": "piercesdbi = yes"
+   }
+  },
+  "silence": {
+   "orchid": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Orchid_Malevolence",
+    "rev": "2024-03-26T00:30:01Z",
+    "evidence": "silence"
+   },
+   "bloodthorn": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Bloodthorn",
+    "rev": "2026-10-05T21:28:42Z",
+    "evidence": "silence"
+   }
+  },
+  "root": {
+   "rod_of_atos": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Rod_of_Atos",
+    "rev": "2023-12-13T13:20:54Z",
+    "evidence": "root"
+   },
+   "gungir": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Gleipnir",
+    "rev": "2025-10-08T16:22:23Z",
+    "evidence": "root"
+   }
+  },
+  "hex": {
+   "sheepstick": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Scythe_of_Vyse",
+    "rev": "2026-09-24T00:14:03Z",
+    "evidence": "hex"
+   }
+  },
+  "magic_defense": {
+   "black_king_bar": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Black_King_Bar",
+    "rev": "2026-06-04T20:33:28Z",
+    "evidence": "magic resistance"
+   },
+   "pipe": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Pipe_of_Insight",
+    "rev": "2024-01-05T11:04:10Z",
+    "evidence": "magic resistance"
+   },
+   "eternal_shroud": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Eternal_Shroud",
+    "rev": "2024-02-22T05:48:14Z",
+    "evidence": "magic resistance"
+   },
+   "glimmer_cape": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Glimmer_Cape",
+    "rev": "2025-02-16T13:14:54Z",
+    "evidence": "magic resistance"
+   }
+  },
+  "physical_defense": {
+   "assault": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Assault_Cuirass",
+    "rev": "2023-12-14T13:49:25Z",
+    "evidence": "armor"
+   },
+   "shivas_guard": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Shiva%27s_Guard",
+    "rev": "2024-02-22T06:43:06Z",
+    "evidence": "armor"
+   },
+   "blade_mail": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Blade_Mail",
+    "rev": "2023-10-06T00:31:00Z",
+    "evidence": "return"
+   },
+   "crimson_guard": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Crimson_Guard",
+    "rev": "2024-01-23T19:23:13Z",
+    "evidence": "return"
+   },
+   "ghost": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Ghost_Scepter",
+    "rev": "2023-10-28T19:54:16Z",
+    "evidence": "ethereal"
+   },
+   "heavens_halberd": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Heaven%27s_Halberd",
+    "rev": "2024-02-22T05:56:19Z",
+    "evidence": "ethereal"
+   }
+  },
+  "dispel_enemy": {
+   "nullifier": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Nullifier",
+    "rev": "2025-05-12T23:26:09Z",
+    "evidence": "dispel"
+   }
+  },
+  "mana_burn": {
+   "diffusal_blade": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Diffusal_Blade",
+    "rev": "2024-02-22T05:31:04Z",
+    "evidence": "mana burn"
+   }
+  },
+  "cheap_target": {
+   "rod_of_atos": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Rod_of_Atos",
+    "rev": "2023-12-13T13:20:54Z",
+    "evidence": "target unit"
+   },
+   "orchid": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Orchid_Malevolence",
+    "rev": "2024-03-26T00:30:01Z",
+    "evidence": "target unit"
+   },
+   "force_staff": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Force_Staff",
+    "rev": "2024-10-09T16:15:50Z",
+    "evidence": "target unit"
+   },
+   "cyclone": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Eul%27s_Scepter_of_Divinity",
+    "rev": "2024-07-22T12:19:39Z",
+    "evidence": "target unit"
+   }
+  },
+  "self_dispel": {
+   "black_king_bar": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Black_King_Bar",
+    "rev": "2026-06-04T20:33:28Z",
+    "evidence": "dispel"
+   },
+   "manta": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Manta_Style",
+    "rev": "2024-03-26T00:26:31Z",
+    "evidence": "dispel"
+   },
+   "lotus_orb": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Lotus_Orb",
+    "rev": "2024-03-10T00:17:50Z",
+    "evidence": "dispel"
+   },
+   "satanic": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Satanic",
+    "rev": "2023-09-11T21:34:31Z",
+    "evidence": "dispel"
+   }
+  },
+  "armor_reduction": {
+   "desolator": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Desolator",
+    "rev": "2023-08-08T23:16:53Z",
+    "evidence": "armor + reduc"
+   },
+   "assault": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Assault_Cuirass",
+    "rev": "2023-12-14T13:49:25Z",
+    "evidence": "armor + reduc"
+   },
+   "solar_crest": {
+    "verified": false,
+    "source": "https://dota2.fandom.com/wiki/Solar_Crest",
+    "rev": "2024-01-30T10:52:38Z",
+    "why": "на странице нет подтверждения"
+   }
+  }
+ }
+}

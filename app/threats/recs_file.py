@@ -63,10 +63,11 @@ def write_recs_zip(result: dict, path: Path, min_role_share: float = 0.0) -> Non
                             continue
                         (per_hero.setdefault(hero, {}).setdefault(table, {}).setdefault(bucket, {})
                          .setdefault(group, {})[role]) = contexts
-    for bucket, roles in result.get("buys", {}).items():
-        for role, heroes in roles.items():
-            for hero, ys in heroes.items():
-                per_hero.setdefault(hero, {}).setdefault("buys", {}).setdefault(bucket, {})[role] = ys
+    for table in ("buys", "buy_share"):  # buy_share — доля покупки, % игр (подсказки v2); старые программы её не читают
+        for bucket, roles in result.get(table, {}).items():
+            for role, heroes in roles.items():
+                for hero, ys in heroes.items():
+                    per_hero.setdefault(hero, {}).setdefault(table, {}).setdefault(bucket, {})[role] = ys
     with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         archive.writestr("meta.json", _dump({**result["meta"], "min_role_share": min_role_share}))
         archive.writestr("threat.json", _dump(threat))
@@ -94,17 +95,17 @@ def load_all(path: Path) -> dict:
     with zipfile.ZipFile(path) as archive:
         result = {"meta": json.loads(archive.read("meta.json")), "threat": json.loads(archive.read("threat.json")),
                   **json.loads(archive.read("class.json"))}
-        for table in (*HERO_TABLES, "buys"):
+        for table in (*HERO_TABLES, "buys", "buy_share"):
             result.setdefault(table, {})
         for name in archive.namelist():
             if not name.startswith("heroes/"):
                 continue
             hero = name.removeprefix("heroes/").removesuffix(".json")
             for table, buckets in json.loads(archive.read(name)).items():
-                if table == "buys":
+                if table in ("buys", "buy_share"):
                     for bucket, roles in buckets.items():
                         for role, ys in roles.items():
-                            result["buys"].setdefault(bucket, {}).setdefault(role, {})[hero] = ys
+                            result[table].setdefault(bucket, {}).setdefault(role, {})[hero] = ys
                     continue
                 for bucket, groups in buckets.items():
                     for group, roles in groups.items():

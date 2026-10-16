@@ -81,6 +81,7 @@ class RecsConfig:
     levels: list  # уровни контекста: L3, L2, L1, hero (решение по L1 — по замеру L1 против L2, 02.10)
     team_item_max_ratio: float = 0.85  # «командный» предмет: пар в команде на деле / ожидаемых ≤ этого (DECISIONS №26)
     team_item_min_pairs: float = 100  # командным считается, только если ожидаемых пар не меньше
+    buy_share_floor: float = 0.01  # доли покупки (buy_share) пишутся для предметов от этой доли игр (подсказки v2)
 
 
 def load_config(path: Path = CONFIG_PATH) -> RecsConfig:
@@ -754,7 +755,7 @@ def finish(con: duckdb.DuckDBPyConnection, providers: dict, meta: ItemMeta, flag
                        "broad_rules": meta.broad_rules,
                        "hero_class": {str(h): [c, r] for h, c, r in con.execute("SELECT * FROM hero_cls").fetchall()}},
               "item": {}, "item_hero": {}, "hero": {}, "item_class": {}, "hero_class": {}, "threat": {}, "buys": {},
-              "ally": {}}
+              "ally": {}, "buy_share": {}}
     # командные предметы (DECISIONS №26): ключ — id, как в строках советов; программа учитывает союзников,
     # только если это поле есть (старый файл без него убирал личные предметы, BUGLOG №47)
     result["meta"]["team_items"] = team_items(con, cfg)
@@ -798,6 +799,15 @@ def finish(con: duckdb.DuckDBPyConnection, providers: dict, meta: ItemMeta, flag
         WHERE o.k >= {cfg.min_buy_share} * t.n GROUP BY ALL
     """).fetchall():
         result["buys"].setdefault(bucket, {}).setdefault(role, {})[str(hero)] = [int(y) for y in ys]
+    # подсказки v2 (docs/TASK_ITEM_HINTS_V2.md): как часто герой H в роли вообще покупает Y — обычная доля покупки,
+    # не A; из списка контр-предметов по механике программа выбирает те, что реально собирают на её герое
+    for bucket, role, hero, shares in con.execute(f"""
+        WITH t AS (SELECT bucket, role, hero, sum(n) AS n FROM all_tot GROUP BY ALL),
+        o AS (SELECT bucket, role, hero, y, sum(n) AS k FROM all_gy GROUP BY ALL)
+        SELECT o.bucket, o.role, o.hero, list([o.y, round(100.0 * o.k / t.n, 1)] ORDER BY o.k DESC)
+        FROM o JOIN t USING (bucket, role, hero) WHERE o.k >= {cfg.buy_share_floor} * t.n GROUP BY ALL
+    """).fetchall():
+        result["buy_share"].setdefault(bucket, {}).setdefault(role, {})[str(hero)] = [[int(y), float(v)] for y, v in shares]
     result["meta"]["components"] = {  # доля «заканчивают с ним самим»; ниже порога — не ответ (DECISIONS №14)
         meta.names.get(int(y), str(y)): [round(share, 3), int(players), share >= cfg.component_final_share]
         for y, share, players in con.execute("SELECT y, share, players FROM component_share ORDER BY share, y").fetchall()}

@@ -350,3 +350,16 @@ def test_recs_zip_with_ally_rows_is_written(tmp_path):
     write_recs(res, tmp_path / "recs.zip", cfg)
     back = load_all(tmp_path / "recs.zip")
     assert back["ally"]["normal"]["all"]["core"][str(HERO)][str(ALLY)]
+
+
+def test_buy_share_for_item_hints_v2(result, tmp_path):
+    """Подсказки v2: доля покупки предмета героем в роли (% игр) — для всех от buy_share_floor, в recs.zip отдельно.
+    Всё, что в buys (от min_buy_share), есть и в buy_share с долей не меньше min_buy_share."""
+    from app.threats.recs_file import load_hero, write_recs_zip
+    shares = dict((y, v) for y, v in result["buy_share"]["normal"]["core"][str(HERO)])
+    assert shares and all(0 < v <= 100 for v in shares.values())
+    for y in result["buys"]["normal"]["core"][str(HERO)]:
+        assert shares[y] >= 3.0 - 0.05
+    path = tmp_path / "recs.zip"
+    write_recs_zip(result, path)
+    assert load_hero(path, HERO)["buy_share"]["normal"]["core"] == result["buy_share"]["normal"]["core"][str(HERO)]

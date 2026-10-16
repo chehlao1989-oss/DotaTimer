@@ -10,6 +10,7 @@ from typing import Callable
 from app.i18n import ru
 from app.threats.advisor import TIER_HERO, TIER_MECHANIC, TIER_TRAIT, Advisor, Suggestion
 from app.threats.data import GameData
+from app.threats.item_hints import WIKI_HERO, Choice, CounterTable, choose
 from app.threats.mechanics import MechanicsTagger
 from app.threats.scoring import Threat, ThreatConfig, rank_bracket, score_enemies
 from app.threats.stats import BUCKET_NORMAL, BUCKET_TURBO
@@ -66,6 +67,20 @@ class ThreatsController:
         self.rank_threats = None  # функция: герои-враги → угрозы (из recs.zip); None — старая оценка
         self.item_counters = None  # функция: (герой-враг, предмет) → ключи советов (из recs.zip); None — старая
         self.hint_duration: float | None = None  # сколько секунд держать подсказку «у врага появился предмет»
+        # подсказки v2 (BUGLOG №54): ответы — из таблицы механик и страниц Counters вики, выбор — под моего героя
+        self.counter_table: CounterTable | None = None
+        self.own_shares: Callable[[], dict[str, float]] | None = None  # предмет → % игр на моём герое в роли
+        self.hint_min_share = 0.0
+        self.hint_limit = 2
+
+    def use_counter_table(self, table: CounterTable, own_shares: Callable[[], dict[str, float]], min_share: float,
+                          limit: int, likely_parent=None) -> None:
+        """Включить подсказки v2: важные предметы врага — только из таблицы (дешёвые подсказок не дают).
+        likely_parent(герой, [предметы]) — во что этот враг обычно собирает деталь."""
+        self.counter_table, self.own_shares = table, own_shares
+        self.hint_min_share, self.hint_limit = min_share, limit
+        self.tracker = ItemTracker(self.data, self.tagger, self.config.min_component_cost,
+                                   important=table.threat_items(), likely_parent=likely_parent)
 
     # --- названия ---
     def hero_title(self, key: str) -> str:
@@ -98,7 +113,10 @@ class ThreatsController:
     def on_game_state(self, clock: int | None, in_progress: bool, own_hero: str | None, own_team: str | None,
                       alive: bool | None, own_items: set[str] | None = None) -> bool:
         """Каждый пакет GSI. Возвращает True, если пора снять верхнюю панель."""
-        self.own_hero = (own_hero or "").removeprefix("npc_dota_hero_") or self.own_hero
+        hero = (own_hero or "").removeprefix("npc_dota_hero_") or self.own_hero
+        if hero != self.own_hero:
+            log.info("Мой герой: %s", hero)  # для разбора подсказок по логу (задача v2: в логе героя не было)
+        self.own_hero = hero
         self.own_team = own_team or self.own_team
         if own_items is not None:
             self.own_items = set(own_items)
@@ -152,6 +170,41 @@ class ThreatsController:
             self.show_card()
 
     # --- советы ---
+    def owned(self, item: str) -> bool:
+        """Есть сам предмет или то, что из него собирают (Orchid засчитан, если собран Bloodthorn)."""
+        return item in self.own_items or any(item in self._components(z) for z in self.own_items)
+
+    def _components(self, key: str, depth: int = 3) -> set[str]:
+        item = self.data.items.get(key)
+        if item is None or depth == 0:
+            return set()
+        found = set(item.components)
+        for c in item.components:
+            found |= self._components(c, depth - 1)
+        return found
+
+    def choices(self, counters) -> list[Choice]:
+        shares = self.own_shares() if self.own_shares else {}
+        return choose(counters, shares.get, self.owned, self.hint_min_share, self.hint_limit)
+
+    def choices_vs_item(self, item: str) -> list[Choice]:
+        return self.choices(self.counter_table.vs_item(item)) if self.counter_table else []
+
+    def choices_vs_hero(self, hero: str) -> list[Choice]:
+        return self.choices(self.counter_table.vs_hero(hero)) if self.counter_table else []
+
+    def format_choices(self, choices: list[Choice]) -> str:
+        """«Eye of Skadi (режет лечение), Spirit Vessel (режет лечение)»; против героя — без причины."""
+        parts = []
+        for c in choices:
+            item = self.item_title(c.item)
+            reason = ru.MECHANIC_REASONS.get(c.answer) if c.answer != WIKI_HERO else None
+            if reason:
+                parts.append((ru.HINT_CHOICE_RARE if c.rare else ru.HINT_CHOICE).format(item=item, reason=reason))
+            else:
+                parts.append(ru.HINT_CHOICE_HERO_RARE.format(item=item) if c.rare else item)
+        return ", ".join(parts)
+
     def suggestions_vs_hero(self, hero: str) -> list[Suggestion]:
         enemy = self.data.hero_by_name(hero)
         if enemy is None:
@@ -188,7 +241,8 @@ class ThreatsController:
             lines.append(ru.CARD_LINE.format(hero=threat.hero.localized, reason=reason))
             if self.card_items is not None:
                 items = self.card_items(threat.hero.name)
-                lines.append(ru.CARD_COUNTERS.format(items=items) if items else ru.CARD_NO_ANSWER)
+                if items:  # строку «→ явного ответа нет» не показываем (задача v2, автор 16.10)
+                    lines.append(ru.CARD_COUNTERS.format(items=items))
                 continue
             suggestions = self.suggestions_vs_hero(threat.hero.name)
             if suggestions:
@@ -218,7 +272,8 @@ class ThreatsController:
     def _show_hint(self, hint: ItemHint) -> None:
         text = self.hint_text(hint)
         if text is None:  # «явного ответа нет» не показываем (решение автора 05.10), только в журнал
-            log.info("Подсказка не показана, явного ответа нет: %s — %s", hint.hero, hint.item)
+            log.info("Подсказка не показана, явного ответа нет: %s — %s%s", hint.hero, hint.item,
+                     " (ответы уже есть или не подтверждены)" if self.counter_table else "")
             return
         log.info("Подсказка: %s", text.replace("\n", " | "))
         self.show(text, True, None, self.hint_duration, **self.hint_extras(hint))
@@ -230,6 +285,14 @@ class ThreatsController:
     def hint_text(self, hint: ItemHint) -> str | None:
         """Текст подсказки; None — явного ответа нет (такие подсказки не показываются, решение автора 05.10)."""
         enemy = self.data.hero_by_name(hint.hero)
+        if self.counter_table is not None:
+            choices = self.choices_vs_item(hint.item)
+            if not choices:
+                return None
+            template = ru.HINT_ITEM if hint.kind == KIND_ITEM else ru.HINT_BUILDING
+            return template.format(hero=self.hero_title(hint.hero), item=self.item_title(hint.item),
+                                   component=self.item_title(hint.component or ""),
+                                   counters=self.format_choices(choices))
         if self.item_counters is not None:
             keys = self.item_counters(hint.hero, hint.item)
             if not keys:

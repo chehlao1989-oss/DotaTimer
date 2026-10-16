@@ -35,16 +35,24 @@ class EnemyItems:
 
 
 class ItemTracker:
-    def __init__(self, data: GameData, tagger: MechanicsTagger, min_component_cost: int, hint_min_cost: int = 2000):
+    def __init__(self, data: GameData, tagger: MechanicsTagger, min_component_cost: int, hint_min_cost: int = 2000,
+                 important: set[str] | None = None, likely_parent=None):
+        """likely_parent(герой, [предметы]) → какой из них этот герой обычно собирает (None — неизвестно)."""
         self.data = data
+        self.likely_parent = likely_parent
         self.tagger = tagger
         self.enemies: dict[str, EnemyItems] = {}
         self._said: set[tuple[str, str, str]] = set()  # (вид, герой, предмет) — уже подсказано
-        # важный предмет: с механикой или крупный (от hint_min_cost, как «ключевой предмет» в расчёте советов, спека 3.3);
-        # раньше только с механикой — на Daedalus у Earthshaker подсказки не было (игра 30.09, BUGLOG №30)
-        self._important = {k for k, item in data.items.items() if item.cost > 0 and item.qual not in IGNORED_QUALITIES
-                           and not k.startswith("recipe") and not item.tier
-                           and (self.rules_for(k) or (item.components and item.cost >= hint_min_cost))}
+        if important is not None:
+            # подсказки v2: важны только предметы из таблицы механик с подтверждёнными свойствами — Magic Wand,
+            # Quelling Blade, Helm of Iron Will подсказок не дают никогда (BUGLOG №54)
+            self._important = {k for k in important if k in data.items}
+        else:
+            # важный предмет: с механикой или крупный (от hint_min_cost, как «ключевой предмет» в расчёте советов,
+            # спека 3.3); раньше только с механикой — на Daedalus у Earthshaker подсказки не было (BUGLOG №30)
+            self._important = {k for k, item in data.items.items() if item.cost > 0
+                               and item.qual not in IGNORED_QUALITIES and not k.startswith("recipe") and not item.tier
+                               and (self.rules_for(k) or (item.components and item.cost >= hint_min_cost))}
         # компонент → важные предметы, в которые он входит (с учётом компонентов компонентов)
         self._parents: dict[str, set[str]] = {}
         for big in self._important:
@@ -94,8 +102,17 @@ class ItemTracker:
                 candidates = [b for b in self._parents.get(item, ()) if b not in have]
                 if not candidates:
                     continue
-                # компонент может входить в несколько важных предметов — берём самый дорогой
-                big = max(sorted(candidates), key=lambda b: self.data.items[b].cost)
+                if self.likely_parent is not None:
+                    # что собирает именно этот герой — по доле покупки (recs.zip); по цене угадывать нельзя:
+                    # «самый дорогой» давал Sange → Trident, «самый дешёвый» — Crystalys → Revenant's Brooch (BUGLOG №54)
+                    big = self.likely_parent(hero, sorted(candidates))
+                    if big is None:
+                        log.info("У %s %s: во что соберёт — неизвестно (%s), подсказки нет", hero, item,
+                                 sorted(candidates))
+                        continue
+                else:
+                    # компонент может входить в несколько важных предметов — берём самый дорогой
+                    big = max(sorted(candidates), key=lambda b: self.data.items[b].cost)
                 hint = self._hint(KIND_BUILDING, hero, big, item)
             if hint:
                 hints.append(hint)
@@ -107,4 +124,4 @@ class ItemTracker:
         if key in self._said or (kind == KIND_BUILDING and (KIND_ITEM, hero, item) in self._said):
             return None
         self._said.add(key)
-        return ItemHint(kind, hero, item, component, tuple(self.rules_for(item)))
+        return ItemHint(kind, hero, item, component, tuple(self.rules_for(item)) if self.tagger else ())
