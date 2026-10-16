@@ -204,7 +204,7 @@ class ThreatsController:
         parts = []
         for c in choices:
             item = self.item_title(c.item)
-            reason = ru.MECHANIC_REASONS.get(c.answer) if c.answer != WIKI_HERO else None
+            reason = (ru.PROP_REASONS.get(c.prop) or ru.MECHANIC_REASONS.get(c.answer)) if c.answer != WIKI_HERO else None
             if reason:
                 parts.append((ru.HINT_CHOICE_RARE if c.rare else ru.HINT_CHOICE).format(item=item, reason=reason))
             else:

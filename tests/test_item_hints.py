@@ -48,6 +48,16 @@ def test_real_items_have_answers():
     assert t.vs_hero("phantom_assassin")  # страница Counters вики
 
 
+def test_rule16_slow_items_get_dispel_answers(qapp):
+    """Правило 16 (автор 16.10): Eye of Skadi, Diffusal Blade замедляют → BKB / Manta / Lotus, «снимает замедление»."""
+    t = table()
+    for item in ("skadi", "diffusal_blade"):
+        assert t.props(item) == ("slow",)
+        assert {"black_king_bar", "manta", "lotus_orb"} <= {c.item for c in t.vs_item(item)}
+    picked = choose(t.vs_item("skadi"), {"black_king_bar": 58.4}.get, lambda k: False, 2.0)
+    assert [(c.item, c.prop) for c in picked] == [("black_king_bar", "slow")]
+
+
 def test_unverified_row_is_not_shown():
     """Строка без подтверждения на вики (Solar Crest — снижение брони) в ответы не попадает."""
     t = table()

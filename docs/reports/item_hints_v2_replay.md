@@ -2,8 +2,8 @@
 
 Создано tools/replay_item_hints.py. Доли покупки моего героя — из recs.zip (buys (≥3%)).
 
-- новых предметов у врагов: 99 (замер, лог)
-- подсказок v2: 27; из них на предмет без свойства: 0
+- новых предметов у врагов: 102 (замер, лог)
+- подсказок v2: 31; из них на предмет без свойства: 0
 - предметов из таблицы без подсказки (уже подсказано раньше): 0
 
 | Матч | Время | Мой герой | Враг | Предмет | Было (лог) | Стало (v2) | Почему | Источник |
@@ -22,7 +22,7 @@
 | 9030394291 | 13:14 | неизвестен | disruptor | Maelstrom | У Disruptor появился Maelstrom → Hydra's Breath | Black King Bar (редко на герое) | свойства: magic_damage; ответ: защита от магии | [Black King Bar](https://dota2.fandom.com/wiki/Black_King_Bar) |
 | 9030394291 | 13:14 | неизвестен | disruptor | Phylactery | У Disruptor появился Phylactery → Blink Dagger | — | предмет без опасного свойства — подсказки нет |  |
 | 9030394291 | 13:15 | неизвестен | riki | Butterfly | У Riki появился Butterfly → Monkey King Bar | Monkey King Bar (редко на герое) | свойства: evasion, physical_damage; ответ: пробивает уклонение | [Monkey King Bar](https://dota2.fandom.com/wiki/Monkey_King_Bar) |
-| 9030394291 | 13:15 | неизвестен | riki | Disperser | У Riki появился Disperser → явного ответа нет | — | предмет без опасного свойства — подсказки нет |  |
+| 9030394291 | 13:15 | неизвестен | riki | Disperser | У Riki появился Disperser → явного ответа нет | Black King Bar (редко на герое) | свойства: slow; ответ: снимает с вас контроль | [Black King Bar](https://dota2.fandom.com/wiki/Black_King_Bar) |
 | 9030394291 | 13:15 | неизвестен | riki | Sange and Yasha | У Riki появился Sange and Yasha → явного ответа нет | Shiva's Guard (редко на герое) | свойства: heal, physical_damage; ответ: режет лечение | [Shiva's Guard](https://dota2.fandom.com/wiki/Shiva%27s_Guard) |
 | 9030394291 | 13:21 | неизвестен | naga_siren | Duelist Gloves | — | — | предмет без опасного свойства — подсказки нет |  |
 | 9030394291 | 13:21 | неизвестен | naga_siren | Feverish | — | — | предмет без опасного свойства — подсказки нет |  |
@@ -65,10 +65,10 @@
 | 9047385792 | 15:02 | неизвестен | slark | Magic Stick | У Slark появился Magic Stick → Heart of Tarrasque, Sange and Yasha | — | предмет без опасного свойства — подсказки нет |  |
 | 9047385792 | 15:02 | неизвестен | slark | Quelling Blade | У Slark появился Quelling Blade → Blink Dagger | — | предмет без опасного свойства — подсказки нет |  |
 | 9047385792 | 15:04 | неизвестен | slark | Power Treads | — | — | предмет без опасного свойства — подсказки нет |  |
-| 9047385792 | 15:05 | неизвестен | slark | Blade of Alacrity | — | Shiva's Guard (редко на герое) | собирает Sange and Yasha → свойства: heal, physical_damage; ответ: режет лечение | [Shiva's Guard](https://dota2.fandom.com/wiki/Shiva%27s_Guard) |
+| 9047385792 | 15:05 | неизвестен | slark | Blade of Alacrity | — | Black King Bar (редко на герое) | собирает Diffusal Blade → свойства: slow; ответ: снимает с вас контроль | [Black King Bar](https://dota2.fandom.com/wiki/Black_King_Bar) |
 | 9047385792 | 15:05 | неизвестен | slark | Magic Wand | У Slark появился Magic Wand → Heart of Tarrasque | — | предмет без опасного свойства — подсказки нет |  |
 | 9047385792 | 15:06 | неизвестен | ogre_magi | Mana Draught | — | — | предмет без опасного свойства — подсказки нет |  |
-| 9047385792 | 15:09 | неизвестен | slark | Diffusal Blade | — | — | предмет без опасного свойства — подсказки нет |  |
+| 9047385792 | 15:09 | неизвестен | slark | Diffusal Blade | — | Black King Bar (редко на герое) | свойства: slow; ответ: снимает с вас контроль | [Black King Bar](https://dota2.fandom.com/wiki/Black_King_Bar) |
 | 9047385792 | 15:12 | неизвестен | slark | Armlet of Mordiggian | — | Assault Cuirass (редко на герое) | свойства: physical_damage; ответ: защита от физического урона | [Assault Cuirass](https://dota2.fandom.com/wiki/Assault_Cuirass) |
 | 9047385792 | 15:12 | неизвестен | slark | Sange | У Slark появился Sange → Heart of Tarrasque | Assault Cuirass (редко на герое) | собирает Abyssal Blade → свойства: physical_damage, hard_disable; ответ: защита от физического урона | [Assault Cuirass](https://dota2.fandom.com/wiki/Assault_Cuirass) |
 | 9047385792 | 15:12 | неизвестен | slark | Wind Lace | — | — | предмет без опасного свойства — подсказки нет |  |
@@ -80,8 +80,8 @@
 | 9047385792 | 15:18 | неизвестен | pudge | Reaver | Pudge собирает Overwhelming Blink (есть Reaver) → Black King Bar | Eye of Skadi (редко на герое) | собирает Heart of Tarrasque → свойства: heal; ответ: режет лечение | [Eye of Skadi](https://dota2.fandom.com/wiki/Eye_of_Skadi) |
 | 9047385792 | 15:18 | неизвестен | pudge | Sange | У Pudge появился Sange → Heart of Tarrasque | — | деталь: во что соберёт этот герой — неизвестно |  |
 | 9047385792 | 15:18 | неизвестен | pudge | Aghanim's Scepter | — | — | предмет без опасного свойства — подсказки нет |  |
-| 9047385792 | 15:21 | неизвестен | slark | Disperser | — | — | предмет без опасного свойства — подсказки нет |  |
-| 9047385792 | 15:21 | неизвестен | slark | Eye of Skadi | — | — | предмет без опасного свойства — подсказки нет |  |
+| 9047385792 | 15:21 | неизвестен | slark | Disperser | — | Black King Bar (редко на герое) | свойства: slow; ответ: снимает с вас контроль | [Black King Bar](https://dota2.fandom.com/wiki/Black_King_Bar) |
+| 9047385792 | 15:21 | неизвестен | slark | Eye of Skadi | — | Black King Bar (редко на герое) | свойства: slow; ответ: снимает с вас контроль | [Black King Bar](https://dota2.fandom.com/wiki/Black_King_Bar) |
 | 9047385792 | 15:21 | неизвестен | slark | Aghanim's Scepter | — | — | предмет без опасного свойства — подсказки нет |  |
 | 9047385792 | 15:24 | неизвестен | slark | Octarine Core | У Slark появился Octarine Core → Black King Bar | — | предмет без опасного свойства — подсказки нет |  |
 | 9048052620 | 22:01 | неизвестен | chaos_knight | Gauntlets of Strength | — | — | предмет без опасного свойства — подсказки нет |  |
@@ -107,3 +107,6 @@
 | 9048088403 | 22:33 | skeleton_king | tinker | Radiance | У Tinker появился Radiance → Nullifier | Black King Bar 3% | свойства: magic_damage; ответ: защита от магии | [Black King Bar](https://dota2.fandom.com/wiki/Black_King_Bar) |
 | 9048088403 | 22:34 | skeleton_king | dragon_knight | Mjollnir | — | Black King Bar 3% | свойства: magic_damage; ответ: защита от магии | [Black King Bar](https://dota2.fandom.com/wiki/Black_King_Bar) |
 | 9048088403 | 22:35 | skeleton_king | dragon_knight | Crystalys | — | Assault Cuirass 3%, Blade Mail 3% | собирает Daedalus → свойства: physical_damage; ответ: защита от физического урона | [Assault Cuirass](https://dota2.fandom.com/wiki/Assault_Cuirass) [Blade Mail](https://dota2.fandom.com/wiki/Blade_Mail) |
+| — | 23:36 | huskar | chaos_knight | Bracer | — | — | предмет без опасного свойства — подсказки нет |  |
+| — | 23:37 | huskar | chaos_knight | Quelling Blade | — | — | предмет без опасного свойства — подсказки нет |  |
+| — | 23:37 | huskar | dazzle | Crown | — | — | предмет без опасного свойства — подсказки нет |  |

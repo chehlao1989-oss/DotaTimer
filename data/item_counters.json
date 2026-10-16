@@ -17,7 +17,8 @@
   "saves": [["combo breaker", "ethereal", "cyclone", "push", "invulnerab", "untargetable", "invisib", "dispel"]],
   "spell_block": [["block"]],
   "hard_disable": [["mute", "disarm", "leash", "root", "silence", "hex", "bash", "stun"]],
-  "armor": [["armor"]]
+  "armor": [["armor"]],
+  "slow": [["slow"]]
  },
  "answer_evidence": {
   "heal_reduction": [["reduc"], ["heal", "health restoration", "lifesteal", "regen"]],
@@ -95,7 +96,11 @@
   "helm_of_the_overlord": {"props": ["summons"]},
   "angels_demise": {"props": ["magic_damage"]},
   "revenants_brooch": {"props": ["magic_damage"]},
-  "hydras_breath": {"props": ["physical_damage"]}
+  "hydras_breath": {"props": ["physical_damage"]},
+  "skadi": {"props": ["slow"]},
+  "diffusal_blade": {"props": ["slow"]},
+  "diffusal_blade_2": {"props": ["slow"]},
+  "disperser": {"props": ["slow"]}
  },
  "counters": {
   "heal_reduction": ["skadi", "spirit_vessel", "shivas_guard"],

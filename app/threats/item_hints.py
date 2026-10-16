@@ -36,6 +36,7 @@ class Choice:
     answer: str
     share: float | None  # доля покупки на моём герое, % игр; None — неизвестно
     rare: bool = False  # ни один ответ не берут на моём герое — показан самый универсальный
+    prop: str | None = None  # на какое свойство врага отвечает (для причины словами)
 
 
 class CounterTable:
@@ -127,6 +128,6 @@ def choose(counters: list[Counter], share: Callable[[str], float | None], owned:
     good = [k for k in order if (shares[k] or 0.0) >= min_share]
     if good:
         good.sort(key=lambda k: (-(shares[k] or 0.0), order.index(k)))
-        return [Choice(k, first[k].answer, shares[k]) for k in good[:limit]]
+        return [Choice(k, first[k].answer, shares[k], prop=first[k].prop) for k in good[:limit]]
     best = max(order, key=lambda k: (len(covers[k]), -order.index(k)))
-    return [Choice(best, first[best].answer, shares[best], rare=True)]
+    return [Choice(best, first[best].answer, shares[best], rare=True, prop=first[best].prop)]

@@ -576,6 +576,38 @@
     "verified": false,
     "why": "нет страницы на вики"
    }
+  },
+  "skadi": {
+   "slow": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Eye_of_Skadi",
+    "rev": "2026-07-03T07:00:55Z",
+    "evidence": "slow"
+   }
+  },
+  "diffusal_blade": {
+   "slow": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Diffusal_Blade",
+    "rev": "2024-02-22T05:31:04Z",
+    "evidence": "slow"
+   }
+  },
+  "diffusal_blade_2": {
+   "slow": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Diffusal_Blade",
+    "rev": "2024-02-22T05:31:04Z",
+    "evidence": "slow"
+   }
+  },
+  "disperser": {
+   "slow": {
+    "verified": true,
+    "source": "https://dota2.fandom.com/wiki/Disperser",
+    "rev": "2024-02-22T22:20:30Z",
+    "evidence": "slow"
+   }
   }
  },
  "counters": {

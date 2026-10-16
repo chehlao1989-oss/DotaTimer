@@ -96,12 +96,13 @@ def test_alarm_dispatch_uses_guard():
 
 
 def test_no_hand_written_counter_table():
-    """№8: связок «X против Y» из головы нет; правила механик — ровно 15 утверждённых автором."""
+    """№8: связок «X против Y» из головы нет; правила механик — утверждённые автором: 15 (29.09) и 16-е «замедление»
+    (16.10, подсказки v2). Таблица data/item_counters.json — не «из головы»: каждая строка подтверждена по вики."""
     assert not (ROOT / "data" / "counters.json").exists()
     rules = json.loads((ROOT / "data" / "mechanics.json").read_text(encoding="utf-8"))["rules"]
     assert [r["id"] for r in rules] == ["heal", "evasion", "invisibility", "illusions", "summons", "passives",
                                         "magic_immunity", "mobility", "magic_damage", "physical_damage", "saves",
-                                        "mana", "spell_block", "disables", "armor"]
+                                        "mana", "spell_block", "disables", "armor", "slow"]
 
 
 def test_roles_from_net_worth():

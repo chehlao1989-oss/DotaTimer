@@ -30,8 +30,9 @@ def make():
                            {"alchemist": ("Carry", "Nuker")})
 
 
-def test_rules_are_the_approved_fifteen():
-    assert len(make().rules) == 15
+def test_rules_are_the_approved_sixteen():
+    """15 правил автора (29.09) + 16-е «замедление» (16.10)."""
+    assert len(make().rules) == 16
 
 
 def test_item_answers():
