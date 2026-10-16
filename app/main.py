@@ -186,6 +186,7 @@ def main() -> None:
     # окна поверх игры и «зрение» — на мониторе, где Дота (игра автора 15.10 на втором мониторе, BUGLOG №51)
     game_screen = GameScreenTracker()
     game_screen.changed.connect(lambda: (overlay.relayout(), strip.relayout()))
+    game_screen.checked.connect(lambda: (overlay.keep_on_game_screen(), strip.keep_on_game_screen()))
     game_screen.start()
     overlay.show()
     if not args.minimized:

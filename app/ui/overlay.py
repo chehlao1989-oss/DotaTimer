@@ -9,6 +9,7 @@
 - режим «Настроить расположение»: окно можно тащить мышью, колесо меняет размер,
   Ctrl+колесо меняет прозрачность, правый клик завершает настройку.
 """
+import logging
 import re
 from pathlib import Path
 
@@ -20,6 +21,8 @@ from app.config import OverlaySettings
 from app.i18n import ru
 from app.ui.game_screen import current_screen
 from app.ui.outlined_label import OutlinedLabel
+
+log = logging.getLogger(__name__)
 
 # 440 → 560: карточка угроз переносилась посреди фраз (предпросмотр 30.09); 560 → 700: в подсказке с иконками
 # «… Silver Edge» переносилось в 4 строки (предпросмотр 01.10, BUGLOG №35)
@@ -122,6 +125,17 @@ class DraggableOverlay(QWidget):
         else:
             x, y = origin.x() + self.settings.x, origin.y() + self.settings.y
         self.move(*clamp_to_screen(x, y, width, height, screen))
+
+    def keep_on_game_screen(self) -> None:
+        """Окно не на мониторе игры — вернуть (BUGLOG №53): 16.10 окно сообщений оказалось на основном мониторе
+        (1480, 655), хотя Дота на втором и место не сохранено; кто его сдвинул, по логу не видно."""
+        if self._layout_mode or not self.isVisible():
+            return
+        game = current_screen().geometry()
+        if game.contains(self.geometry()):
+            return
+        log.warning("%s не на мониторе игры (%d, %d) — переставляю", type(self).__name__, self.x(), self.y())
+        self.relayout()
 
     def _save_position(self) -> None:
         origin = current_screen().geometry().topLeft()

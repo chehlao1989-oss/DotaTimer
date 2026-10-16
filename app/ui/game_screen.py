@@ -65,6 +65,7 @@ class GameScreenTracker(QObject):
     """Следит, на каком мониторе Дота. changed — монитор сменился (окна переставить)."""
 
     changed = Signal()
+    checked = Signal()  # каждая проверка (раз в CHECK_INTERVAL_MS): окна сверяют, что стоят на мониторе игры
 
     def __init__(self, finder=find_game_monitor):
         super().__init__()
@@ -80,11 +81,11 @@ class GameScreenTracker(QObject):
 
     def check(self) -> None:
         rect = self._finder()
-        if rect is None or rect == self.rect:
-            return
-        self.rect = rect
-        log.info("Дота на мониторе %s, %dx%d", f"{rect[0]},{rect[1]}", rect[2], rect[3])
-        self.changed.emit()
+        if rect is not None and rect != self.rect:
+            self.rect = rect
+            log.info("Дота на мониторе %s, %dx%d", f"{rect[0]},{rect[1]}", rect[2], rect[3])
+            self.changed.emit()
+        self.checked.emit()
 
     def screen(self) -> QScreen:
         return screen_for(self.rect)

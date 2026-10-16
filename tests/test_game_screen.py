@@ -80,3 +80,28 @@ def test_vision_picks_game_monitor():
     assert pick_monitor(monitors, (2560, 0, 1920, 1080)) is monitors[2]
     assert pick_monitor(monitors, None) is monitors[1]
     assert pick_monitor(monitors, (100, 100, 800, 600)) is monitors[1]
+
+
+def test_moved_window_returns_to_game_monitor(qapp, tmp_path, monkeypatch):
+    """Окно сообщений сдвинуто на основной монитор (как 16.10: 1480, 655) — проверка возвращает его на монитор
+    игры (BUGLOG №53)."""
+    from app.ui.overlay import Overlay
+    on_second_monitor(monkeypatch)
+    overlay = Overlay(OverlaySettings(), tmp_path)
+    overlay.show()
+    qapp.processEvents()
+    overlay.move(1480, 655)
+    overlay.keep_on_game_screen()
+    assert SECOND.contains(overlay.geometry())
+    overlay.close()
+
+
+def test_tracker_checks_every_time(qapp):
+    """Сигнал проверки — на каждом тике, даже если монитор не менялся (по нему окна сверяют своё место)."""
+    from app.ui.game_screen import GameScreenTracker
+    tracker = GameScreenTracker(finder=lambda: (2560, 0, 1920, 1080))
+    ticks = []
+    tracker.checked.connect(lambda: ticks.append(1))
+    tracker.check()
+    tracker.check()
+    assert len(ticks) == 2
