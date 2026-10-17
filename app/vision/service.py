@@ -7,6 +7,7 @@
 import logging
 import threading
 import time
+from collections import Counter
 
 import numpy as np
 from PySide6.QtCore import QObject, Signal
@@ -23,6 +24,7 @@ log = logging.getLogger(__name__)
 
 INVENTORY_INTERVAL_SEC = 0.4  # ~2.5 раза в секунду
 IDLE_SLEEP_SEC = 0.5
+SUMMARY_SEC = 60  # раз в столько секунд — сводка в лог: сколько раз смотрели на панель и кто был выделен (BUGLOG №56)
 
 
 def pick_monitor(monitors: list[dict], wanted: Rect | None) -> dict:
@@ -108,14 +110,22 @@ class VisionService(QObject):
         heroes = IconLibrary.from_files(
             {p.stem: p for p in (self.cache.root / "images" / "heroes").glob("*.png")}, top.w, top.h)
         items, neutral = self._libraries(layout)
+        seen: Counter = Counter()
+        summary_at = time.monotonic() + SUMMARY_SEC
         while not self._stop.is_set() and current_monitor() == wanted:
+            if time.monotonic() >= summary_at:
+                if seen:  # клики по врагам терялись без следа (катка 17.10): видно, доходят ли они до зрения
+                    log.info("Зрение за минуту: снимков %d, выделен: %s", sum(seen.values()),
+                             ", ".join(f"{h or 'не узнан'} {n}" for h, n in seen.most_common()))
+                seen.clear()
+                summary_at = time.monotonic() + SUMMARY_SEC
             if self._topbar_requested.is_set():
                 self._topbar_requested.clear()
                 self._scan_topbar(screen, monitor, layout, heroes)
             if self._active.is_set() and self._names is not None:
                 if self._reader is None:
                     self._reader = InventoryReader(layout, items, neutral, self._names)
-                self._scan_inventory(screen, monitor, layout)
+                seen[self._scan_inventory(screen, monitor, layout)] += 1
                 time.sleep(INVENTORY_INTERVAL_SEC)
             else:
                 time.sleep(IDLE_SLEEP_SEC)
@@ -137,3 +147,4 @@ class VisionService(QObject):
         snapshot = self._reader.read(self._grab(screen, monitor, area), area)
         if snapshot.hero:
             self.inventory_seen.emit(snapshot)
+        return snapshot.hero

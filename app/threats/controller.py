@@ -62,6 +62,7 @@ class ThreatsController:
         self._topbar_tries = 0
         self._next_topbar_at: int | None = None
         self._was_alive: bool | None = None
+        self._dropped: set[str] = set()  # выделенные герои, чьи снимки пропущены (в лог один раз за катку)
         self.card_duration: float | None = None  # сколько секунд держать полную карточку
         self.card_items = None  # функция: герой-угроза → строка советов из модуля рекомендаций
         self.on_enemies_changed = None  # служба пересчитывает рекомендации
@@ -105,6 +106,7 @@ class ThreatsController:
     # --- матч ---
     def new_match(self) -> None:
         self.tracker.reset()
+        self._dropped.clear()
         self.enemies, self.threats = [], []
         self.allies = []
         self._topbar_tries = 0
@@ -263,6 +265,9 @@ class ThreatsController:
     # --- инвентарь врагов ---
     def on_inventory(self, snapshot: InventorySnapshot, clock: int | None) -> None:
         if clock is None or snapshot.hero not in self.enemies or not self.settings.enabled:
+            if snapshot.hero != self.own_hero and snapshot.hero not in self._dropped:
+                self._dropped.add(snapshot.hero)  # один раз за катку: почему выделенный герой не дал событий
+                log.info("Выделен %s — пропущен (время %s, враги %s)", snapshot.hero, clock, self.enemies)
             return
         # подсказка — по любому врагу, по которому кликнули (раньше только по двум угрозам, BUGLOG №30)
         for hint in self.tracker.update(snapshot.hero, snapshot.items, clock, set(self.enemies)):
