@@ -13,7 +13,7 @@ from pathlib import Path
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication, QMessageBox
 
-from app import paths
+from app import crash, paths
 from app.config import load_settings, save_settings
 from app.core import TimerApp
 from app.gsi import installer
@@ -105,6 +105,7 @@ def selftest(report: Path) -> int:
                 raise RuntimeError(f"нет в сборке: {', '.join(missing)}")
             return f"{len(ru.VOICE_PHRASES)} фраз"
         step("голосовые фразы в программе", bundled_voice)
+        step("сторож и запись падений", lambda: __import__("app.supervisor") and None)  # BUGLOG №57
         core = step("таймеры", lambda: TimerApp(settings, overlay, voice))
         hotkeys = step("горячие клавиши", HotkeyManager)
         threats = step("угрозы", lambda: ThreatsService(settings.threats, core.say,
@@ -131,11 +132,13 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Dota таймер")
     parser.add_argument("--minimized", action="store_true", help="запуститься свёрнутым в трей")
     parser.add_argument("--selftest", metavar="ФАЙЛ", help="самопроверка собранной программы, итог — в ФАЙЛ")
+    parser.add_argument("--child", action="store_true", help=argparse.SUPPRESS)  # запущена сторожем (app/supervisor.py)
     args = parser.parse_args()
     if args.selftest:
         sys.exit(selftest(Path(args.selftest)))
 
     setup_logging()
+    crash.install(paths.logs_dir())  # падения и необработанные ошибки — в лог и crash.log (BUGLOG №57)
     log.info("Запуск")
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)  # закрытое окно прячется в трей

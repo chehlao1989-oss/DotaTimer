@@ -165,6 +165,12 @@ A_союз = P(H берёт Y | S в команде) − P(H берёт Y | S н
 Не менять без: решения автора; строки таблицы — только с подтверждением по вики (tools/check_item_counters.py).
 Где в коде: app/threats/item_hints.py: CounterTable, choose, pick_parent; data/item_counters.json, data/item_counters_checked.json, data/benchmark_counters.json; data/threats.json: item_hints; tools/compute_recs.py: finish (buy_share); data/recs_config.json: buy_share_floor; app/threats/tracker.py: important, likely_parent; tools/check_item_counters.py; tools/replay_item_hints.py
 
+### №31 Программа у игрока запускается через сторож; падения пишутся со стеком
+Автозапуск (run_dotatimer.pyw) и exe — сторож app/supervisor.py: перезапуск в трей, если программа умерла не через «Выход»; больше 5 падений за 10 мин — остановка. Стек падения — logs/crash.log (faulthandler). Запуск из PyCharm (python -m app.main) — без сторожа.
+Замер/источник: BUGLOG №57 — 4 тихих падения 16–18.10 (pyside6.abi3.dll), стека не было. Дата: 19.10.2026
+Не менять без: решения автора.
+Где в коде: app/supervisor.py: MAX_RESTARTS, RESTART_WINDOW_SEC, RESTART_DELAY_SEC; app/crash.py; run_dotatimer.pyw; packaging/launcher.py
+
 ### №29 Голосовые фразы — в программе (assets/voice, голос Microsoft Dmitry), генерация у игрока — только запасная
 13 фраз MP3 и опись phrases.json (ключ → текст) в репозитории и в сборке; программа берёт фразу из программы, если она записана нынешним текстом из ru.py, иначе генерирует у игрока. Риск по правам (у голосов Edge нет явного разрешения раздавать записи) автор принял: программа бесплатная, для своих.
 Замер/источник: BUGLOG №50 — с 15.10 Microsoft отвечает 403 edge-tts 7.2.8, у новых игроков 0 фраз; edge-tts 7.3.1 записала 13 из 13 (15.10), ~150 КБ. Решение автора 15.10 (вариант 1 из 3: Microsoft в сборке / свободный голос / оба). Дата: 15.10.2026
