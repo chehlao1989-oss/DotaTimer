@@ -37,7 +37,8 @@ COLOR_AFFORDABLE = QColor("#c9a45c")
 COLOR_HIGHLIGHT = QColor("#ffd33d")
 CAPTION_COLOR = QColor("#dfe6ee")
 NAME_COLOR = QColor("#ffd27a")  # название предмета — золотом, как цены в магазине Доты
-PANEL_STYLE = "QWidget#panel { background: rgba(12, 14, 18, 200); border-radius: 8px; }"
+PANEL_STYLE = ("QWidget#panel { background: rgba(12, 14, 18, 200); border-radius: 8px; } "
+               "QWidget#content, QWidget#content QLabel { background: transparent; }")
 
 
 def _pixmap(path: Path, w: int, h: int) -> QPixmap:
@@ -81,12 +82,16 @@ class ThreatStrip(DraggableOverlay):
         self._panel = QWidget(self, objectName="panel")
         self._panel.setStyleSheet(PANEL_STYLE)
         outer.addWidget(self._panel)
-        self._row = QHBoxLayout(self._panel)
+        self._box = QVBoxLayout(self._panel)
+        self._box.setContentsMargins(0, 0, 0, 0)
+        self._content: QWidget | None = None  # содержимое: портреты, иконки, подписи — пересобирается целиком
+        self._shown = None  # что сейчас нарисовано: одинаковое не пересобираем
         self.relayout()
         if not settings.visible:
             self.hide()
 
     def relayout(self) -> None:
+        self._shown = None  # масштаб или экран поменялись — пересобрать обязательно
         self._render()
 
     def update_recommendations(self, recs: list[ThreatRecommendation], titles: dict[str, str]) -> None:
@@ -128,67 +133,81 @@ class ThreatStrip(DraggableOverlay):
         self.settings.visible = not self.settings.visible
         self.setVisible(self.settings.visible and (bool(self._recs) or self._layout_mode))
 
-    def _clear(self, layout=None) -> None:
-        """Убрать прошлые портреты, иконки и подписи. Рекурсивно: подписи лежат во вложенных столбцах —
-        без этого старые «+3%» оставались висеть за портретом (игра 30.09, BUGLOG №29)."""
-        layout = layout if layout is not None else self._row
-        while layout.count():
-            item = layout.takeAt(0)
-            if item.widget():
-                item.widget().hide()
-                item.widget().deleteLater()
-            elif item.layout():
-                self._clear(item.layout())
-                item.layout().deleteLater()
+    def _view(self, recs) -> tuple:
+        """Что должно быть нарисовано: если не изменилось, полоску не пересобираем (раньше — при каждом
+        пересчёте советов раз в 30 с игры и на каждый таймер; падения 16–19.10 — внутри пересборки, BUGLOG №57)."""
+        return (round(self.factor(), 3), self._layout_mode, tuple(
+            (rec.hero, self._titles.get(rec.hero), tuple(
+                (i.item, i.bought, i.affordable, (rec.hero, i.item) in self._highlight,
+                 self._titles.get(i.item) if (rec.hero, i.item) in self._named else None, self._caption(i))
+                for i in rec.items)) for rec in recs))
 
     def _render(self) -> None:
+        # угроза без «настоящего контр-предмета» (DECISIONS №22) остаётся на полоске с подписью «нет явного ответа»:
+        # пустая полоска выглядела как поломка (игра автора 15.10, Huskar против Sand King и Sven)
+        recs = self._recs or ([] if not self._layout_mode else [ThreatRecommendation("", ())])
+        view = self._view(recs)
+        if view != self._shown:
+            self._shown = view
+            self._rebuild(recs)
+        self._panel.adjustSize()
+        self.adjustSize()
+        width, height = self.sizeHint().width(), self.sizeHint().height()
+        self.place(width, height, self._default_pos)
+
+    def _rebuild(self, recs) -> None:
+        """Собрать содержимое заново в новом виджете и заменить старый целиком.
+
+        У каждого элемента с момента создания есть владелец в Qt (виджет content), старое содержимое удаляется
+        одним deleteLater. Раньше элементы вынимались из разметки по одному (takeAt) и удалялись то Python,
+        то Qt — все три стека падений 19.10 (crash.log) приходятся на пересборку полоски (BUGLOG №57)."""
         f = self.factor()
         pw, ph = round(PORTRAIT_W * f), round(PORTRAIT_H * f)
         iw, ih = round(ICON_W * f), round(ICON_H * f)
         spacing = round(8 * f)
-        self._clear()
-        self._row.setContentsMargins(spacing, spacing, spacing, spacing)
-        self._row.setSpacing(spacing * 2)
-        # угроза без «настоящего контр-предмета» (DECISIONS №22) остаётся на полоске с подписью «нет явного ответа»:
-        # пустая полоска выглядела как поломка (игра автора 15.10, Huskar против Sand King и Sven)
-        recs = self._recs or ([] if not self._layout_mode else [ThreatRecommendation("", ())])
+        content = QWidget(self._panel, objectName="content")
+        row = QHBoxLayout(content)
+        row.setContentsMargins(spacing, spacing, spacing, spacing)
+        row.setSpacing(spacing * 2)
         for rec in recs:
             column = QVBoxLayout()
+            row.addLayout(column)  # сразу в разметку content: дальше у всего внутри один владелец
             column.setSpacing(round(4 * f))
-            portrait = QLabel()
+            portrait = QLabel(content)
             portrait.setPixmap(_pixmap(self.images_dir / "heroes" / f"{rec.hero}.png", pw, ph))
             column.addWidget(portrait, alignment=Qt.AlignHCenter)
             title = self._titles.get(rec.hero, ru.STRIP_LAYOUT if self._layout_mode else rec.hero)
-            name = OutlinedLabel(title, overlay_font(round(CAPTION_PX * f)))
-            column.addWidget(name, alignment=Qt.AlignHCenter)
+            column.addWidget(OutlinedLabel(title, overlay_font(round(CAPTION_PX * f)), parent=content),
+                             alignment=Qt.AlignHCenter)
             icons = QHBoxLayout()
+            column.addLayout(icons)
             icons.setSpacing(round(12 * f))  # иначе прибавки «+14%» соседних иконок слипаются
             for item in rec.items:
                 cell = QVBoxLayout()
+                icons.addLayout(cell)
                 cell.setSpacing(0)
-                icon = QLabel()
+                icon = QLabel(content)
                 icon.setPixmap(item_icon(self.images_dir / "items" / f"{item.item}.png", iw, ih, item.bought,
                                          item.affordable, (rec.hero, item.item) in self._highlight))
                 cell.addWidget(icon, alignment=Qt.AlignHCenter)
                 name = self._titles.get(item.item)
                 if name and (rec.hero, item.item) in self._named:
                     cell.addWidget(OutlinedLabel(name, overlay_font(round((CAPTION_PX - 1) * f)),
-                                                 round(iw * NAME_WRAP_ICONS), color=NAME_COLOR),
+                                                 round(iw * NAME_WRAP_ICONS), color=NAME_COLOR, parent=content),
                                    alignment=Qt.AlignHCenter)
-                caption = OutlinedLabel(self._caption(item), overlay_font(round((CAPTION_PX - 1) * f)),
-                                        color=CAPTION_COLOR)
-                cell.addWidget(caption, alignment=Qt.AlignHCenter)
-                icons.addLayout(cell)
+                cell.addWidget(OutlinedLabel(self._caption(item), overlay_font(round((CAPTION_PX - 1) * f)),
+                                             color=CAPTION_COLOR, parent=content), alignment=Qt.AlignHCenter)
             if rec.hero and not rec.items:
                 icons.addWidget(OutlinedLabel(ru.STRIP_NO_ANSWER, overlay_font(round((CAPTION_PX - 1) * f)),
-                                              round(pw * 1.2), color=CAPTION_COLOR), alignment=Qt.AlignHCenter)
-            column.addLayout(icons)
+                                              round(pw * 1.2), color=CAPTION_COLOR, parent=content),
+                                alignment=Qt.AlignHCenter)
             column.addStretch(1)  # портреты всех угроз — на одной высоте, даже без иконок под ними
-            self._row.addLayout(column)
-        self._panel.adjustSize()
-        self.adjustSize()
-        width, height = self.sizeHint().width(), self.sizeHint().height()
-        self.place(width, height, self._default_pos)
+        old, self._content = self._content, content
+        self._box.addWidget(content)
+        if old is not None:
+            self._box.removeWidget(old)
+            old.hide()
+            old.deleteLater()
 
     def _default_pos(self, screen, w: int, h: int):
         """Справа вверху: под полосой FPS, с отступом MARGIN от правого края."""

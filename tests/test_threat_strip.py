@@ -183,3 +183,33 @@ def test_strip_keeps_threats_without_answer(qapp, tmp_path):
     texts = [label._text for label in strip.findChildren(OutlinedLabel) if label.isVisibleTo(strip)]
     assert texts.count(ru.STRIP_NO_ANSWER) == 2 and "Sand King" in texts
     strip.close()
+
+
+def test_strip_not_rebuilt_without_changes(qapp, tmp_path):
+    """Те же советы (пересчёт раз в 30 с игры) — полоска не пересобирается; изменились — новое содержимое целиком,
+    старое удаляется одним deleteLater (падения 16–19.10 — внутри пересборки, BUGLOG №57)."""
+    import shiboken6
+    from PySide6.QtCore import QCoreApplication, QEvent
+    from app.ui.threat_strip import ThreatStrip
+    strip = ThreatStrip(StripSettings(), tmp_path)
+    recs = [ThreatRecommendation("axe", (RecItem("blade_mail", 1, "mechanic", None, 0),))]
+    strip.update_recommendations(recs, {"axe": "Axe"})
+    strip._named.clear()
+    strip._render()
+    first = strip._content
+    for _ in range(5):
+        strip.update_recommendations(recs, {"axe": "Axe"})
+    assert strip._content is first  # ничего не поменялось — тот же виджет
+    strip.update_recommendations([ThreatRecommendation("axe", (RecItem("black_king_bar", 1, "mechanic", None, 0),))],
+                                 {"axe": "Axe"})
+    assert strip._content is not first
+    QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+    assert not shiboken6.isValid(first)
+    strip.close()
+
+
+def test_strip_code_has_no_piecewise_takeat():
+    """Пересборка без takeAt: элементы не вынимаются из разметки по одному (BUGLOG №57)."""
+    from pathlib import Path
+    source = (Path(__file__).parent.parent / "app" / "ui" / "threat_strip.py").read_text(encoding="utf-8")
+    assert ".takeAt(" not in source
