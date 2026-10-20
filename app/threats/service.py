@@ -78,6 +78,8 @@ class ThreatsService(QObject):
         self._rec_key = None  # с какими данными пересчитывали рекомендации в последний раз
         self._last_recs = {}
         self._gold: int | None = None
+        self._match_heroes: list[str] = []  # герои с верхней панели (уверенно узнанные)
+        self._name_candidates: list[str] = []  # кому сейчас сверяем имя на нижней панели
         self._v2_first: dict[str, str] = {}  # подсказки v2: угроза → первый совет на полоске (подсветка смены)
         self._v2_choices: dict[str, list] = {}  # угроза → выбранные ответы (для карточки, с пометкой «редко»)
         self._shares_key = None
@@ -236,6 +238,7 @@ class ThreatsService(QObject):
         if state.match_id and state.match_id != self._match_id:
             self._match_id = state.match_id
             self.controller.new_match()
+            self._match_heroes = []  # герои прошлой катки в кандидатах имён не нужны
             if self.recommender is not None:
                 self.recommender.reset()
             if self.strip is not None:
@@ -251,6 +254,7 @@ class ThreatsService(QObject):
             self._request_rank(state.account_id)
         need_topbar = self.controller.on_game_state(state.clock_time, in_progress, state.hero_name, state.team,
                                                     state.hero_alive, set(state.own_items))
+        self._update_name_candidates()  # мой герой мог стать известен уже после снимка верхней панели
         if self.vision is not None:
             self.vision.set_active(in_progress and not state.paused and self.settings.enabled)
             if need_topbar:
@@ -272,8 +276,19 @@ class ThreatsService(QObject):
     def _on_topbar(self, result) -> None:
         if self.controller is None:
             return
-        heroes = self.controller.on_topbar(result)
-        if heroes and self.vision is not None:
+        self._match_heroes = self.controller.on_topbar(result)
+        self._update_name_candidates()
+
+    def _update_name_candidates(self) -> None:
+        """Имена-кандидаты для нижней панели: герои с верхней панели и всегда мой герой (он известен из GSI).
+        Без своего героя его имя не узнавалось или читалось как имя врага, и мои предметы записывались врагу:
+        19.10 у Ogre Magi и Viper — сборка моего Huskar, у Io — сборка Storm Spirit (BUGLOG №58)."""
+        own = self.controller.own_hero if self.controller else None
+        heroes = list(self._match_heroes)
+        if own and own not in heroes:
+            heroes.append(own)
+        if heroes and self.vision is not None and heroes != self._name_candidates:
+            self._name_candidates = heroes
             self.vision.set_match_heroes(heroes)
 
     def _on_inventory(self, snapshot) -> None:

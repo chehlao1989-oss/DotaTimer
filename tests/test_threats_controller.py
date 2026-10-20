@@ -126,3 +126,30 @@ def test_overlay_hint_when_left_portraits_missing():
                 clock += 1
             ctrl.on_topbar(result)
         assert shown[-1][0] == expected
+
+
+def test_own_inventory_under_enemy_name_is_dropped():
+    """Снимок «врага» с моими предметами — мой герой, прочитанный под чужим именем: не событие врага (BUGLOG №58).
+    19.10: у Ogre Magi и Viper записана сборка моего Huskar."""
+    ctrl, shown = make()
+    ctrl.enemies = ["ogre_magi", "viper"]
+    huskar = {"blade_mail", "blitz_knuckles", "power_treads", "sange_and_yasha", "satanic"}
+    ctrl.on_game_state(600, True, "npc_dota_hero_huskar", "radiant", True, huskar | {"tango"})
+    ctrl.on_inventory(InventorySnapshot("ogre_magi", tuple(sorted(huskar)) + (None,), (None, None, None), None), 600)
+    assert "ogre_magi" not in ctrl.tracker.enemies or not ctrl.tracker.enemies["ogre_magi"].items
+    ctrl.on_inventory(InventorySnapshot("viper", ("satanic", "skadi", "dragon_lance", "power_treads", None, None),
+                                        (None, None, None), None), 610)
+    assert "skadi" in ctrl.tracker.enemies["viper"].items  # настоящий инвентарь врага — проходит
+
+
+def test_own_hero_always_among_name_candidates():
+    """Мой герой (из GSI) всегда среди имён для нижней панели, даже если на верхней он не узнан (BUGLOG №58)."""
+    from types import SimpleNamespace
+    from app.threats.service import ThreatsService
+    sent = []
+    fake = SimpleNamespace(controller=SimpleNamespace(own_hero="huskar"), _match_heroes=["ogre_magi", "viper"],
+                           _name_candidates=[], vision=SimpleNamespace(set_match_heroes=sent.append))
+    ThreatsService._update_name_candidates(fake)
+    assert sent == [["ogre_magi", "viper", "huskar"]]
+    ThreatsService._update_name_candidates(fake)
+    assert len(sent) == 1  # без изменений — заново не пересобираем

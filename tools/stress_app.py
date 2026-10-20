@@ -4,11 +4,12 @@
 можно запускать, даже когда работает программа автора. Время записи ускоряется в --speed раз. Вместо зрения стенд
 сам подкладывает верхнюю панель (5 врагов) и «клики по врагам» с растущим инвентарём — работают подсказки и полоска.
 Настройки, кеш и логи — во временной папке (копия %APPDATA%\\DotaTimer без логов и записей).
-Итог: код выхода программы, последние строки её лога и crash.log; 0 — дошла до конца записи и вышла сама.
+Голос стенда немой (только строка в логе). Итог: код выхода программы, последние строки её лога и crash.log; 0 — дошла до конца записи и вышла сама.
 
 Запуск: python tools/stress_app.py [--recording файл.jsonl] [--speed 20] [--offscreen]
 """
 import argparse
+import logging
 import json
 import os
 import random
@@ -87,6 +88,10 @@ def child(recording: Path, speed: float, clicks: float) -> None:
             time.sleep(3)
             QMetaObject.invokeMethod(QCoreApplication.instance(), "quit", Qt.QueuedConnection)
 
+    # голос не в колонки: 20.10 прогон стенда полчаса говорил фразы автору, пока тот работал (стенд — немой)
+    import app.notify.voice as voice_mod
+    voice_mod.VoicePlayer.play = lambda self, key: logging.getLogger("stress").info("Голос: %s (без звука)", key)
+    voice_mod.VoicePlayer.preload = lambda self, keys: None
     main_mod.GsiServer = FakeServer
     sys.argv = [sys.argv[0], "--minimized", "--child"]
     main_mod.main()

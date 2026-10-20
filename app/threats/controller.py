@@ -23,6 +23,9 @@ log = logging.getLogger(__name__)
 ROLE_AUTO = "auto"
 TOPBAR_RETRY_SEC = 20  # если не все враги узнаны, повторяем снимок через столько секунд игры
 TOPBAR_MAX_TRIES = 5
+# снимок «врага» считается моим героем, если совпало от 80% заметных предметов и их хотя бы 3 (BUGLOG №58:
+# у Ogre Magi и Viper записаны 5 из 5 предметов моего Huskar); порог — не игровое число, а проверка совпадения
+OWN_MATCH_SHARE, OWN_MATCH_MIN = 0.8, 3
 OVERLAY_SLOTS = {0, 1}  # места на панели, которые закрывает строка оверлея FPS слева вверху (BUGLOG №55)
 
 
@@ -263,7 +266,21 @@ class ThreatsController:
             self.show(text, True, "threat", self.card_duration)
 
     # --- инвентарь врагов ---
+    def looks_like_mine(self, items: set[str]) -> bool:
+        """Снимок «врага» с моими предметами — это мой герой, прочитанный под чужим именем (BUGLOG №58).
+        Мой инвентарь известен из GSI; совпало от OWN_MATCH_SHARE заметных предметов (не расходников)."""
+        mine = {i for i in self.own_items if not self.tracker._ignored(i)}
+        seen = {i for i in items if not self.tracker._ignored(i)}
+        if len(mine) < OWN_MATCH_MIN or len(seen) < OWN_MATCH_MIN:
+            return False
+        return len(mine & seen) >= OWN_MATCH_SHARE * max(len(mine), len(seen))
+
     def on_inventory(self, snapshot: InventorySnapshot, clock: int | None) -> None:
+        if snapshot.hero in self.enemies and self.looks_like_mine(snapshot.items):
+            if ("mine", snapshot.hero) not in self._dropped:
+                self._dropped.add(("mine", snapshot.hero))
+                log.info("Снимок %s совпадает с моим инвентарём — это мой герой, пропущен", snapshot.hero)
+            return
         if clock is None or snapshot.hero not in self.enemies or not self.settings.enabled:
             if snapshot.hero != self.own_hero and snapshot.hero not in self._dropped:
                 self._dropped.add(snapshot.hero)  # один раз за катку: почему выделенный герой не дал событий
