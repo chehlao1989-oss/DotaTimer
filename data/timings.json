@@ -104,17 +104,6 @@
       "checked_patch": "7.41f",
       "verified": true
     },
-    "siege_creeps": {
-      "kind": "periodic",
-      "first": 300,
-      "interval": 300,
-      "warn_before": [
-        10
-      ],
-      "source": "https://liquipedia.net/dota2/Siege_Creep ; https://www.dota2.com/patches/7.41",
-      "checked_patch": "7.41f",
-      "verified": true
-    },
     "neutral_tier": {
       "kind": "at_times",
       "times": [
@@ -169,10 +158,6 @@
       "source": "https://liquipedia.net/dota2/Tormentor",
       "verified": false,
       "unverified_note": "5 мин взято из выдержки поиска по Liquipedia, прямого источника нет; проверить в игре"
-    },
-    "siege_creeps": {
-      "verified": false,
-      "unverified_note": "для Turbo данных нет, взяты обычные"
     },
     "neutral_tier": {
       "times": [

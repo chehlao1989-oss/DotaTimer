@@ -48,10 +48,11 @@ def test_bounty_and_water_merge_into_one_message(config):
     assert len(voices) == 1
 
 
-def test_night_merges_with_siege_creeps(config):
+def test_no_siege_creeps(config):
+    """Осадные крипы убраны (решение автора 20.10): на 4:45 в пресете «Всё» — только ночь."""
     log = simulate(NotifySettings("all"), config, 270, 300)
     texts, voices = at(log, 285)
-    assert texts == ("Ночь через 15 сек\nОсадные крипы через 10 сек",)
+    assert texts == ("Ночь через 15 сек",)
     assert voices == ("night",)
 
 

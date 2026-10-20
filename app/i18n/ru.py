@@ -28,14 +28,12 @@ MSG_SIMPLE = {
     "water_rune": "Водные руны через {sec} сек",
     "shrine_of_wisdom": "Святилище мудрости через {sec} сек",
     "lotus": "Лотос через {sec} сек",
-    "siege_creeps": "Осадные крипы через {sec} сек",
 }
 VOICE_KEY_BY_EVENT = {
     "bounty_rune": "bounty",
     "water_rune": "water",
     "shrine_of_wisdom": "shrine",
     "lotus": "lotus",
-    "siege_creeps": "siege",
 }
 
 # --- Оверлей ---
@@ -48,7 +46,7 @@ OVERLAY_DEMO = [
     ("Руна силы на 6:00, подтягивайтесь к реке", True),
     ("Баунти через 10 сек\nВодные руны через 10 сек", False),
     ("Терзатель появился у Света (внизу справа)", False),
-    ("Ночь через 15 сек\nОсадные крипы через 10 сек", False),
+    ("Ночь через 15 сек", False),
 ]
 
 # --- Угрозы и предметы ---
@@ -140,7 +138,6 @@ EVENT_TITLES = {
     "tormentor_spawn": "Терзатель: первое появление",
     "tormentor_respawn": "Терзатель: повторное появление",
     "day_night": "День и ночь",
-    "siege_creeps": "Осадные крипы",
     "neutral_tier": "Нейтралки: новый тир",
 }
 CHECK_FIRST_POWER_RUNE = "Первая руна силы (6:00): предупреждать за 30 и за 10 сек"
@@ -276,7 +273,6 @@ VOICE_PHRASES = {
     "water": "Вода",
     "shrine": "Мудрость",
     "lotus": "Лотос",
-    "siege": "Катапульты",
     "night": "Скоро ночь",
     "day": "Рассвет",
     "tormentor": "Терзатель",
