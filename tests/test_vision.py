@@ -123,3 +123,18 @@ def test_gold_hero_name_is_read(qapp):
     assert matcher.match(cv2.imread(str(folder / "gold_meepo.png")), scale) == "meepo"
     # на этом кадре слабые пороги давали Bloodseeker — предметы своего героя приписались бы врагу
     assert matcher.match(cv2.imread(str(folder / "gold_windranger_trap.png")), scale) in ("windrunner", None)
+
+
+def test_debug_image_saved_when_names_unknown(monkeypatch, tmp_path):
+    """Имя не узнаётся почти весь минутный отрезок — картинка нижней панели в logs/vision_debug, не больше 3
+    (20.10: «не узнан» 99–100% в двух катках, по логу причину не понять, BUGLOG №58)."""
+    import numpy as np
+    import app.vision.service as vs
+    from app import paths
+    monkeypatch.setattr(paths, "logs_dir", lambda: tmp_path)
+    service = vs.VisionService.__new__(vs.VisionService)
+    service._last_unknown = np.zeros((20, 40, 3), np.uint8)
+    for _ in range(vs.DEBUG_MAX_PER_RUN + 2):
+        service._save_debug()
+    assert len(list((tmp_path / "vision_debug").glob("*.png"))) >= 1
+    assert service._debug_saved == vs.DEBUG_MAX_PER_RUN

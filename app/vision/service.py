@@ -24,7 +24,11 @@ log = logging.getLogger(__name__)
 
 INVENTORY_INTERVAL_SEC = 0.4  # ~2.5 раза в секунду
 IDLE_SLEEP_SEC = 0.5
-SUMMARY_SEC = 60  # раз в столько секунд — сводка в лог: сколько раз смотрели на панель и кто был выделен (BUGLOG №56)
+SUMMARY_SEC = 60
+# за минуту не узнано больше этой доли снимков — сохранить картинку нижней панели для разбора (BUGLOG №58: 20.10
+# в двух катках «не узнан» 99–100%, а по записи тех же минут свой герой узнаётся в 62 кадрах из 65)
+DEBUG_UNKNOWN_SHARE = 0.8
+DEBUG_MAX_PER_RUN = 3  # раз в столько секунд — сводка в лог: сколько раз смотрели на панель и кто был выделен (BUGLOG №56)
 
 
 def pick_monitor(monitors: list[dict], wanted: Rect | None) -> dict:
@@ -78,6 +82,7 @@ class VisionService(QObject):
                 names[key] = hero.localized
         self._names = NameMatcher(names)
         self._reader = None  # пересоберётся с новыми кандидатами
+        log.info("Имена для нижней панели: %s", sorted(names))
 
     # --- фоновый поток ---
     def _libraries(self, layout: HudLayout):
@@ -112,11 +117,14 @@ class VisionService(QObject):
         items, neutral = self._libraries(layout)
         seen: Counter = Counter()
         summary_at = time.monotonic() + SUMMARY_SEC
+        self._last_unknown = None  # последний снимок нижней панели, где имя не узнано
         while not self._stop.is_set() and current_monitor() == wanted:
             if time.monotonic() >= summary_at:
                 if seen:  # клики по врагам терялись без следа (катка 17.10): видно, доходят ли они до зрения
                     log.info("Зрение за минуту: снимков %d, выделен: %s", sum(seen.values()),
                              ", ".join(f"{h or 'не узнан'} {n}" for h, n in seen.most_common()))
+                    if seen[None] > DEBUG_UNKNOWN_SHARE * sum(seen.values()):
+                        self._save_debug()
                 seen.clear()
                 summary_at = time.monotonic() + SUMMARY_SEC
             if self._topbar_requested.is_set():
@@ -144,7 +152,24 @@ class VisionService(QObject):
 
     def _scan_inventory(self, screen, monitor, layout) -> None:
         area = layout.inventory_area()
-        snapshot = self._reader.read(self._grab(screen, monitor, area), area)
+        image = self._grab(screen, monitor, area)
+        snapshot = self._reader.read(image, area)
         if snapshot.hero:
             self.inventory_seen.emit(snapshot)
+        else:
+            self._last_unknown = image
         return snapshot.hero
+
+    def _save_debug(self) -> None:
+        """Картинка нижней панели (имя героя и предметы, без ников и чата) — в logs/vision_debug для разбора."""
+        self._debug_saved = getattr(self, "_debug_saved", 0)
+        if self._last_unknown is None or self._debug_saved >= DEBUG_MAX_PER_RUN:
+            return
+        import cv2
+        from app import paths
+        folder = paths.logs_dir() / "vision_debug"
+        folder.mkdir(exist_ok=True)
+        path = folder / f"{time.strftime('%Y%m%d-%H%M%S')}.png"
+        cv2.imwrite(str(path), self._last_unknown)
+        self._debug_saved += 1
+        log.info("Зрение: имя не узнаётся — снимок нижней панели сохранён: %s", path.name)
