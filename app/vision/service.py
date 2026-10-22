@@ -130,10 +130,14 @@ class VisionService(QObject):
             if self._topbar_requested.is_set():
                 self._topbar_requested.clear()
                 self._scan_topbar(screen, monitor, layout, heroes)
-            if self._active.is_set() and self._names is not None:
-                if self._reader is None:
-                    self._reader = InventoryReader(layout, items, neutral, self._names)
-                seen[self._scan_inventory(screen, monitor, layout)] += 1
+            names = self._names
+            if self._active.is_set() and names is not None:
+                # читалка — в локальной переменной: главный поток обнуляет self._reader при смене имён
+                # (set_match_heroes), и между проверкой и чтением поток зрения падал (22.10, BUGLOG №59)
+                reader = self._reader
+                if reader is None or reader.names is not names:
+                    reader = self._reader = InventoryReader(layout, items, neutral, names)
+                seen[self._scan_inventory(screen, monitor, layout, reader)] += 1
                 time.sleep(INVENTORY_INTERVAL_SEC)
             else:
                 time.sleep(IDLE_SLEEP_SEC)
@@ -150,13 +154,18 @@ class VisionService(QObject):
         frame[area.y:area.y + area.h, area.x:area.x + area.w] = self._grab(screen, monitor, area)
         self.topbar_ready.emit(recognize_topbar(frame, layout, heroes))
 
-    def _scan_inventory(self, screen, monitor, layout) -> None:
+    def _scan_inventory(self, screen, monitor, layout, reader) -> None:
         area = layout.inventory_area()
         image = self._grab(screen, monitor, area)
-        snapshot = self._reader.read(image, area)
-        if snapshot.hero:
+        snapshot = reader.read(image, area)
+        # снимок уходит дальше, только если то же имя прочитано и в прошлый раз: ошибка прочтения — одиночный кадр,
+        # настоящий клик по врагу — 2–3 кадра подряд (21.10 мой Lycan по одному кадру прочитан как Techies и Slark,
+        # и его Assault Cuirass с Desolator записаны врагам, BUGLOG №59)
+        confirmed = snapshot.hero is not None and snapshot.hero == getattr(self, "_prev_hero", None)
+        self._prev_hero = snapshot.hero
+        if confirmed:
             self.inventory_seen.emit(snapshot)
-        else:
+        elif snapshot.hero is None:
             self._last_unknown = image
         return snapshot.hero
 

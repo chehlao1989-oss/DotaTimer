@@ -26,6 +26,7 @@ TOPBAR_MAX_TRIES = 5
 # снимок «врага» считается моим героем, если совпало от 80% заметных предметов и их хотя бы 3 (BUGLOG №58:
 # у Ogre Magi и Viper записаны 5 из 5 предметов моего Huskar); порог — не игровое число, а проверка совпадения
 OWN_MATCH_SHARE, OWN_MATCH_MIN = 0.8, 3
+OWN_SUBSET_MIN = 2  # или все прочитанные у «врага» заметные предметы (от 2) есть у меня (BUGLOG №59)
 OVERLAY_SLOTS = {0, 1}  # места на панели, которые закрывает строка оверлея FPS слева вверху (BUGLOG №55)
 
 
@@ -110,6 +111,9 @@ class ThreatsController:
     def new_match(self) -> None:
         self.tracker.reset()
         self._dropped.clear()
+        # герой прошлой катки не тянется в новую: 21.10 в катке на Spirit Breaker своим считался Lone Druid
+        # (GSI не прислал героя), и имя Spirit Breaker не сверялось на нижней панели (BUGLOG №59)
+        self.own_hero = None
         self.enemies, self.threats = [], []
         self.allies = []
         self._topbar_tries = 0
@@ -271,6 +275,8 @@ class ThreatsController:
         Мой инвентарь известен из GSI; совпало от OWN_MATCH_SHARE заметных предметов (не расходников)."""
         mine = {i for i in self.own_items if not self.tracker._ignored(i)}
         seen = {i for i in items if not self.tracker._ignored(i)}
+        if len(seen) >= OWN_SUBSET_MIN and seen <= mine:
+            return True  # всё, что прочитано у «врага», есть у меня (21.10: Assault Cuirass и Desolator моего Lycan)
         if len(mine) < OWN_MATCH_MIN or len(seen) < OWN_MATCH_MIN:
             return False
         return len(mine & seen) >= OWN_MATCH_SHARE * max(len(mine), len(seen))

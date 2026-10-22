@@ -138,3 +138,29 @@ def test_debug_image_saved_when_names_unknown(monkeypatch, tmp_path):
         service._save_debug()
     assert len(list((tmp_path / "vision_debug").glob("*.png"))) >= 1
     assert service._debug_saved == vs.DEBUG_MAX_PER_RUN
+
+
+def test_single_frame_name_not_trusted():
+    """Имя врага принимается, только если прочитано два раза подряд: одиночный кадр — ошибка прочтения
+    (21.10 мой Lycan по одному кадру — Techies и Slark, BUGLOG №59)."""
+    import numpy as np
+    import app.vision.service as vs
+    from app.vision.inventory import InventorySnapshot
+    service = vs.VisionService.__new__(vs.VisionService)
+    vs.QObject.__init__(service)
+    emitted = []
+    service.inventory_seen.connect(lambda s: emitted.append(s.hero))
+    service._grab = lambda *a: np.zeros((5, 5, 3), np.uint8)
+    reads = iter(["lycan", "techies", "lycan", "lycan", None, "slark", "slark"])
+
+    class Reader:
+        def read(self, image, area):
+            return InventorySnapshot(next(reads), (None,) * 6, (None,) * 3, None)
+
+    class Layout:
+        def inventory_area(self):
+            return None
+
+    for _ in range(7):
+        service._scan_inventory(None, None, Layout(), Reader())
+    assert emitted == ["lycan", "slark"]

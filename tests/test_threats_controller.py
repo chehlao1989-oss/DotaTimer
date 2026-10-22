@@ -153,3 +153,24 @@ def test_own_hero_always_among_name_candidates():
     assert sent == [["ogre_magi", "viper", "huskar"]]
     ThreatsService._update_name_candidates(fake)
     assert len(sent) == 1  # без изменений — заново не пересобираем
+
+
+def test_own_hero_reset_on_new_match():
+    """Герой прошлой катки не считается моим в новой, пока GSI не пришлёт нового (BUGLOG №59)."""
+    ctrl, _ = make()
+    ctrl.on_game_state(600, True, "npc_dota_hero_lone_druid", "radiant", True)
+    ctrl.new_match()
+    ctrl.on_game_state(0, True, None, "radiant", True)
+    assert ctrl.own_hero is None
+    ctrl.on_game_state(5, True, "npc_dota_hero_spirit_breaker", "radiant", True)
+    assert ctrl.own_hero == "spirit_breaker"
+
+
+def test_two_of_my_items_under_enemy_name_dropped():
+    """Два заметных предмета «врага», и оба есть у меня — мой герой (21.10: Assault Cuirass и Desolator Lycan)."""
+    ctrl, _ = make()
+    ctrl.enemies = ["techies"]
+    ctrl.on_game_state(1800, True, "npc_dota_hero_lycan", "dire", True, {"assault", "desolator", "black_king_bar"})
+    ctrl.on_inventory(InventorySnapshot("techies", ("assault", "desolator", None, None, None, None),
+                                        (None, None, None), None), 1800)
+    assert "techies" not in ctrl.tracker.enemies or not ctrl.tracker.enemies["techies"].items
