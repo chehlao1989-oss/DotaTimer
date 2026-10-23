@@ -174,3 +174,22 @@ def test_two_of_my_items_under_enemy_name_dropped():
     ctrl.on_inventory(InventorySnapshot("techies", ("assault", "desolator", None, None, None, None),
                                         (None, None, None), None), 1800)
     assert "techies" not in ctrl.tracker.enemies or not ctrl.tracker.enemies["techies"].items
+
+
+def test_repeat_hints_shows_last_ones_again():
+    """Клавиша повтора: подсказки уходят в драке, их можно вызвать ещё раз, пока ждёшь возрождения (автор 23.10)."""
+    ctrl, shown = make()
+    ctrl.on_game_state(0, True, "npc_dota_hero_sven", "radiant", True)
+    ctrl.set_enemies(["alchemist", "medusa"], show_card=False)
+    ctrl.repeat_hints()
+    assert "ещё не было" in shown[-1][0]
+    ctrl.manual_item("medusa", "heart", 900)
+    ctrl.manual_item("alchemist", "heart", 950)
+    hints = [t for t, _ in shown if "появился" in t]
+    shown.clear()
+    ctrl.repeat_hints()
+    assert [t for t, _ in shown] == hints[-ctrl.hint_repeat:] and all(v is None for _, v in shown)  # без голоса
+    ctrl.new_match()
+    shown.clear()
+    ctrl.repeat_hints()
+    assert "ещё не было" in shown[-1][0]

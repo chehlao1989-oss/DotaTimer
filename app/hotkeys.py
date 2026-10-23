@@ -18,6 +18,9 @@ DEFAULT_BINDINGS = {
     "show_threats": "Ctrl+Alt+H",
     "seen_item": "Ctrl+Alt+I",
     "pick_heroes": "Ctrl+Alt+P",
+    # повтор последних подсказок — одна клавиша, чтобы нажать, пока ждёшь возрождения (просьба автора 23.10).
+    # F8 в Доте — «купить предмет из быстрой покупки» (PurchaseSticky в dotakeys_personal.lst автора), F11 там свободна
+    "repeat_hints": "F11",
 }
 
 _MODIFIERS = {
@@ -32,10 +35,12 @@ MAX_F_KEY = 24
 
 
 def parse_binding(text: str) -> tuple[frozenset[str], int] | None:
-    """«Ctrl+Alt+R» → ({"ctrl", "alt"}, код клавиши R). None, если сочетание не подходит."""
+    """«Ctrl+Alt+R» → ({"ctrl", "alt"}, код клавиши R); «F11» → (пусто, код F11). None, если сочетание не подходит.
+
+    Одна клавиша без Ctrl/Alt/Shift — только F1–F24: буквы и цифры мешали бы играть."""
     parts = [p.strip() for p in (text or "").split("+") if p.strip()]
-    if len(parts) < 2:
-        return None  # одиночные клавиши мешали бы играть
+    if not parts or (len(parts) == 1 and not _is_f_key(parts[0])):
+        return None
     *mods, key = parts
     mod_set = set()
     for mod in mods:
@@ -45,11 +50,15 @@ def parse_binding(text: str) -> tuple[frozenset[str], int] | None:
         mod_set.add(name)
     if len(key) == 1 and key.isalnum() and key.isascii():
         vk = ord(key.upper())
-    elif key.upper().startswith("F") and key[1:].isdigit() and 1 <= int(key[1:]) <= MAX_F_KEY:
+    elif _is_f_key(key):
         vk = VK_F1 + int(key[1:]) - 1
     else:
         return None
     return frozenset(mod_set), vk
+
+
+def _is_f_key(key: str) -> bool:
+    return key.upper().startswith("F") and key[1:].isdigit() and 1 <= int(key[1:]) <= MAX_F_KEY
 
 
 def key_vk(key) -> int | None:

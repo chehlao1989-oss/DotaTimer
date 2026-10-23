@@ -88,6 +88,8 @@ class ThreatsController:
         self.own_shares: Callable[[], dict[str, float]] | None = None  # предмет → % игр на моём герое в роли
         self.hint_min_share = 0.0
         self.hint_limit = 2
+        self.hint_repeat = 3  # сколько последних подсказок показать по клавише повтора
+        self.recent_hints: list[tuple[str, dict]] = []  # подсказки этой катки: текст и оформление, последняя — в конце
 
     def use_counter_table(self, table: CounterTable, own_shares: Callable[[], dict[str, float]], min_share: float,
                           limit: int, likely_parent=None) -> None:
@@ -120,6 +122,7 @@ class ThreatsController:
     # --- матч ---
     def new_match(self) -> None:
         self.tracker.reset()
+        self.recent_hints = []
         self._dropped.clear()
         # герой прошлой катки не тянется в новую: 21.10 в катке на Spirit Breaker своим считался Lone Druid
         # (GSI не прислал героя), и имя Spirit Breaker не сверялось на нижней панели (BUGLOG №59)
@@ -324,7 +327,18 @@ class ThreatsController:
                      " (ответы уже есть или не подтверждены)" if self.counter_table else "")
             return
         log.info("Подсказка: %s", text.replace("\n", " | "))
-        self.show(text, True, None, self.hint_duration, **self.hint_extras(hint))
+        extras = self.hint_extras(hint)
+        self.recent_hints = ([h for h in self.recent_hints if h[0] != text] + [(text, extras)])[-self.hint_repeat:]
+        self.show(text, True, None, self.hint_duration, **extras)
+
+    def repeat_hints(self) -> None:
+        """Клавиша повтора: последние подсказки ещё раз — прочитать спокойно, когда ждёшь возрождения
+        (в драке они уходят раньше, чем успеваешь прочитать; просьба автора 23.10). Без голоса."""
+        if not self.recent_hints:
+            self.show(ru.HINT_REPEAT_NONE, False, None)
+            return
+        for text, extras in self.recent_hints[-self.hint_repeat:]:
+            self.show(text, True, None, self.hint_duration, **extras)
 
     def hint_extras(self, hint: ItemHint) -> dict:
         """Оформление подсказки как оповещения Доты: портрет врага и иконка предмета, предмет золотом."""

@@ -8,6 +8,8 @@ def test_parse_binding():
     assert parse_binding("Ctrl+Alt+R") == (frozenset({"ctrl", "alt"}), ord("R"))
     assert parse_binding("Shift+F5") == (frozenset({"shift"}), VK_F1 + 4)
     assert parse_binding("R") is None  # без модификатора нельзя
+    assert parse_binding("F11") == (frozenset(), VK_F1 + 10)  # одна F-клавиша — можно (повтор подсказок, 23.10)
+    assert parse_binding("Ctrl") is None
     assert parse_binding("Ctrl+Space") is None
     assert parse_binding("") is None
 

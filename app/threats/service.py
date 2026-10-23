@@ -409,6 +409,10 @@ class ThreatsService(QObject):
             if self.vision is not None:
                 self.vision.set_match_heroes(enemies + ([self.controller.own_hero] if self.controller.own_hero else []))
 
+    def repeat_hints(self) -> None:
+        if self.controller is not None:
+            self.controller.repeat_hints()
+
     def seen_item(self) -> None:
         if self.controller is None:
             return

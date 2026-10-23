@@ -162,10 +162,13 @@ HOTKEY_TITLES = {
     "show_threats": "Скрыть / показать полоску угроз",
     "seen_item": "Вижу у врага предмет",
     "pick_heroes": "Выбрать врагов вручную",
+    "repeat_hints": "Повторить последние подсказки",
 }
-HOTKEYS_HINT = "Кликните в поле и нажмите новое сочетание. Нужен хотя бы один из Ctrl, Alt, Shift."
+HOTKEYS_HINT = ("Кликните в поле и нажмите новое сочетание: Ctrl, Alt или Shift с буквой или цифрой — "
+                "или одна клавиша F1–F24.")
 BUTTON_RESET_HOTKEYS = "Вернуть клавиши по умолчанию"
-HOTKEY_INVALID = "Сочетание {combo} не подходит. Нужны Ctrl/Alt/Shift и буква, цифра или F1–F24."
+HOTKEY_INVALID = "Сочетание {combo} не подходит. Нужны Ctrl/Alt/Shift и буква, цифра или F1–F24, либо одна F1–F24."
+HINT_REPEAT_NONE = "В этой катке подсказок по предметам ещё не было"
 HOTKEY_FEEDBACK = {
     "tormentor_killed": "Таймер терзателя запущен",
     "silence": "Тишина на 1 минуту",

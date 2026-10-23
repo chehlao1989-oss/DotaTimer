@@ -174,7 +174,7 @@ def main() -> None:
         threats.controller.card_duration = settings.strip.full_card_sec
     core.state_listeners.append(threats.on_state)
     core.extra_hotkeys = {"show_threats": threats.toggle_strip, "seen_item": threats.seen_item,
-                          "pick_heroes": threats.pick_heroes}
+                          "pick_heroes": threats.pick_heroes, "repeat_hints": threats.repeat_hints}
     window = MainWindow(settings, core, hotkeys, threats)
     # фон окна: в катке — твой герой, вне катки — карта (картинки с сервера Valve, выбор автора 15.10)
     switcher = BackgroundSwitcher(window.background, Backdrops())
