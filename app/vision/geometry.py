@@ -25,6 +25,13 @@ NEUTRAL_BOX = (1343, 977, 40, 40)  # круглая ячейка нейтрал�
 
 # Имя выделенного героя над портретом
 NAME_BOX = (555, 917, 150, 20)
+# Имя стоит по центру над портретом: центр надписи — на NAME_CENTER от левого края NAME_BOX (замер по видео 20.10:
+# Spirit Breaker 67, Dark Seer 66,5)
+NAME_CENTER = 67
+# Широкая нижняя панель: у героя больше 4 способностей (Rubick, Invoker…) панель раздвигается в обе стороны —
+# имя с портретом уходят влево, инвентарь вправо на столько же (Rubick 22.10: 44, BUGLOG №60). Ищем со сдвигом
+# до MAX_HUD_SHIFT (оценка: запас на 4 лишние способности)
+MAX_HUD_SHIFT = 110
 
 
 @dataclass(frozen=True)
@@ -33,6 +40,9 @@ class Rect:
     y: int
     w: int
     h: int
+
+    def moved(self, dx: int) -> "Rect":
+        return Rect(self.x + dx, self.y, self.w, self.h)
 
 
 @dataclass(frozen=True)
@@ -78,14 +88,28 @@ class HudLayout:
     def name_box(self) -> Rect:
         return self.to_screen(*NAME_BOX)
 
-    def inventory_area(self) -> Rect:
-        """Общий прямоугольник для захвата: имя героя + инвентарь + нейтралка (захватываем только его)."""
+    def max_shift(self) -> int:
+        """Самый большой сдвиг широкой панели, который ищем (пиксели экрана)."""
+        return round(MAX_HUD_SHIFT * self.scale)
+
+    def name_strip(self) -> Rect:
+        """Полоса имени, расширенная влево на max_shift(): у широкой панели имя левее обычного."""
         name = self.name_box()
+        left = max(0, name.x - self.max_shift())
+        return Rect(left, name.y, name.x + name.w - left, name.h)
+
+    def name_center(self) -> float:
+        """Где на экране центр надписи с именем при обычной панели."""
+        return self.offset_x + (NAME_BOX[0] + NAME_CENTER) * self.scale
+
+    def inventory_area(self) -> Rect:
+        """Общий прямоугольник для захвата: имя героя + инвентарь + нейтралка, с запасом на широкую панель."""
+        strip = self.name_strip()
         slots = self.inventory_slots()
         neutral = self.neutral_slot()
-        right = max(neutral.x + neutral.w, slots[-1].x + slots[-1].w)
+        right = min(self.width, max(neutral.x + neutral.w, slots[-1].x + slots[-1].w) + self.max_shift())
         bottom = min(self.height, max(s.y + s.h for s in slots))
-        return Rect(name.x, name.y, right - name.x, bottom - name.y)
+        return Rect(strip.x, strip.y, right - strip.x, bottom - strip.y)
 
     def topbar_area(self) -> Rect:
         slots = self.topbar_slots()

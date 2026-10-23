@@ -30,6 +30,16 @@ OWN_SUBSET_MIN = 2  # или все прочитанные у «врага» з�
 OVERLAY_SLOTS = {0, 1}  # места на панели, которые закрывает строка оверлея FPS слева вверху (BUGLOG №55)
 
 
+def wiki_reason(why) -> str | None:
+    """Причина против героя словами: «отражает Stifling Dagger»; способностей нет — общая фраза типа."""
+    if not why:
+        return None
+    with_ability, plain = ru.WIKI_REASONS.get(why[0], (None, None))
+    if why[1] and with_ability:
+        return with_ability.format(ability=ru.ABILITIES_JOIN.join(why[1]))
+    return plain
+
+
 @dataclass
 class ThreatSettings:
     """Выбор пользователя. Хранится в settings.json."""
@@ -209,11 +219,15 @@ class ThreatsController:
         return self.choices(self.counter_table.vs_hero(hero)) if self.counter_table else []
 
     def format_choices(self, choices: list[Choice]) -> str:
-        """«Eye of Skadi (режет лечение), Spirit Vessel (режет лечение)»; против героя — без причины."""
+        """«Eye of Skadi (режет лечение), Spirit Vessel (режет лечение)»; против героя — причина по тексту вики
+        («Lotus Orb (отражает Stifling Dagger)», BUGLOG №61), не размечена — без причины."""
         parts = []
         for c in choices:
             item = self.item_title(c.item)
-            reason = (ru.PROP_REASONS.get(c.prop) or ru.MECHANIC_REASONS.get(c.answer)) if c.answer != WIKI_HERO else None
+            if c.answer == WIKI_HERO:
+                reason = wiki_reason(c.why)
+            else:
+                reason = ru.PROP_REASONS.get(c.prop) or ru.MECHANIC_REASONS.get(c.answer)
             if reason:
                 parts.append((ru.HINT_CHOICE_RARE if c.rare else ru.HINT_CHOICE).format(item=item, reason=reason))
             else:

@@ -24,6 +24,8 @@ MIN_MARGIN = 0.1
 GOLD_R_MIN, GOLD_B_MIN, GOLD_RB_MIN, GOLD_RB_MAX = 160, 90, 25, 110
 GOLD_MIN_SCORE = 0.35
 GOLD_MIN_MARGIN = 0.25
+# сдвиг широкой панели меньше этого (при высоте 1080) — то же место, что обычная рамка
+MIN_SHIFT_REF = 4
 RENDER_W, RENDER_H = 800, 64
 RENDER_FONT, RENDER_PT, RENDER_SPACING = "Segoe UI", 24, 135
 
@@ -49,6 +51,21 @@ def _crop_to_content(mask: np.ndarray) -> np.ndarray | None:
 
 def text_mask(bgr: np.ndarray, scale: float, mask_fn=white_mask) -> np.ndarray | None:
     """Бинарная картинка надписи, обрезанная по краям букв. None, если надписи нет."""
+    clean = _text_pixels(bgr, scale, mask_fn)
+    return None if clean is None else _crop_to_content(clean)
+
+
+def text_span(bgr: np.ndarray, scale: float, mask_fn=white_mask) -> tuple[int, int] | None:
+    """Левый и правый край надписи по горизонтали. None, если надписи нет."""
+    clean = _text_pixels(bgr, scale, mask_fn)
+    if clean is None or (clean > 0).sum() < 10:
+        return None
+    cols = np.nonzero(clean.sum(axis=0))[0]
+    return int(cols[0]), int(cols[-1])
+
+
+def _text_pixels(bgr: np.ndarray, scale: float, mask_fn) -> np.ndarray | None:
+    """Пиксели надписи на картинке того же размера: полоса высотой с текст, без точек и оторванных кусков."""
     mask = mask_fn(bgr)
     # полоса высотой с текст, где больше всего белых пикселей (отсекает светлые края панели)
     band = max(3, round(TEXT_HEIGHT_REF * scale))
@@ -80,7 +97,7 @@ def text_mask(bgr: np.ndarray, scale: float, mask_fn=white_mask) -> np.ndarray |
     widest = max(groups, key=lambda g: clean[:, g[0]:g[1] + 1].sum())
     clean[:, :widest[0]] = 0
     clean[:, widest[1] + 1:] = 0
-    return _crop_to_content(clean)
+    return clean
 
 
 def render_name(text: str) -> np.ndarray | None:
@@ -109,6 +126,29 @@ class NameMatcher:
         """Сначала белые буквы, не нашлось — золотые (строже: на них ложные совпадения чаще)."""
         return (self._match(bgr, scale, white_mask, MIN_SCORE, MIN_MARGIN)
                 or self._match(bgr, scale, gold_mask, GOLD_MIN_SCORE, GOLD_MIN_MARGIN))
+
+    def find(self, strip: np.ndarray, scale: float, box_x: int, box_w: int, center: float) -> tuple[str | None, int]:
+        """Имя в полосе, расширенной влево, и сдвиг панели влево в пикселях (BUGLOG №60).
+
+        box_x, box_w — где в полосе обычная рамка имени; center — где в полосе центр надписи при обычной панели.
+        Сдвиг меряется всегда, по центру надписи: короткое имя (ZEUS) у раздвинутой панели целиком влезает и в обычную
+        рамку — имя узнаётся, а предметы читались бы со старого места; длинное обрезается (WITCH DOCTOR → Warlock).
+        Рамка ставится так, чтобы надпись была в ней на обычном месте; не нашлось — обычная рамка, как раньше.
+        """
+        for mask_fn, min_score, min_margin in ((white_mask, MIN_SCORE, MIN_MARGIN),
+                                               (gold_mask, GOLD_MIN_SCORE, GOLD_MIN_MARGIN)):
+            span = text_span(strip, scale, mask_fn)
+            if span is None:
+                continue
+            shift = round(center - (span[0] + span[1]) / 2)
+            if shift < MIN_SHIFT_REF * scale:
+                shift = 0  # обычное место (или надпись правее — значит, это не имя: проверит рамка)
+            if shift > box_x:
+                continue  # за краем полосы
+            hero = self._match(strip[:, box_x - shift:box_x - shift + box_w], scale, mask_fn, min_score, min_margin)
+            if hero:
+                return hero, shift
+        return self.match(strip[:, box_x:box_x + box_w], scale), 0
 
     def _match(self, bgr: np.ndarray, scale: float, mask_fn, min_score: float, min_margin: float) -> str | None:
         text = text_mask(bgr, scale, mask_fn)

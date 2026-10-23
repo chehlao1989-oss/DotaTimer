@@ -50,6 +50,7 @@ class InventoryReader:
         self.slot_rects = layout.inventory_slots()
         self.neutral_rect = layout.neutral_slot()
         self.name_rect = layout.name_box()
+        self.strip_rect = layout.name_strip()
         self._cache: dict[int, tuple[np.ndarray, str | None]] = {}  # ячейка → (миниатюра, ответ)
 
     def _cell(self, index: int, image: np.ndarray, library: IconLibrary) -> str | None:
@@ -68,7 +69,12 @@ class InventoryReader:
 
     def read(self, area: np.ndarray, origin: Rect) -> InventorySnapshot:
         """area — захваченная область inventory_area() (BGR), origin — её положение на экране."""
-        hero = self.names.match(crop(area, self.name_rect, origin), self.layout.scale)
-        cells = [self._cell(i, crop(area, rect, origin), self.items) for i, rect in enumerate(self.slot_rects)]
-        neutral = self._cell(len(self.slot_rects), crop(area, self.neutral_rect, origin), self.neutral_items)
+        # у широкой панели (Rubick, Invoker…) имя левее, а инвентарь правее на тот же сдвиг (BUGLOG №60)
+        box_x = self.name_rect.x - self.strip_rect.x
+        hero, shift = self.names.find(crop(area, self.strip_rect, origin), self.layout.scale, box_x,
+                                      self.name_rect.w, self.layout.name_center() - self.strip_rect.x)
+        cells = [self._cell(i, crop(area, rect.moved(shift), origin), self.items)
+                 for i, rect in enumerate(self.slot_rects)]
+        neutral = self._cell(len(self.slot_rects), crop(area, self.neutral_rect.moved(shift), origin),
+                             self.neutral_items)
         return InventorySnapshot(hero, tuple(cells[:6]), tuple(cells[6:9]), neutral)

@@ -11,6 +11,12 @@
   - там же герои из {{hero label|...}} (counter_heroes) и из подраздела «Others»
     через {{H|...}} (counter_heroes_other).
 
+Для каждого контр-предмета хранится и текст его пункта (counter_texts, вики-разметка как есть). Причина — тип и
+способности героя — размечена по этому тексту вручную в data/wiki_reasons.json (с отпечатком текста: поменялся текст на
+вики — причина не показывается, пока её не разметят заново); программа показывает её по-русски (app/i18n/ru.py:
+WIKI_REASONS), например «Lotus Orb (отражает Stifling Dagger)» (BUGLOG №61).
+Проверка разметки без сети: python tools/fetch_wiki_counters.py --reasons
+
 Названия предметов переводятся во внутренние ключи по кешу OpenDota
 (%APPDATA%\\DotaTimer\\cache\\items.json), список героев берётся из heroes.json там же.
 Что не удалось сопоставить, попадает в unmapped (не угадываем).
@@ -23,6 +29,7 @@
 """
 import datetime
 import gzip
+import hashlib
 import json
 import os
 import re
@@ -35,6 +42,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT_PATH = ROOT / "data" / "benchmark_counters.json"
+REASONS_PATH = ROOT / "data" / "wiki_reasons.json"
 
 API_URL = "https://dota2.fandom.com/api.php"
 PAGE_URL = "https://dota2.fandom.com/wiki/"
@@ -304,7 +312,7 @@ def parse_counters(text: str, item_map: dict[str, str], hero_map: dict[str, str]
             break
     result = {
         "counter_items": [], "items_mentioned_in_text": [], "counter_heroes": [],
-        "counter_heroes_other": [], "unmapped": [], "problems": [],
+        "counter_heroes_other": [], "unmapped": [], "problems": [], "counter_texts": {},
     }
     if bad is None and "border=red" in sections[0][1]:
         # Заголовок раздела потеряли при правке, но красные карточки героев стоят до «Good against»
@@ -353,6 +361,10 @@ def parse_counters(text: str, item_map: dict[str, str], hero_map: dict[str, str]
             found_lead = first
         lead.extend(found_lead)
         mentioned.extend(n for n in all_item_mentions(s) if n not in found_lead)
+        for name in found_lead:  # текст пункта — по первому пункту, где предмет стоит первым
+            key = item_map.get(normalize_name(name))
+            if key:
+                result["counter_texts"].setdefault(key, s.lstrip("* ").strip())
 
     for name in lead:
         key = item_map.get(normalize_name(name))
@@ -372,6 +384,44 @@ def parse_counters(text: str, item_map: dict[str, str], hero_map: dict[str, str]
         k for k in unique(result["items_mentioned_in_text"]) if k not in result["counter_items"]
     ]
     return result
+
+
+def text_key(line: str) -> str:
+    """Отпечаток текста пункта: причина в data/wiki_reasons.json действует, пока текст на вики тот же."""
+    return hashlib.sha1(line.encode("utf-8")).hexdigest()[:10]
+
+
+def plain_text(line: str) -> str:
+    """Текст пункта без вики-разметки: {{I|Lotus Orb}} → Lotus Orb, [[Break|breaks]] → breaks."""
+    def template(m: re.Match) -> str:
+        args = [x.strip() for x in m.group(1).split("|")[1:] if x.strip() and "=" not in x]
+        return args[0] if args else ""
+
+    text = re.sub(r"\{\{([^{}]+)\}\}", template, line)
+    text = re.sub(r"\[\[(?:[^\]|]+\|)?([^\]]+)\]\]", r"\1", text)
+    return re.sub(r"\s+", " ", re.sub(r"'{2,}", "", text)).strip()
+
+
+def check_reasons() -> int:
+    """Сколько пар «герой — предмет» с причиной; пары без причины и устаревшие (текст на вики поменялся) — списком."""
+    doc = json.loads(OUT_PATH.read_text(encoding="utf-8"))
+    pairs = json.loads(REASONS_PATH.read_text(encoding="utf-8"))["pairs"]
+    total, found, missing, stale = 0, 0, [], []
+    for hero, entry in doc["heroes"].items():
+        for item in entry.get("counter_items", []):
+            total += 1
+            key, row = f"{hero}/{item}", pairs.get(f"{hero}/{item}")
+            if row is None:
+                missing.append(key)
+            elif row["text_key"] != text_key(entry["counter_texts"][item]):
+                stale.append(key)
+            elif row["kind"] != "none":
+                found += 1
+    print(f"Причины: {found} из {total} пар ({found / max(total, 1):.0%}); без разметки {len(missing)}, "
+          f"текст на вики поменялся {len(stale)}")
+    for key in (missing + stale)[:50]:
+        print("  -", key)
+    return 0
 
 
 def patches_mentioned(text: str) -> list[str]:
@@ -462,4 +512,4 @@ def main() -> int:
 if __name__ == "__main__":
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")  # вывод в файл на Windows иначе в cp1251 (BUGLOG №39)
-    sys.exit(main())
+    sys.exit(check_reasons() if "--reasons" in sys.argv else main())

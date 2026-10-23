@@ -19,6 +19,23 @@ MATCH_HEROES = {"void_spirit": "Void Spirit", "drow_ranger": "Drow Ranger", "tid
                 "lich": "Lich", "vengefulspirit": "Vengeful Spirit", "earthshaker": "Earthshaker",
                 "zuus": "Zeus", "warlock": "Warlock", "sven": "Sven", "witch_doctor": "Witch Doctor"}
 
+# вырезки inv_*.png сняты прямоугольником нижней панели до BUGLOG №60: имя (x 875) + инвентарь, без запаса на сдвиг
+INV_FIXTURE_X, INV_FIXTURE_Y = 875, 917
+
+
+def inventory_frame(shot: str) -> np.ndarray:
+    """Кадр 2560×1080 с вырезкой нижней панели на её месте."""
+    part = load_image(SCREENS / f"inv_{shot}.png")
+    frame = np.zeros((1080, 2560, 3), dtype=np.uint8)
+    frame[INV_FIXTURE_Y:INV_FIXTURE_Y + part.shape[0], INV_FIXTURE_X:INV_FIXTURE_X + part.shape[1]] = part
+    return frame
+
+
+def read_frame(reader, frame: np.ndarray):
+    area = LAYOUT.inventory_area()
+    return reader.read(frame[area.y:area.y + area.h, area.x:area.x + area.w], area)
+
+
 needs_icons = pytest.mark.skipif(not (ICONS / "items").is_dir() or not (ICONS / "heroes").is_dir(),
                                  reason="нет кеша иконок OpenDota")
 
@@ -69,8 +86,7 @@ def test_inventory(qapp, item_lib, shot, hero, expected):
     from app.vision.names import NameMatcher
     neutral = LAYOUT.neutral_slot()
     reader = InventoryReader(LAYOUT, item_lib, IconLibrary({}, neutral.w, neutral.h), NameMatcher(MATCH_HEROES))
-    area = LAYOUT.inventory_area()
-    snapshot = reader.read(load_image(SCREENS / f"inv_{shot}.png"), Rect(area.x, area.y, area.w, area.h))
+    snapshot = read_frame(reader, inventory_frame(shot))
     assert snapshot.hero == hero
     if expected is not None:
         # ветка (branches) похожа на другую иконку и не распознаётся уверенно — это нормально, она игнорируется
@@ -84,18 +100,41 @@ def test_unchanged_cells_are_not_matched_again(qapp, item_lib):
     from app.vision.names import NameMatcher
     neutral = LAYOUT.neutral_slot()
     reader = InventoryReader(LAYOUT, item_lib, IconLibrary({}, neutral.w, neutral.h), NameMatcher(MATCH_HEROES))
-    area = LAYOUT.inventory_area()
-    origin = Rect(area.x, area.y, area.w, area.h)
-    image = load_image(SCREENS / "inv_095733.png")
-    first = reader.read(image, origin)
+    frame = inventory_frame("095733")
+    first = read_frame(reader, frame)
     calls = []
     original = item_lib.match
     item_lib.match = lambda *a, **k: calls.append(1) or original(*a, **k)
     try:
-        second = reader.read(image, origin)
+        second = read_frame(reader, frame)
     finally:
         item_lib.match = original
     assert second == first and calls == []
+
+
+@needs_icons
+@pytest.mark.parametrize("shot, hero", [("095733", "zuus"), ("095736", "witch_doctor")])
+def test_wide_hud_is_read(qapp, item_lib, shot, hero):
+    """Широкая нижняя панель (у героя больше 4 способностей): имя с портретом левее, инвентарь правее на 44 пикселя.
+    22.10 Rubick не узнавался 99–100% минут — имя искалось на обычном месте (BUGLOG №60). Кадр — обычная панель,
+    раздвинутая так же, как у Rubick на снимке 22.10."""
+    from app.vision.inventory import InventoryReader
+    from app.vision.names import NameMatcher
+    shift = 44
+    normal = inventory_frame(shot)
+    wide = np.zeros_like(normal)
+    split = INV_FIXTURE_X + 300  # между портретом и инвентарём — способности, они не нужны
+    wide[:, :split - shift] = normal[:, shift:split]
+    wide[:, split + shift:] = normal[:, split:-shift]
+    neutral = LAYOUT.neutral_slot()
+
+    def reader():
+        return InventoryReader(LAYOUT, item_lib, IconLibrary({}, neutral.w, neutral.h), NameMatcher(MATCH_HEROES))
+
+    expected = read_frame(reader(), normal)
+    snapshot = read_frame(reader(), wide)
+    assert snapshot.hero == expected.hero == hero
+    assert snapshot.slots == expected.slots and snapshot.items
 
 
 def test_topbar_duplicates_are_rejected():

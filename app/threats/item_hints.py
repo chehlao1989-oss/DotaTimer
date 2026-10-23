@@ -11,6 +11,7 @@
 Статистика A/B здесь не участвует: по финальным инвентарям она путала «у врага дорогой предмет» с «игра длинная»
 (BUGLOG №54).
 """
+import hashlib
 import json
 import logging
 from dataclasses import dataclass
@@ -23,11 +24,20 @@ DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 WIKI_HERO = "wiki_hero"  # тип ответа «со страницы Counters героя»
 
 
+Why = tuple[str, tuple[str, ...]]  # причина со страницы Counters: (тип из data/wiki_reasons.json, способности героя)
+
+
+def text_key(line: str) -> str:
+    """Отпечаток текста пункта вики (так же — tools/fetch_wiki_counters.py: text_key)."""
+    return hashlib.sha1(line.encode("utf-8")).hexdigest()[:10]
+
+
 @dataclass(frozen=True)
 class Counter:
     item: str  # контр-предмет
     answer: str  # тип ответа (heal_reduction…) или WIKI_HERO
     prop: str | None  # свойство врага, на которое он отвечает (для героя — None)
+    why: Why | None = None  # против героя: почему (размечено по тексту вики, BUGLOG №61)
 
 
 @dataclass(frozen=True)
@@ -37,11 +47,12 @@ class Choice:
     share: float | None  # доля покупки на моём герое, % игр; None — неизвестно
     rare: bool = False  # ни один ответ не берут на моём герое — показан самый универсальный
     prop: str | None = None  # на какое свойство врага отвечает (для причины словами)
+    why: Why | None = None  # против героя: причина со страницы Counters
 
 
 class CounterTable:
     def __init__(self, table: dict, checked: dict, rules: dict[str, tuple[str, ...]], hero_counters: dict,
-                 consumables: set[str] = frozenset()):
+                 consumables: set[str] = frozenset(), hero_reasons: dict[tuple[str, str], Why] | None = None):
         """rules: свойство врага → типы ответа (из правил mechanics.json). hero_counters: герой → контр-предметы.
         consumables: расходники — со страниц Counters не советуем (Town Portal Scroll у всех и так; по доле покупки
         ~100% он встал бы первым), кроме тех, что прямо стоят в таблице ответов (Dust, Sentry Ward, Gem)."""
@@ -57,6 +68,7 @@ class CounterTable:
         allowed = {k for keys in self._counters.values() for k in keys}
         skip = set(consumables) - allowed
         self.hero_counters = {h: tuple(k for k in keys if k not in skip) for h, keys in hero_counters.items()}
+        self.hero_reasons = hero_reasons or {}
 
     @classmethod
     def load(cls, mechanics_config: dict, data_dir: Path = DATA_DIR,
@@ -65,7 +77,8 @@ class CounterTable:
             table = json.loads((data_dir / "item_counters.json").read_text(encoding="utf-8"))
             checked = json.loads((data_dir / "item_counters_checked.json").read_text(encoding="utf-8"))
             wiki = json.loads((data_dir / "benchmark_counters.json").read_text(encoding="utf-8"))
-        except (OSError, ValueError):
+            reasons = json.loads((data_dir / "wiki_reasons.json").read_text(encoding="utf-8"))["pairs"]
+        except (OSError, ValueError, KeyError):
             log.warning("Таблица подсказок v2 не прочитана — подсказки по старой схеме", exc_info=True)
             return None
         rules = {}
@@ -73,7 +86,7 @@ class CounterTable:
             rules.setdefault(rule["enemy"], ())
             rules[rule["enemy"]] += tuple(rule["answers"])
         heroes = {h: tuple(v.get("counter_items", ())) for h, v in wiki.get("heroes", {}).items()}
-        return cls(table, checked, rules, heroes, consumables)
+        return cls(table, checked, rules, heroes, consumables, hero_reasons(wiki, reasons))
 
     def is_threat(self, item: str) -> bool:
         """Есть ли подсказка на этот предмет врага (только подтверждённые свойства)."""
@@ -95,10 +108,22 @@ class CounterTable:
 
     def vs_hero(self, hero: str) -> list[Counter]:
         """Контр-предметы на героя-угрозу: страница Counters вики, в порядке страницы."""
-        return [Counter(k, WIKI_HERO, None) for k in self.hero_counters.get(hero, ())]
+        return [Counter(k, WIKI_HERO, None, self.hero_reasons.get((hero, k))) for k in self.hero_counters.get(hero, ())]
 
     def source(self, counter: Counter) -> str | None:
         return self._sources.get((counter.answer, counter.item))
+
+
+def hero_reasons(wiki: dict, pairs: dict) -> dict[tuple[str, str], Why]:
+    """Причины «предмет против героя», размеченные по тексту вики. Текст пункта на вики поменялся (другой отпечаток)
+    или причины нет («none») — пара без причины: лучше промолчать, чем показать устаревшую."""
+    out = {}
+    for hero, entry in wiki.get("heroes", {}).items():
+        for item, line in entry.get("counter_texts", {}).items():
+            row = pairs.get(f"{hero}/{item}")
+            if row and row["kind"] != "none" and row.get("text_key") == text_key(line):
+                out[(hero, item)] = (row["kind"], tuple(row.get("abilities", ())))
+    return out
 
 
 def pick_parent(shares: dict[str, float], candidates: list[str]) -> str | None:
@@ -128,6 +153,6 @@ def choose(counters: list[Counter], share: Callable[[str], float | None], owned:
     good = [k for k in order if (shares[k] or 0.0) >= min_share]
     if good:
         good.sort(key=lambda k: (-(shares[k] or 0.0), order.index(k)))
-        return [Choice(k, first[k].answer, shares[k], prop=first[k].prop) for k in good[:limit]]
+        return [Choice(k, first[k].answer, shares[k], prop=first[k].prop, why=first[k].why) for k in good[:limit]]
     best = max(order, key=lambda k: (len(covers[k]), -order.index(k)))
-    return [Choice(best, first[best].answer, shares[best], rare=True, prop=first[best].prop)]
+    return [Choice(best, first[best].answer, shares[best], rare=True, prop=first[best].prop, why=first[best].why)]

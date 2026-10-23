@@ -243,6 +243,38 @@ HINT_RARE = "редко на твоём герое"
 HINT_CHOICE = "{item} ({reason})"
 HINT_CHOICE_RARE = "{item} ({reason}; редко на твоём герое)"
 HINT_CHOICE_HERO_RARE = "{item} (редко на твоём герое)"
+# причина «предмет против героя» по тексту страницы Counters Dota 2 Wiki (data/wiki_reasons.json, BUGLOG №61):
+# тип → (со способностями героя, без них); способности — по-английски, как в игре
+WIKI_REASONS = {
+    "reflect": ("отражает {ability}", "отражает способности"),
+    "spell_block": ("блокирует {ability}", "блокирует способность"),
+    "return_damage": (None, "возвращает урон"),
+    "break": ("ломает {ability}", "отключает пассивки"),
+    "pierce_evasion": ("пробивает {ability}", "пробивает уклонение"),
+    "bkb_pierce": (None, "работает сквозь BKB"),
+    "dispel_enemy": ("снимает {ability}", "снимает с врага усиления"),
+    "dispel_self": ("снимает с вас {ability}", "снимает с вас контроль"),
+    "silence": ("немота: без {ability}", "немота"),
+    "hex": (None, "хекс: без способностей и предметов"),
+    "disable": ("контроль, сбивает {ability}", "контроль"),
+    "no_escape": ("не даст уйти через {ability}", "не даст убежать"),
+    "disarm": (None, "не даёт бить"),
+    "heal_reduction": (None, "режет лечение"),
+    "detect": ("видит {ability}", "видит невидимость"),
+    "magic_defense": ("защита от {ability}", "защита от магии"),
+    "physical_defense": (None, "защита от ударов"),
+    "evasion": (None, "уклонение от ударов"),
+    "save": ("спасает от {ability}", "спасает союзника"),
+    "dodge": ("уворот от {ability}", "уворот от способностей"),
+    "team_sustain": (None, "держит здоровье и ману команды"),
+    "illusion_kill": (None, "чистит иллюзии и юнитов"),
+    "mana_burn": (None, "жжёт ману"),
+    "armor_reduction": (None, "снижает броню"),
+    "slow": (None, "замедляет"),
+    "chase": (None, "помогает догнать"),
+    "burst": (None, "быстро убивает"),
+}
+ABILITIES_JOIN = " и "
 
 # --- Полоска угроз ---
 STRIP_BOUGHT = "есть ✓"

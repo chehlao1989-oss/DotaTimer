@@ -1,0 +1,5950 @@
+{
+ "note": "Почему предмет хорош против героя — по тексту пункта страницы «<Hero>/Counters» Dota 2 Wiki (data/benchmark_counters.json: counter_texts). Ключ — «герой/предмет»; kind — тип причины (русский текст — app/i18n/ru.py: WIKI_REASONS, none — причины нет); abilities — способности героя дословно из текста; text_key — отпечаток текста: поменялся на вики — причина не показывается до новой разметки. Проверка: python tools/fetch_wiki_counters.py --reasons (BUGLOG №61).",
+ "source": "Dota 2 Wiki (CC BY-SA 3.0), тексты пунктов разметили вручную 23.10.2026 (ИИ-помощники по тексту каждого пункта); выборочная проверка — docs/reports/wiki_reasons_check.md",
+ "pairs": {
+  "abaddon/bloodthorn": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "0b380f5fa2"
+  },
+  "abaddon/cyclone": {
+   "kind": "disable",
+   "abilities": [
+    "Borrowed Time"
+   ],
+   "text_key": "822509d6bf"
+  },
+  "abaddon/dagon": {
+   "kind": "burst",
+   "abilities": [],
+   "text_key": "54942cb4f4"
+  },
+  "abaddon/ethereal_blade": {
+   "kind": "burst",
+   "abilities": [],
+   "text_key": "54942cb4f4"
+  },
+  "abaddon/force_staff": {
+   "kind": "dodge",
+   "abilities": [],
+   "text_key": "65cc00d328"
+  },
+  "abaddon/glimmer_cape": {
+   "kind": "dodge",
+   "abilities": [],
+   "text_key": "65cc00d328"
+  },
+  "abaddon/orchid": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "0b380f5fa2"
+  },
+  "abaddon/shivas_guard": {
+   "kind": "heal_reduction",
+   "abilities": [],
+   "text_key": "05c3d50fe7"
+  },
+  "abaddon/silver_edge": {
+   "kind": "break",
+   "abilities": [
+    "Curse of Avernus",
+    "Borrowed Time"
+   ],
+   "text_key": "2f310190b7"
+  },
+  "abaddon/spirit_vessel": {
+   "kind": "heal_reduction",
+   "abilities": [],
+   "text_key": "05c3d50fe7"
+  },
+  "abyssal_underlord/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "0e63220098"
+  },
+  "abyssal_underlord/dagon": {
+   "kind": "burst",
+   "abilities": [],
+   "text_key": "65a0f88267"
+  },
+  "abyssal_underlord/diffusal_blade": {
+   "kind": "mana_burn",
+   "abilities": [],
+   "text_key": "a152050685"
+  },
+  "abyssal_underlord/eternal_shroud": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "e51abe9a1a"
+  },
+  "abyssal_underlord/force_staff": {
+   "kind": "dodge",
+   "abilities": [
+    "Firestorm",
+    "Pit of Malice"
+   ],
+   "text_key": "84131a7383"
+  },
+  "abyssal_underlord/ghost": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "e30fe509e1"
+  },
+  "abyssal_underlord/glimmer_cape": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "e51abe9a1a"
+  },
+  "abyssal_underlord/gungir": {
+   "kind": "no_escape",
+   "abilities": [
+    "Fiend's Gate"
+   ],
+   "text_key": "6f2edfd278"
+  },
+  "abyssal_underlord/mage_slayer": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "e51abe9a1a"
+  },
+  "abyssal_underlord/manta": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Pit of Malice"
+   ],
+   "text_key": "bdb959b10c"
+  },
+  "abyssal_underlord/pipe": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "e51abe9a1a"
+  },
+  "abyssal_underlord/shivas_guard": {
+   "kind": "slow",
+   "abilities": [],
+   "text_key": "33026be490"
+  },
+  "abyssal_underlord/silver_edge": {
+   "kind": "break",
+   "abilities": [
+    "Atrophy Aura"
+   ],
+   "text_key": "771cddebc3"
+  },
+  "abyssal_underlord/travel_boots_2": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "d7142afe95"
+  },
+  "alchemist/aeon_disk": {
+   "kind": "dispel_self",
+   "abilities": [],
+   "text_key": "d818c3ff5b"
+  },
+  "alchemist/assault": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "ba056e6b11"
+  },
+  "alchemist/cyclone": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "fa6bc7e59d"
+  },
+  "alchemist/ethereal_blade": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "fa6bc7e59d"
+  },
+  "alchemist/force_staff": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "fa6bc7e59d"
+  },
+  "alchemist/ghost": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "fa6bc7e59d"
+  },
+  "alchemist/glimmer_cape": {
+   "kind": "save",
+   "abilities": [],
+   "text_key": "fa6bc7e59d"
+  },
+  "alchemist/heavens_halberd": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "9e7f85a83c"
+  },
+  "alchemist/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Unstable Concoction"
+   ],
+   "text_key": "d0791562df"
+  },
+  "alchemist/sheepstick": {
+   "kind": "hex",
+   "abilities": [],
+   "text_key": "86ce9e366f"
+  },
+  "alchemist/shivas_guard": {
+   "kind": "slow",
+   "abilities": [],
+   "text_key": "b2762004da"
+  },
+  "alchemist/spirit_vessel": {
+   "kind": "heal_reduction",
+   "abilities": [],
+   "text_key": "d366ea1799"
+  },
+  "ancient_apparition/black_king_bar": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Cold Feet"
+   ],
+   "text_key": "c4a18d66f0"
+  },
+  "ancient_apparition/cloak": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "b9f7ca67da"
+  },
+  "ancient_apparition/cyclone": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Cold Feet"
+   ],
+   "text_key": "4a706ea734"
+  },
+  "ancient_apparition/force_staff": {
+   "kind": "dodge",
+   "abilities": [],
+   "text_key": "bc867dec57"
+  },
+  "ancient_apparition/glimmer_cape": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "b9f7ca67da"
+  },
+  "ancient_apparition/invis_sword": {
+   "kind": "dodge",
+   "abilities": [
+    "Ice Blast"
+   ],
+   "text_key": "9194a29a63"
+  },
+  "ancient_apparition/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Cold Feet"
+   ],
+   "text_key": "011bc98cc6"
+  },
+  "ancient_apparition/manta": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Cold Feet"
+   ],
+   "text_key": "4a706ea734"
+  },
+  "ancient_apparition/pipe": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "b9f7ca67da"
+  },
+  "antimage/aeon_disk": {
+   "kind": "save",
+   "abilities": [
+    "Mana Void"
+   ],
+   "text_key": "21907e315d"
+  },
+  "antimage/arcane_boots": {
+   "kind": "team_sustain",
+   "abilities": [],
+   "text_key": "2515ebf097"
+  },
+  "antimage/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Mana Break",
+    "Mana Void"
+   ],
+   "text_key": "66289a6c39"
+  },
+  "antimage/butterfly": {
+   "kind": "evasion",
+   "abilities": [],
+   "text_key": "4b22622b5c"
+  },
+  "antimage/diffusal_blade": {
+   "kind": "mana_burn",
+   "abilities": [],
+   "text_key": "2f73db0efe"
+  },
+  "antimage/guardian_greaves": {
+   "kind": "team_sustain",
+   "abilities": [],
+   "text_key": "2515ebf097"
+  },
+  "antimage/orchid": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "efc5019ba0"
+  },
+  "antimage/sheepstick": {
+   "kind": "no_escape",
+   "abilities": [],
+   "text_key": "2b183d677b"
+  },
+  "antimage/silver_edge": {
+   "kind": "break",
+   "abilities": [
+    "Mana Break",
+    "Counterspell"
+   ],
+   "text_key": "236a4fd057"
+  },
+  "antimage/sphere": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Mana Void"
+   ],
+   "text_key": "71431f340c"
+  },
+  "arc_warden/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "3e50d4dc52"
+  },
+  "arc_warden/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Flux"
+   ],
+   "text_key": "81c4cc87a0"
+  },
+  "arc_warden/manta": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Flux"
+   ],
+   "text_key": "ba515dc424"
+  },
+  "arc_warden/monkey_king_bar": {
+   "kind": "pierce_evasion",
+   "abilities": [
+    "Magnetic Field"
+   ],
+   "text_key": "6248fdf01c"
+  },
+  "arc_warden/revenants_brooch": {
+   "kind": "pierce_evasion",
+   "abilities": [
+    "Magnetic Field"
+   ],
+   "text_key": "6248fdf01c"
+  },
+  "arc_warden/witch_blade": {
+   "kind": "pierce_evasion",
+   "abilities": [
+    "Magnetic Field"
+   ],
+   "text_key": "6248fdf01c"
+  },
+  "axe/cyclone": {
+   "kind": "disable",
+   "abilities": [
+    "Berserker's Call"
+   ],
+   "text_key": "162e3ea2c2"
+  },
+  "axe/ethereal_blade": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "e0380136f6"
+  },
+  "axe/force_staff": {
+   "kind": "save",
+   "abilities": [
+    "Berserker's Call"
+   ],
+   "text_key": "c06c29367b"
+  },
+  "axe/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Battle Hunger"
+   ],
+   "text_key": "48024af60f"
+  },
+  "axe/mekansm": {
+   "kind": "team_sustain",
+   "abilities": [],
+   "text_key": "daf8fd4f21"
+  },
+  "axe/satanic": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "45c3224ab0"
+  },
+  "axe/silver_edge": {
+   "kind": "break",
+   "abilities": [
+    "Counter Helix"
+   ],
+   "text_key": "12c5c58d8f"
+  },
+  "axe/skadi": {
+   "kind": "heal_reduction",
+   "abilities": [],
+   "text_key": "acb140c685"
+  },
+  "axe/spirit_vessel": {
+   "kind": "heal_reduction",
+   "abilities": [],
+   "text_key": "c5a3bf9c44"
+  },
+  "axe/vladmir": {
+   "kind": "heal_reduction",
+   "abilities": [],
+   "text_key": "45c3224ab0"
+  },
+  "bane/abyssal_blade": {
+   "kind": "bkb_pierce",
+   "abilities": [],
+   "text_key": "2a37817cd6"
+  },
+  "bane/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "3e0a172901"
+  },
+  "bane/eternal_shroud": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "a3793b70cc"
+  },
+  "bane/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [],
+   "text_key": "b356dd3ec8"
+  },
+  "bane/sphere": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "82579c116c"
+  },
+  "batrider/aeon_disk": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Flaming Lasso"
+   ],
+   "text_key": "6319c2c963"
+  },
+  "batrider/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "0d2d67998b"
+  },
+  "batrider/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "f184d8c09f"
+  },
+  "batrider/cloak": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "9d30663176"
+  },
+  "batrider/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [],
+   "text_key": "74a03003b6"
+  },
+  "batrider/mage_slayer": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Firefly",
+    "Flamebreak"
+   ],
+   "text_key": "829ebf7e0e"
+  },
+  "batrider/magic_stick": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "30643cf7c7"
+  },
+  "batrider/magic_wand": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "30643cf7c7"
+  },
+  "batrider/phase_boots": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "fbdc83188e"
+  },
+  "batrider/sphere": {
+   "kind": "spell_block",
+   "abilities": [
+    "Flaming Lasso"
+   ],
+   "text_key": "46542bbe5d"
+  },
+  "beastmaster/aeon_disk": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Primal Roar"
+   ],
+   "text_key": "ab07019824"
+  },
+  "beastmaster/bfury": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "e2c2d83089"
+  },
+  "beastmaster/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Primal Roar"
+   ],
+   "text_key": "0a8e6186c4"
+  },
+  "beastmaster/maelstrom": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "68c97de7bd"
+  },
+  "beastmaster/mjollnir": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "68c97de7bd"
+  },
+  "beastmaster/sphere": {
+   "kind": "spell_block",
+   "abilities": [
+    "Primal Roar"
+   ],
+   "text_key": "7ff089c199"
+  },
+  "bloodseeker/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "d4060e260f"
+  },
+  "bloodseeker/crimson_guard": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "3b7a73fa84"
+  },
+  "bloodseeker/guardian_greaves": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Blood Rite"
+   ],
+   "text_key": "2e02a16ac6"
+  },
+  "bloodseeker/heart": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "32dab5fcab"
+  },
+  "bloodseeker/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Rupture"
+   ],
+   "text_key": "fce41a89a4"
+  },
+  "bloodseeker/magic_stick": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "eb7c1f5fe6"
+  },
+  "bloodseeker/sphere": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Rupture"
+   ],
+   "text_key": "ef0648fc9d"
+  },
+  "bloodseeker/tpscroll": {
+   "kind": "dodge",
+   "abilities": [],
+   "text_key": "b9e19f0de1"
+  },
+  "bounty_hunter/black_king_bar": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Track"
+   ],
+   "text_key": "062c4feb9a"
+  },
+  "bounty_hunter/cyclone": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Track"
+   ],
+   "text_key": "062c4feb9a"
+  },
+  "bounty_hunter/dust": {
+   "kind": "detect",
+   "abilities": [
+    "Shadow Walk"
+   ],
+   "text_key": "6a37a439f9"
+  },
+  "bounty_hunter/gem": {
+   "kind": "detect",
+   "abilities": [],
+   "text_key": "942d2105fa"
+  },
+  "bounty_hunter/guardian_greaves": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Track"
+   ],
+   "text_key": "062c4feb9a"
+  },
+  "bounty_hunter/lotus_orb": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Track"
+   ],
+   "text_key": "062c4feb9a"
+  },
+  "bounty_hunter/manta": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Track"
+   ],
+   "text_key": "062c4feb9a"
+  },
+  "bounty_hunter/ward_sentry": {
+   "kind": "detect",
+   "abilities": [],
+   "text_key": "12bd44da28"
+  },
+  "brewmaster/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "0b4940d102"
+  },
+  "brewmaster/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Primal Split"
+   ],
+   "text_key": "01c97d0181"
+  },
+  "brewmaster/monkey_king_bar": {
+   "kind": "pierce_evasion",
+   "abilities": [],
+   "text_key": "c6a55f9b8a"
+  },
+  "bristleback/assault": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "647432343a"
+  },
+  "bristleback/diffusal_blade": {
+   "kind": "mana_burn",
+   "abilities": [],
+   "text_key": "6d14da0eb9"
+  },
+  "bristleback/ghost": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "72248f4582"
+  },
+  "bristleback/magic_stick": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "caadf21d1b"
+  },
+  "bristleback/silver_edge": {
+   "kind": "break",
+   "abilities": [],
+   "text_key": "d72965d958"
+  },
+  "bristleback/spirit_vessel": {
+   "kind": "heal_reduction",
+   "abilities": [],
+   "text_key": "3d7a1a003b"
+  },
+  "bristleback/tpscroll": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "cd8dba4a37"
+  },
+  "broodmother/abyssal_blade": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "fed72fc6bd"
+  },
+  "broodmother/bfury": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "e7998c34c7"
+  },
+  "broodmother/blink": {
+   "kind": "chase",
+   "abilities": [],
+   "text_key": "04df027d3a"
+  },
+  "broodmother/crimson_guard": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "fed72fc6bd"
+  },
+  "broodmother/diffusal_blade": {
+   "kind": "no_escape",
+   "abilities": [],
+   "text_key": "4e686a168c"
+  },
+  "broodmother/gungir": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "e7998c34c7"
+  },
+  "broodmother/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Silken Bola",
+    "Spawn Spiderlings"
+   ],
+   "text_key": "875e9e975f"
+  },
+  "broodmother/maelstrom": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "e7998c34c7"
+  },
+  "broodmother/mjollnir": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "e7998c34c7"
+  },
+  "broodmother/radiance": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "e7998c34c7"
+  },
+  "broodmother/rod_of_atos": {
+   "kind": "no_escape",
+   "abilities": [],
+   "text_key": "4e686a168c"
+  },
+  "broodmother/spirit_vessel": {
+   "kind": "heal_reduction",
+   "abilities": [],
+   "text_key": "a8871e61ba"
+  },
+  "broodmother/travel_boots": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "7190c1aa1b"
+  },
+  "broodmother/vanguard": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "fed72fc6bd"
+  },
+  "centaur/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "ffa1a32c0c"
+  },
+  "centaur/lifesteal": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "3de2c1b5e3"
+  },
+  "centaur/radiance": {
+   "kind": "no_escape",
+   "abilities": [],
+   "text_key": "11a3721018"
+  },
+  "centaur/rod_of_atos": {
+   "kind": "disable",
+   "abilities": [
+    "Stampede"
+   ],
+   "text_key": "89370f98ae"
+  },
+  "chaos_knight/bfury": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "334c51ecfc"
+  },
+  "chaos_knight/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "30be95628a"
+  },
+  "chaos_knight/butterfly": {
+   "kind": "evasion",
+   "abilities": [],
+   "text_key": "73241618b6"
+  },
+  "chaos_knight/ethereal_blade": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "c84adde0aa"
+  },
+  "chaos_knight/ghost": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "c84adde0aa"
+  },
+  "chaos_knight/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Chaos Bolt",
+    "Reality Rift"
+   ],
+   "text_key": "6a5244883a"
+  },
+  "chaos_knight/manta": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "35960d26c2"
+  },
+  "chaos_knight/shivas_guard": {
+   "kind": "slow",
+   "abilities": [],
+   "text_key": "c8d23d1cfd"
+  },
+  "chaos_knight/sphere": {
+   "kind": "spell_block",
+   "abilities": [],
+   "text_key": "30aebb78de"
+  },
+  "chen/bfury": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "cdba3a5007"
+  },
+  "chen/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "5e06cf430e"
+  },
+  "chen/blink": {
+   "kind": "chase",
+   "abilities": [],
+   "text_key": "542e77f0a1"
+  },
+  "chen/butterfly": {
+   "kind": "evasion",
+   "abilities": [],
+   "text_key": "a563aeaeaa"
+  },
+  "chen/dagon": {
+   "kind": "burst",
+   "abilities": [],
+   "text_key": "b01659e7ed"
+  },
+  "chen/gungir": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "7ac558f193"
+  },
+  "chen/hand_of_midas": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "981b3d152b"
+  },
+  "chen/heavens_halberd": {
+   "kind": "evasion",
+   "abilities": [],
+   "text_key": "a563aeaeaa"
+  },
+  "chen/helm_of_the_dominator": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "1e3bb58acf"
+  },
+  "chen/helm_of_the_overlord": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "1e3bb58acf"
+  },
+  "chen/invis_sword": {
+   "kind": "chase",
+   "abilities": [],
+   "text_key": "e4f0a78b4f"
+  },
+  "chen/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Penitence"
+   ],
+   "text_key": "38d96ad0fc"
+  },
+  "chen/maelstrom": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "7ac558f193"
+  },
+  "chen/manta": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Penitence"
+   ],
+   "text_key": "4325e4fd05"
+  },
+  "chen/mjollnir": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "7ac558f193"
+  },
+  "chen/orchid": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "1bfcbb94c0"
+  },
+  "chen/radiance": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "45d40ac484"
+  },
+  "chen/shivas_guard": {
+   "kind": "slow",
+   "abilities": [],
+   "text_key": "0ecaada3f3"
+  },
+  "chen/skadi": {
+   "kind": "heal_reduction",
+   "abilities": [],
+   "text_key": "a3ae291688"
+  },
+  "chen/sphere": {
+   "kind": "spell_block",
+   "abilities": [
+    "Penitence"
+   ],
+   "text_key": "7f3932342a"
+  },
+  "chen/spirit_vessel": {
+   "kind": "heal_reduction",
+   "abilities": [],
+   "text_key": "85452a67b4"
+  },
+  "clinkz/assault": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "cce03d9e19"
+  },
+  "clinkz/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "6a2a81e42b"
+  },
+  "clinkz/cyclone": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "1b96ab329e"
+  },
+  "clinkz/dust": {
+   "kind": "detect",
+   "abilities": [],
+   "text_key": "b6e1f8fb03"
+  },
+  "clinkz/force_staff": {
+   "kind": "save",
+   "abilities": [],
+   "text_key": "347c1f7590"
+  },
+  "clinkz/gem": {
+   "kind": "detect",
+   "abilities": [],
+   "text_key": "b6e1f8fb03"
+  },
+  "clinkz/ghost": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "fd74f26f50"
+  },
+  "clinkz/heavens_halberd": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "1b96ab329e"
+  },
+  "clinkz/holy_locket": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "6ef11e89ab"
+  },
+  "clinkz/magic_wand": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "6ef11e89ab"
+  },
+  "clinkz/orchid": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "f2dcad3df1"
+  },
+  "clinkz/ward_sentry": {
+   "kind": "detect",
+   "abilities": [],
+   "text_key": "b6e1f8fb03"
+  },
+  "crystal_maiden/abyssal_blade": {
+   "kind": "bkb_pierce",
+   "abilities": [],
+   "text_key": "69bd7c93e6"
+  },
+  "crystal_maiden/basher": {
+   "kind": "disable",
+   "abilities": [
+    "Freezing Field"
+   ],
+   "text_key": "69bd7c93e6"
+  },
+  "crystal_maiden/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "77399aa29b"
+  },
+  "crystal_maiden/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "02a2f4d9a4"
+  },
+  "crystal_maiden/bloodthorn": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "702c626904"
+  },
+  "crystal_maiden/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Frostbite"
+   ],
+   "text_key": "af9f76394e"
+  },
+  "crystal_maiden/orchid": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "702c626904"
+  },
+  "crystal_maiden/sphere": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Frostbite"
+   ],
+   "text_key": "5d30954d5a"
+  },
+  "dark_seer/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "ee52e2989b"
+  },
+  "dark_seer/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "d9ae9ad9bc"
+  },
+  "dark_seer/cyclone": {
+   "kind": "dispel_enemy",
+   "abilities": [
+    "Ion Shell",
+    "Surge"
+   ],
+   "text_key": "fbef06f3f3"
+  },
+  "dark_seer/orchid": {
+   "kind": "no_escape",
+   "abilities": [
+    "Surge"
+   ],
+   "text_key": "e9359d3415"
+  },
+  "dark_seer/radiance": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "263b8c86b5"
+  },
+  "dark_willow/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "33381d5d00"
+  },
+  "dark_willow/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "c8a5bd361a"
+  },
+  "dark_willow/bloodthorn": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "80f0effcb9"
+  },
+  "dark_willow/cloak": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "9d28d10bc3"
+  },
+  "dark_willow/dragon_lance": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "b3aa7a1fc2"
+  },
+  "dark_willow/glimmer_cape": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "e8223c6fbb"
+  },
+  "dark_willow/helm_of_the_dominator": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "213dff98c4"
+  },
+  "dark_willow/infused_raindrop": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Shadow Realm"
+   ],
+   "text_key": "aaca1105d1"
+  },
+  "dark_willow/lotus_orb": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Cursed Crown",
+    "Terrorize"
+   ],
+   "text_key": "d7d7971c33"
+  },
+  "dark_willow/tpscroll": {
+   "kind": "dodge",
+   "abilities": [
+    "Cursed Crown"
+   ],
+   "text_key": "5023418a18"
+  },
+  "dawnbreaker/assault": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "db0f7b4bc7"
+  },
+  "dawnbreaker/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "5f9660264c"
+  },
+  "dawnbreaker/bloodthorn": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "6a22bc8194"
+  },
+  "dawnbreaker/crimson_guard": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "db0f7b4bc7"
+  },
+  "dawnbreaker/ethereal_blade": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "7cebdbf728"
+  },
+  "dawnbreaker/ghost": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "7cebdbf728"
+  },
+  "dawnbreaker/orchid": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "6a22bc8194"
+  },
+  "dawnbreaker/sheepstick": {
+   "kind": "hex",
+   "abilities": [],
+   "text_key": "0fc928a5c5"
+  },
+  "dawnbreaker/shivas_guard": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "db0f7b4bc7"
+  },
+  "dazzle/bloodthorn": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "54fbc79fcb"
+  },
+  "dazzle/cyclone": {
+   "kind": "disable",
+   "abilities": [
+    "Shallow Grave"
+   ],
+   "text_key": "737459a68d"
+  },
+  "dazzle/dagon": {
+   "kind": "burst",
+   "abilities": [],
+   "text_key": "0fb4aea20e"
+  },
+  "dazzle/diffusal_blade": {
+   "kind": "mana_burn",
+   "abilities": [],
+   "text_key": "f5c613e107"
+  },
+  "dazzle/ghost": {
+   "kind": "burst",
+   "abilities": [],
+   "text_key": "f6064c7893"
+  },
+  "dazzle/orchid": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "54fbc79fcb"
+  },
+  "death_prophet/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "b2a3b53fe0"
+  },
+  "death_prophet/bloodthorn": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "c09b2b289b"
+  },
+  "death_prophet/cyclone": {
+   "kind": "dispel_self",
+   "abilities": [],
+   "text_key": "fcf4df6998"
+  },
+  "death_prophet/diffusal_blade": {
+   "kind": "mana_burn",
+   "abilities": [],
+   "text_key": "c78f63c5cc"
+  },
+  "death_prophet/ethereal_blade": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "7f42ae1e81"
+  },
+  "death_prophet/guardian_greaves": {
+   "kind": "dispel_self",
+   "abilities": [],
+   "text_key": "fcf4df6998"
+  },
+  "death_prophet/lotus_orb": {
+   "kind": "dispel_self",
+   "abilities": [],
+   "text_key": "fcf4df6998"
+  },
+  "death_prophet/manta": {
+   "kind": "dispel_self",
+   "abilities": [],
+   "text_key": "fcf4df6998"
+  },
+  "death_prophet/orchid": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "c09b2b289b"
+  },
+  "disruptor/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Kinetic Field",
+    "Static Storm"
+   ],
+   "text_key": "75e9d31858"
+  },
+  "disruptor/hood_of_defiance": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "174fb2cbfe"
+  },
+  "disruptor/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Thunder Strike",
+    "Glimpse"
+   ],
+   "text_key": "62079c27df"
+  },
+  "disruptor/manta": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Thunder Strike",
+    "Glimpse"
+   ],
+   "text_key": "b343210813"
+  },
+  "disruptor/sphere": {
+   "kind": "spell_block",
+   "abilities": [
+    "Glimpse"
+   ],
+   "text_key": "c8bee732f6"
+  },
+  "doom_bringer/glimmer_cape": {
+   "kind": "save",
+   "abilities": [
+    "Infernal Blade",
+    "Scorched Earth"
+   ],
+   "text_key": "1efc0a8097"
+  },
+  "doom_bringer/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Doom"
+   ],
+   "text_key": "a52a7cd150"
+  },
+  "doom_bringer/orchid": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "c950dfa6f5"
+  },
+  "doom_bringer/sphere": {
+   "kind": "spell_block",
+   "abilities": [],
+   "text_key": "7754e1a55a"
+  },
+  "dragon_knight/desolator": {
+   "kind": "armor_reduction",
+   "abilities": [],
+   "text_key": "53c4bfe263"
+  },
+  "dragon_knight/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Dragon Tail"
+   ],
+   "text_key": "06b13740e3"
+  },
+  "dragon_knight/medallion_of_courage": {
+   "kind": "armor_reduction",
+   "abilities": [],
+   "text_key": "53c4bfe263"
+  },
+  "dragon_knight/mekansm": {
+   "kind": "team_sustain",
+   "abilities": [],
+   "text_key": "dda142c406"
+  },
+  "dragon_knight/shivas_guard": {
+   "kind": "slow",
+   "abilities": [],
+   "text_key": "ddaf8390c1"
+  },
+  "dragon_knight/solar_crest": {
+   "kind": "armor_reduction",
+   "abilities": [],
+   "text_key": "53c4bfe263"
+  },
+  "dragon_knight/sphere": {
+   "kind": "spell_block",
+   "abilities": [
+    "Dragon Tail"
+   ],
+   "text_key": "7cd5bf9be6"
+  },
+  "drow_ranger/black_king_bar": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Gust"
+   ],
+   "text_key": "be3a9ee003"
+  },
+  "drow_ranger/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "3a856d764d"
+  },
+  "drow_ranger/blink": {
+   "kind": "chase",
+   "abilities": [],
+   "text_key": "0cc3b26eac"
+  },
+  "drow_ranger/cyclone": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Gust"
+   ],
+   "text_key": "0bdb21537b"
+  },
+  "drow_ranger/ghost": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "a75b0bd055"
+  },
+  "drow_ranger/heavens_halberd": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "4afda99436"
+  },
+  "drow_ranger/invis_sword": {
+   "kind": "chase",
+   "abilities": [],
+   "text_key": "d1931724c7"
+  },
+  "drow_ranger/manta": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Gust"
+   ],
+   "text_key": "2c92807faa"
+  },
+  "drow_ranger/rod_of_atos": {
+   "kind": "chase",
+   "abilities": [],
+   "text_key": "654bc4acc7"
+  },
+  "earth_spirit/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "a5316f5cdf"
+  },
+  "earth_spirit/cyclone": {
+   "kind": "dispel_self",
+   "abilities": [],
+   "text_key": "dd99253681"
+  },
+  "earth_spirit/pipe": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "cd9cafa80f"
+  },
+  "earthshaker/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "1af3758977"
+  },
+  "earthshaker/cyclone": {
+   "kind": "dodge",
+   "abilities": [],
+   "text_key": "db42d414a8"
+  },
+  "earthshaker/diffusal_blade": {
+   "kind": "mana_burn",
+   "abilities": [],
+   "text_key": "c60dadfe73"
+  },
+  "earthshaker/dust": {
+   "kind": "detect",
+   "abilities": [],
+   "text_key": "25f5e5f0c7"
+  },
+  "earthshaker/pipe": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "1af3758977"
+  },
+  "earthshaker/radiance": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "2f580dcba8"
+  },
+  "earthshaker/rod_of_atos": {
+   "kind": "no_escape",
+   "abilities": [],
+   "text_key": "d5b25aeb06"
+  },
+  "earthshaker/sheepstick": {
+   "kind": "hex",
+   "abilities": [],
+   "text_key": "98b33dd033"
+  },
+  "earthshaker/silver_edge": {
+   "kind": "break",
+   "abilities": [
+    "Aftershock"
+   ],
+   "text_key": "a0622582af"
+  },
+  "elder_titan/aeon_disk": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "d24c330ba3"
+  },
+  "ember_spirit/abyssal_blade": {
+   "kind": "no_escape",
+   "abilities": [],
+   "text_key": "c4e42fcf14"
+  },
+  "ember_spirit/assault": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "0627381732"
+  },
+  "ember_spirit/bloodthorn": {
+   "kind": "silence",
+   "abilities": [
+    "Activate Fire Remnant"
+   ],
+   "text_key": "68227753d3"
+  },
+  "ember_spirit/butterfly": {
+   "kind": "evasion",
+   "abilities": [],
+   "text_key": "06d5917ad9"
+  },
+  "ember_spirit/crimson_guard": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "0627381732"
+  },
+  "ember_spirit/cyclone": {
+   "kind": "dispel_enemy",
+   "abilities": [
+    "Flame Guard"
+   ],
+   "text_key": "2faa7d1d32"
+  },
+  "ember_spirit/heart": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "bb5e0804ea"
+  },
+  "ember_spirit/heavens_halberd": {
+   "kind": "evasion",
+   "abilities": [],
+   "text_key": "06d5917ad9"
+  },
+  "ember_spirit/orchid": {
+   "kind": "silence",
+   "abilities": [
+    "Activate Fire Remnant"
+   ],
+   "text_key": "68227753d3"
+  },
+  "ember_spirit/satanic": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "bb5e0804ea"
+  },
+  "ember_spirit/sheepstick": {
+   "kind": "no_escape",
+   "abilities": [],
+   "text_key": "c4e42fcf14"
+  },
+  "ember_spirit/skadi": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "bb5e0804ea"
+  },
+  "enchantress/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "9ebbbacbd6"
+  },
+  "enchantress/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Enchant"
+   ],
+   "text_key": "a631165db5"
+  },
+  "enchantress/moon_shard": {
+   "kind": "slow",
+   "abilities": [],
+   "text_key": "ce00c131e7"
+  },
+  "enchantress/shivas_guard": {
+   "kind": "heal_reduction",
+   "abilities": [],
+   "text_key": "7699ee8720"
+  },
+  "enchantress/silver_edge": {
+   "kind": "break",
+   "abilities": [
+    "Untouchable"
+   ],
+   "text_key": "668cdf56b6"
+  },
+  "enchantress/spirit_vessel": {
+   "kind": "heal_reduction",
+   "abilities": [],
+   "text_key": "6523fe66f9"
+  },
+  "enigma/abyssal_blade": {
+   "kind": "bkb_pierce",
+   "abilities": [],
+   "text_key": "9b2358be94"
+  },
+  "enigma/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "720c6f1072"
+  },
+  "enigma/bloodstone": {
+   "kind": "save",
+   "abilities": [
+    "Black Hole"
+   ],
+   "text_key": "88c2c87364"
+  },
+  "enigma/cyclone": {
+   "kind": "disable",
+   "abilities": [
+    "Black Hole"
+   ],
+   "text_key": "7abf202268"
+  },
+  "enigma/dagon": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "88c2c87364"
+  },
+  "enigma/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Malefice"
+   ],
+   "text_key": "a22522a61f"
+  },
+  "enigma/orchid": {
+   "kind": "silence",
+   "abilities": [
+    "Black Hole"
+   ],
+   "text_key": "8a98ed8389"
+  },
+  "enigma/pipe": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Midnight Pulse"
+   ],
+   "text_key": "3a6779328c"
+  },
+  "enigma/radiance": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "ffb95bf02d"
+  },
+  "enigma/rod_of_atos": {
+   "kind": "disable",
+   "abilities": [
+    "Black Hole"
+   ],
+   "text_key": "d70dcf654a"
+  },
+  "enigma/satanic": {
+   "kind": "team_sustain",
+   "abilities": [],
+   "text_key": "88c2c87364"
+  },
+  "enigma/sheepstick": {
+   "kind": "hex",
+   "abilities": [],
+   "text_key": "ec5f4bd48b"
+  },
+  "enigma/sphere": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Malefice"
+   ],
+   "text_key": "14312b18ff"
+  },
+  "enigma/spirit_vessel": {
+   "kind": "no_escape",
+   "abilities": [],
+   "text_key": "168bc17adf"
+  },
+  "faceless_void/aeon_disk": {
+   "kind": "save",
+   "abilities": [
+    "Chronosphere"
+   ],
+   "text_key": "943c9fbd25"
+  },
+  "faceless_void/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "9a3f8df4ec"
+  },
+  "faceless_void/crimson_guard": {
+   "kind": "save",
+   "abilities": [
+    "Chronosphere"
+   ],
+   "text_key": "cd95808dce"
+  },
+  "faceless_void/cyclone": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "098aea36df"
+  },
+  "faceless_void/ethereal_blade": {
+   "kind": "save",
+   "abilities": [
+    "Chronosphere"
+   ],
+   "text_key": "d31c032c87"
+  },
+  "faceless_void/orchid": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "d318bdfeeb"
+  },
+  "faceless_void/sheepstick": {
+   "kind": "hex",
+   "abilities": [],
+   "text_key": "5fbca500c9"
+  },
+  "furion/bfury": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "8e445858bc"
+  },
+  "furion/black_king_bar": {
+   "kind": "dispel_self",
+   "abilities": [],
+   "text_key": "73f11df86d"
+  },
+  "furion/disperser": {
+   "kind": "dispel_self",
+   "abilities": [],
+   "text_key": "73f11df86d"
+  },
+  "furion/dust": {
+   "kind": "detect",
+   "abilities": [],
+   "text_key": "3864452f4a"
+  },
+  "furion/force_staff": {
+   "kind": "dodge",
+   "abilities": [
+    "Sprout"
+   ],
+   "text_key": "86bb73345a"
+  },
+  "furion/ghost": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "55dcf99263"
+  },
+  "furion/guardian_greaves": {
+   "kind": "dispel_self",
+   "abilities": [],
+   "text_key": "73f11df86d"
+  },
+  "furion/gungir": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "8e445858bc"
+  },
+  "furion/heavens_halberd": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "4d82250819"
+  },
+  "furion/lotus_orb": {
+   "kind": "dispel_self",
+   "abilities": [],
+   "text_key": "73f11df86d"
+  },
+  "furion/maelstrom": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "8e445858bc"
+  },
+  "furion/manta": {
+   "kind": "dispel_self",
+   "abilities": [],
+   "text_key": "73f11df86d"
+  },
+  "furion/mjollnir": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "8e445858bc"
+  },
+  "furion/quelling_blade": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "9bee479631"
+  },
+  "furion/radiance": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "8e445858bc"
+  },
+  "furion/rod_of_atos": {
+   "kind": "no_escape",
+   "abilities": [
+    "Teleportation"
+   ],
+   "text_key": "1bd74ef3bf"
+  },
+  "furion/satanic": {
+   "kind": "dispel_self",
+   "abilities": [],
+   "text_key": "73f11df86d"
+  },
+  "furion/sphere": {
+   "kind": "spell_block",
+   "abilities": [
+    "Sprout"
+   ],
+   "text_key": "542d9a44e4"
+  },
+  "furion/travel_boots": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "04727c32aa"
+  },
+  "grimstroke/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Soulbind"
+   ],
+   "text_key": "71325db379"
+  },
+  "grimstroke/cyclone": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Phantom's Embrace"
+   ],
+   "text_key": "48dd853905"
+  },
+  "grimstroke/force_staff": {
+   "kind": "save",
+   "abilities": [
+    "Soulbind"
+   ],
+   "text_key": "5f70af8102"
+  },
+  "grimstroke/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Phantom's Embrace",
+    "Soulbind"
+   ],
+   "text_key": "6810546f44"
+  },
+  "grimstroke/manta": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Phantom's Embrace"
+   ],
+   "text_key": "48dd853905"
+  },
+  "grimstroke/pipe": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "f321e92a75"
+  },
+  "grimstroke/shadow_amulet": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Phantom's Embrace"
+   ],
+   "text_key": "290913319f"
+  },
+  "gyrocopter/assault": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "2c396b80c0"
+  },
+  "gyrocopter/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "0d1a22125c"
+  },
+  "gyrocopter/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "8203ddd8fb"
+  },
+  "gyrocopter/crimson_guard": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "deabb468b5"
+  },
+  "gyrocopter/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Homming Missle"
+   ],
+   "text_key": "4f4a2fd2f2"
+  },
+  "hoodwink/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "60e0fe3095"
+  },
+  "hoodwink/dust": {
+   "kind": "detect",
+   "abilities": [],
+   "text_key": "93372e1c55"
+  },
+  "hoodwink/force_staff": {
+   "kind": "dodge",
+   "abilities": [
+    "Sharpshooter"
+   ],
+   "text_key": "a9e8b56dba"
+  },
+  "hoodwink/gem": {
+   "kind": "detect",
+   "abilities": [],
+   "text_key": "93372e1c55"
+  },
+  "hoodwink/hurricane_pike": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Bushwhack"
+   ],
+   "text_key": "94aafd31b1"
+  },
+  "hoodwink/monkey_king_bar": {
+   "kind": "pierce_evasion",
+   "abilities": [
+    "Scurry"
+   ],
+   "text_key": "7f7efcf4a0"
+  },
+  "hoodwink/silver_edge": {
+   "kind": "break",
+   "abilities": [
+    "Scurry"
+   ],
+   "text_key": "ad9fea8d0f"
+  },
+  "hoodwink/ward_sentry": {
+   "kind": "detect",
+   "abilities": [],
+   "text_key": "93372e1c55"
+  },
+  "huskar/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Burning Spears",
+    "Inner Fire"
+   ],
+   "text_key": "05f647f7ee"
+  },
+  "huskar/heavens_halberd": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "876496586f"
+  },
+  "huskar/manta": {
+   "kind": "dodge",
+   "abilities": [
+    "Life Break"
+   ],
+   "text_key": "da817e741f"
+  },
+  "huskar/pipe": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Burning Spears",
+    "Life Break"
+   ],
+   "text_key": "62f61b8acb"
+  },
+  "huskar/shivas_guard": {
+   "kind": "heal_reduction",
+   "abilities": [],
+   "text_key": "c3cfe0545f"
+  },
+  "huskar/silver_edge": {
+   "kind": "break",
+   "abilities": [
+    "Berserker's Blood"
+   ],
+   "text_key": "5eda124d32"
+  },
+  "huskar/skadi": {
+   "kind": "heal_reduction",
+   "abilities": [],
+   "text_key": "f168a97dcf"
+  },
+  "huskar/sphere": {
+   "kind": "spell_block",
+   "abilities": [
+    "Life Break"
+   ],
+   "text_key": "28da6d3ad9"
+  },
+  "huskar/spirit_vessel": {
+   "kind": "heal_reduction",
+   "abilities": [],
+   "text_key": "6bc4a8a71a"
+  },
+  "invoker/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "e3c8023507"
+  },
+  "invoker/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "1eff60b96f"
+  },
+  "invoker/cyclone": {
+   "kind": "dodge",
+   "abilities": [],
+   "text_key": "6c32c169ba"
+  },
+  "invoker/diffusal_blade": {
+   "kind": "mana_burn",
+   "abilities": [],
+   "text_key": "fee5a5abaf"
+  },
+  "invoker/force_staff": {
+   "kind": "save",
+   "abilities": [],
+   "text_key": "f5a89b3775"
+  },
+  "invoker/glimmer_cape": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "9e7d7b2469"
+  },
+  "invoker/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Cold Snap"
+   ],
+   "text_key": "2f0968a381"
+  },
+  "invoker/pipe": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "21b06cadd1"
+  },
+  "jakiro/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "301698d02d"
+  },
+  "jakiro/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "9512500c88"
+  },
+  "jakiro/eternal_shroud": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "118a4ef285"
+  },
+  "jakiro/orchid": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "bc4aeae051"
+  },
+  "jakiro/pipe": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "118a4ef285"
+  },
+  "juggernaut/abyssal_blade": {
+   "kind": "bkb_pierce",
+   "abilities": [],
+   "text_key": "ec098af609"
+  },
+  "juggernaut/aeon_disk": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "732721d97b"
+  },
+  "juggernaut/basher": {
+   "kind": "bkb_pierce",
+   "abilities": [],
+   "text_key": "ec098af609"
+  },
+  "juggernaut/cyclone": {
+   "kind": "dodge",
+   "abilities": [
+    "Omnislash"
+   ],
+   "text_key": "e217901807"
+  },
+  "juggernaut/force_staff": {
+   "kind": "disable",
+   "abilities": [
+    "Omnislash"
+   ],
+   "text_key": "3baecfaeec"
+  },
+  "juggernaut/ghost": {
+   "kind": "dodge",
+   "abilities": [
+    "Omnislash"
+   ],
+   "text_key": "e217901807"
+  },
+  "juggernaut/glimmer_cape": {
+   "kind": "disable",
+   "abilities": [
+    "Omnislash"
+   ],
+   "text_key": "8dee473fbe"
+  },
+  "juggernaut/hurricane_pike": {
+   "kind": "disable",
+   "abilities": [
+    "Omnislash"
+   ],
+   "text_key": "3baecfaeec"
+  },
+  "juggernaut/invis_sword": {
+   "kind": "dodge",
+   "abilities": [
+    "Omnislash"
+   ],
+   "text_key": "8dee473fbe"
+  },
+  "juggernaut/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Omnislash"
+   ],
+   "text_key": "c65bb7f32a"
+  },
+  "juggernaut/manta": {
+   "kind": "dodge",
+   "abilities": [
+    "Omnislash"
+   ],
+   "text_key": "0c5144f7f0"
+  },
+  "juggernaut/silver_edge": {
+   "kind": "disable",
+   "abilities": [
+    "Omnislash"
+   ],
+   "text_key": "8dee473fbe"
+  },
+  "keeper_of_the_light/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "9b77e9e8ae"
+  },
+  "keeper_of_the_light/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "c4e34a3ada"
+  },
+  "keeper_of_the_light/cyclone": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Blinding Light",
+    "Solar Bind"
+   ],
+   "text_key": "4cb3e20a74"
+  },
+  "keeper_of_the_light/force_staff": {
+   "kind": "save",
+   "abilities": [
+    "Solar Bind",
+    "Will-O-Wisp"
+   ],
+   "text_key": "70a50f1538"
+  },
+  "keeper_of_the_light/lotus_orb": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Blinding Light",
+    "Solar Bind"
+   ],
+   "text_key": "4cb3e20a74"
+  },
+  "kunkka/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [
+    "X Marks the Spot"
+   ],
+   "text_key": "605e407659"
+  },
+  "kunkka/crimson_guard": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "bda8778fa4"
+  },
+  "kunkka/cyclone": {
+   "kind": "dispel_self",
+   "abilities": [
+    "X Marks the Spot"
+   ],
+   "text_key": "03ebc9ef16"
+  },
+  "kunkka/lotus_orb": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "497cfdb5fe"
+  },
+  "legion_commander/aeon_disk": {
+   "kind": "save",
+   "abilities": [],
+   "text_key": "97677a9d0e"
+  },
+  "legion_commander/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "7fdb7ac9b3"
+  },
+  "legion_commander/cyclone": {
+   "kind": "disable",
+   "abilities": [
+    "Duel"
+   ],
+   "text_key": "9e08e7fdf2"
+  },
+  "legion_commander/ethereal_blade": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "2ef44b7991"
+  },
+  "legion_commander/ghost": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "92bf367080"
+  },
+  "legion_commander/heavens_halberd": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "c6e7bf9b0b"
+  },
+  "legion_commander/mekansm": {
+   "kind": "team_sustain",
+   "abilities": [],
+   "text_key": "d1fb9e6859"
+  },
+  "legion_commander/satanic": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "23801060b6"
+  },
+  "legion_commander/solar_crest": {
+   "kind": "save",
+   "abilities": [
+    "Duels"
+   ],
+   "text_key": "6dec748ea6"
+  },
+  "legion_commander/sphere": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "3c82e9402b"
+  },
+  "leshrac/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "be9682e950"
+  },
+  "leshrac/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "8b59774612"
+  },
+  "leshrac/diffusal_blade": {
+   "kind": "mana_burn",
+   "abilities": [],
+   "text_key": "2f93aa08d6"
+  },
+  "leshrac/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Lightning Storm"
+   ],
+   "text_key": "3a93936933"
+  },
+  "leshrac/nullifier": {
+   "kind": "dispel_enemy",
+   "abilities": [],
+   "text_key": "3239221028"
+  },
+  "leshrac/shivas_guard": {
+   "kind": "heal_reduction",
+   "abilities": [],
+   "text_key": "8474ac9793"
+  },
+  "leshrac/skadi": {
+   "kind": "heal_reduction",
+   "abilities": [],
+   "text_key": "8474ac9793"
+  },
+  "lich/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "3cd188b1e5"
+  },
+  "lich/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "049ce05505"
+  },
+  "lich/cyclone": {
+   "kind": "dispel_enemy",
+   "abilities": [
+    "Frost Shield"
+   ],
+   "text_key": "10c97b0cb9"
+  },
+  "lich/force_staff": {
+   "kind": "chase",
+   "abilities": [],
+   "text_key": "6e3c1257e2"
+  },
+  "lich/glimmer_cape": {
+   "kind": "dodge",
+   "abilities": [
+    "Chain Frost"
+   ],
+   "text_key": "29fb27003a"
+  },
+  "lich/invis_sword": {
+   "kind": "dodge",
+   "abilities": [
+    "Chain Frost"
+   ],
+   "text_key": "29fb27003a"
+  },
+  "lich/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Frost Blast",
+    "Sinister Gaze"
+   ],
+   "text_key": "b0a593b3ba"
+  },
+  "lich/manta": {
+   "kind": "dodge",
+   "abilities": [
+    "Chain Frost"
+   ],
+   "text_key": "43372f0445"
+  },
+  "lich/pipe": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Chain Frost"
+   ],
+   "text_key": "4148eda10d"
+  },
+  "lich/shadow_amulet": {
+   "kind": "dodge",
+   "abilities": [
+    "Chain Frost"
+   ],
+   "text_key": "29fb27003a"
+  },
+  "lich/silver_edge": {
+   "kind": "dodge",
+   "abilities": [
+    "Chain Frost"
+   ],
+   "text_key": "29fb27003a"
+  },
+  "lich/sphere": {
+   "kind": "spell_block",
+   "abilities": [
+    "Chain Frost"
+   ],
+   "text_key": "c6f2c61979"
+  },
+  "life_stealer/assault": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "48699b8106"
+  },
+  "life_stealer/bloodthorn": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "790b8ed4d9"
+  },
+  "life_stealer/crimson_guard": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "48699b8106"
+  },
+  "life_stealer/force_staff": {
+   "kind": "chase",
+   "abilities": [],
+   "text_key": "c56cacc75c"
+  },
+  "life_stealer/ghost": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "b6530b8fb7"
+  },
+  "life_stealer/heavens_halberd": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "fb71899284"
+  },
+  "life_stealer/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Open Wounds"
+   ],
+   "text_key": "d5830ec17d"
+  },
+  "life_stealer/manta": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "0f98453c15"
+  },
+  "life_stealer/orchid": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "790b8ed4d9"
+  },
+  "life_stealer/sheepstick": {
+   "kind": "hex",
+   "abilities": [],
+   "text_key": "9a89676587"
+  },
+  "life_stealer/shivas_guard": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "48699b8106"
+  },
+  "life_stealer/silver_edge": {
+   "kind": "break",
+   "abilities": [
+    "Feast"
+   ],
+   "text_key": "a3fa435e05"
+  },
+  "life_stealer/solar_crest": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "48699b8106"
+  },
+  "life_stealer/sphere": {
+   "kind": "spell_block",
+   "abilities": [
+    "Open Wounds",
+    "Infest"
+   ],
+   "text_key": "456b031ee7"
+  },
+  "lina/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "4396887e26"
+  },
+  "lina/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "42e2ed4dad"
+  },
+  "lina/cyclone": {
+   "kind": "dodge",
+   "abilities": [],
+   "text_key": "eafa2685b5"
+  },
+  "lina/eternal_shroud": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "b3028fde3e"
+  },
+  "lina/glimmer_cape": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "b3028fde3e"
+  },
+  "lina/infused_raindrop": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "30b3a552b7"
+  },
+  "lina/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Laguna Blade"
+   ],
+   "text_key": "4d451b2bd9"
+  },
+  "lina/mage_slayer": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "b3028fde3e"
+  },
+  "lina/pipe": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "b3028fde3e"
+  },
+  "lina/sphere": {
+   "kind": "spell_block",
+   "abilities": [
+    "Laguna Blade"
+   ],
+   "text_key": "9747f9363e"
+  },
+  "lion/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "51d78845a8"
+  },
+  "lion/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "cf63ceb9fe"
+  },
+  "lion/bloodthorn": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "68be80bff0"
+  },
+  "lion/cyclone": {
+   "kind": "dodge",
+   "abilities": [],
+   "text_key": "a046a28fa8"
+  },
+  "lion/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [],
+   "text_key": "458da2eda6"
+  },
+  "lion/orchid": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "68be80bff0"
+  },
+  "lone_druid/ghost": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "395afd828b"
+  },
+  "lone_druid/heavens_halberd": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "1eba5cc849"
+  },
+  "luna/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "f380b36840"
+  },
+  "luna/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "5a2a43bf56"
+  },
+  "luna/bloodthorn": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "a1e6c097d3"
+  },
+  "luna/eternal_shroud": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Lucent Beam",
+    "Eclipse"
+   ],
+   "text_key": "f2227a8454"
+  },
+  "luna/glimmer_cape": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "9b8a5d723e"
+  },
+  "luna/heavens_halberd": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "e5b33ee3da"
+  },
+  "luna/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Lucent Beam"
+   ],
+   "text_key": "c6723552de"
+  },
+  "luna/pipe": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Lucent Beam",
+    "Eclipse"
+   ],
+   "text_key": "f2227a8454"
+  },
+  "luna/sheepstick": {
+   "kind": "hex",
+   "abilities": [],
+   "text_key": "b448c8bbd7"
+  },
+  "luna/vanguard": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "60ace0a8c3"
+  },
+  "luna/wind_waker": {
+   "kind": "dodge",
+   "abilities": [
+    "Eclipse"
+   ],
+   "text_key": "1a27b63b89"
+  },
+  "lycan/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "2463dff3a0"
+  },
+  "lycan/crimson_guard": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "d618f6b917"
+  },
+  "lycan/ethereal_blade": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "963585e873"
+  },
+  "lycan/ghost": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "963585e873"
+  },
+  "lycan/heavens_halberd": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "4ceeb46d42"
+  },
+  "lycan/rod_of_atos": {
+   "kind": "no_escape",
+   "abilities": [],
+   "text_key": "33ef614ca1"
+  },
+  "lycan/tpscroll": {
+   "kind": "save",
+   "abilities": [],
+   "text_key": "67c89a1f77"
+  },
+  "magnataur/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "53f5add9d7"
+  },
+  "magnataur/cyclone": {
+   "kind": "disable",
+   "abilities": [
+    "Skewer",
+    "Reverse Polarity"
+   ],
+   "text_key": "49a9b52ab9"
+  },
+  "magnataur/force_staff": {
+   "kind": "disable",
+   "abilities": [
+    "Skewer"
+   ],
+   "text_key": "4371a59c0e"
+  },
+  "magnataur/orchid": {
+   "kind": "silence",
+   "abilities": [
+    "Reverse Polarity"
+   ],
+   "text_key": "7366257c9f"
+  },
+  "magnataur/radiance": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "a09b2230cc"
+  },
+  "magnataur/rod_of_atos": {
+   "kind": "no_escape",
+   "abilities": [
+    "Skewer"
+   ],
+   "text_key": "bddbef670d"
+  },
+  "marci/abyssal_blade": {
+   "kind": "disable",
+   "abilities": [],
+   "text_key": "69a79f4078"
+  },
+  "marci/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "62e49b6b0c"
+  },
+  "marci/cyclone": {
+   "kind": "disable",
+   "abilities": [
+    "Rebound"
+   ],
+   "text_key": "69a79f4078"
+  },
+  "marci/diffusal_blade": {
+   "kind": "mana_burn",
+   "abilities": [],
+   "text_key": "16ba60a996"
+  },
+  "marci/ethereal_blade": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "7d5d80d7d6"
+  },
+  "marci/ghost": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "c543f82067"
+  },
+  "marci/gungir": {
+   "kind": "no_escape",
+   "abilities": [
+    "Rebound"
+   ],
+   "text_key": "69a79f4078"
+  },
+  "marci/heavens_halberd": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "4bd58ba083"
+  },
+  "marci/orchid": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "acb05d0ee0"
+  },
+  "marci/rod_of_atos": {
+   "kind": "disable",
+   "abilities": [
+    "Rebound"
+   ],
+   "text_key": "69a79f4078"
+  },
+  "marci/sheepstick": {
+   "kind": "disable",
+   "abilities": [
+    "Rebound"
+   ],
+   "text_key": "69a79f4078"
+  },
+  "marci/wind_waker": {
+   "kind": "no_escape",
+   "abilities": [
+    "Rebound"
+   ],
+   "text_key": "69a79f4078"
+  },
+  "mars/black_king_bar": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Arena Of Blood"
+   ],
+   "text_key": "eab2597579"
+  },
+  "mars/glimmer_cape": {
+   "kind": "save",
+   "abilities": [
+    "Arena of Blood"
+   ],
+   "text_key": "2f5fc2b546"
+  },
+  "mars/silver_edge": {
+   "kind": "break",
+   "abilities": [
+    "Bulwark"
+   ],
+   "text_key": "07995c2267"
+  },
+  "medusa/abyssal_blade": {
+   "kind": "bkb_pierce",
+   "abilities": [],
+   "text_key": "cdc23bf1a2"
+  },
+  "medusa/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "25f15f6ee9"
+  },
+  "medusa/diffusal_blade": {
+   "kind": "mana_burn",
+   "abilities": [],
+   "text_key": "df8ceb4ad2"
+  },
+  "medusa/ghost": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "284a71a488"
+  },
+  "medusa/heavens_halberd": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "10d4da707d"
+  },
+  "medusa/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Mystic Snake"
+   ],
+   "text_key": "16ad395ee2"
+  },
+  "medusa/solar_crest": {
+   "kind": "armor_reduction",
+   "abilities": [],
+   "text_key": "def6a701a3"
+  },
+  "medusa/spirit_vessel": {
+   "kind": "heal_reduction",
+   "abilities": [],
+   "text_key": "ed52f667e5"
+  },
+  "meepo/abyssal_blade": {
+   "kind": "no_escape",
+   "abilities": [
+    "Poof"
+   ],
+   "text_key": "9fdb4c0c51"
+  },
+  "meepo/aeon_disk": {
+   "kind": "save",
+   "abilities": [],
+   "text_key": "484264390a"
+  },
+  "meepo/bfury": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "08d9dac8ef"
+  },
+  "meepo/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Poof",
+    "Earthbind"
+   ],
+   "text_key": "9c8007b308"
+  },
+  "meepo/guardian_greaves": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Earthbind"
+   ],
+   "text_key": "acb8f84da5"
+  },
+  "meepo/lotus_orb": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Earthbind"
+   ],
+   "text_key": "acb8f84da5"
+  },
+  "meepo/manta": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Earthbind"
+   ],
+   "text_key": "acb8f84da5"
+  },
+  "meepo/orchid": {
+   "kind": "no_escape",
+   "abilities": [
+    "Poof"
+   ],
+   "text_key": "9fdb4c0c51"
+  },
+  "meepo/radiance": {
+   "kind": "no_escape",
+   "abilities": [],
+   "text_key": "75651a0d71"
+  },
+  "meepo/sheepstick": {
+   "kind": "no_escape",
+   "abilities": [
+    "Poof"
+   ],
+   "text_key": "9fdb4c0c51"
+  },
+  "meepo/shivas_guard": {
+   "kind": "heal_reduction",
+   "abilities": [],
+   "text_key": "4114cf6948"
+  },
+  "mirana/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "d0428bbd85"
+  },
+  "mirana/gem": {
+   "kind": "detect",
+   "abilities": [
+    "Moonlight Shadow"
+   ],
+   "text_key": "2488a3ee2d"
+  },
+  "mirana/manta": {
+   "kind": "dodge",
+   "abilities": [
+    "Sacred Arrow"
+   ],
+   "text_key": "a89282385e"
+  },
+  "mirana/orchid": {
+   "kind": "silence",
+   "abilities": [
+    "Leap",
+    "Moonlight Shadow"
+   ],
+   "text_key": "201bfaba41"
+  },
+  "mirana/ward_observer": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "82fb25c76c"
+  },
+  "mirana/ward_sentry": {
+   "kind": "detect",
+   "abilities": [
+    "Moonlight Shadow"
+   ],
+   "text_key": "2488a3ee2d"
+  },
+  "monkey_king/bfury": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "3cdb716239"
+  },
+  "monkey_king/cyclone": {
+   "kind": "dispel_enemy",
+   "abilities": [
+    "Jingu Mastery"
+   ],
+   "text_key": "8dbc0f8dca"
+  },
+  "monkey_king/dragon_scale": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "400e47a325"
+  },
+  "monkey_king/force_staff": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Wukong's Command"
+   ],
+   "text_key": "3068869f11"
+  },
+  "monkey_king/orb_of_venom": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "26981ae26c"
+  },
+  "monkey_king/quelling_blade": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "3cdb716239"
+  },
+  "monkey_king/radiance": {
+   "kind": "detect",
+   "abilities": [
+    "Mischief"
+   ],
+   "text_key": "f34af88119"
+  },
+  "monkey_king/shivas_guard": {
+   "kind": "detect",
+   "abilities": [],
+   "text_key": "cac30193c3"
+  },
+  "monkey_king/spirit_vessel": {
+   "kind": "no_escape",
+   "abilities": [
+    "Tree Dance"
+   ],
+   "text_key": "400e47a325"
+  },
+  "monkey_king/tango": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "3cdb716239"
+  },
+  "monkey_king/urn_of_shadows": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "400e47a325"
+  },
+  "morphling/blink": {
+   "kind": "chase",
+   "abilities": [],
+   "text_key": "e7c93a905c"
+  },
+  "morphling/bloodthorn": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "0157f3f333"
+  },
+  "morphling/heavens_halberd": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "593c53f443"
+  },
+  "morphling/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Adaptive Strike (Strength)",
+    "Adaptive Strike (Agility)"
+   ],
+   "text_key": "bfd6cbdd58"
+  },
+  "morphling/monkey_king_bar": {
+   "kind": "burst",
+   "abilities": [],
+   "text_key": "002cdc501a"
+  },
+  "morphling/orchid": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "0157f3f333"
+  },
+  "morphling/revenants_brooch": {
+   "kind": "pierce_evasion",
+   "abilities": [
+    "Adaptive Strike (Agility)"
+   ],
+   "text_key": "b6729fc572"
+  },
+  "morphling/sheepstick": {
+   "kind": "hex",
+   "abilities": [],
+   "text_key": "fe5f0f6c18"
+  },
+  "morphling/spirit_vessel": {
+   "kind": "heal_reduction",
+   "abilities": [],
+   "text_key": "09fcbef275"
+  },
+  "muerta/abyssal_blade": {
+   "kind": "bkb_pierce",
+   "abilities": [],
+   "text_key": "70fdc2022b"
+  },
+  "muerta/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "5fe937e1b4"
+  },
+  "muerta/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "560d47f05d"
+  },
+  "muerta/eternal_shroud": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "5fe937e1b4"
+  },
+  "muerta/glimmer_cape": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "5fe937e1b4"
+  },
+  "muerta/mage_slayer": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "5fe937e1b4"
+  },
+  "muerta/pipe": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "5fe937e1b4"
+  },
+  "muerta/radiance": {
+   "kind": "burst",
+   "abilities": [],
+   "text_key": "25fc75c27b"
+  },
+  "muerta/revenants_brooch": {
+   "kind": "bkb_pierce",
+   "abilities": [],
+   "text_key": "ab47d30f02"
+  },
+  "naga_siren/bfury": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "b610eab4d8"
+  },
+  "naga_siren/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Ensnare",
+    "Reel In"
+   ],
+   "text_key": "843ed902a1"
+  },
+  "naga_siren/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "477d7e75e1"
+  },
+  "naga_siren/cyclone": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Ensnare"
+   ],
+   "text_key": "60c7e32ab3"
+  },
+  "naga_siren/force_staff": {
+   "kind": "dodge",
+   "abilities": [
+    "Ensnare"
+   ],
+   "text_key": "3addf0c335"
+  },
+  "naga_siren/ghost": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "02324c5b06"
+  },
+  "naga_siren/gungir": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "b610eab4d8"
+  },
+  "naga_siren/heavens_halberd": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "3231a71fd0"
+  },
+  "naga_siren/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Ensnare"
+   ],
+   "text_key": "a82809b4ad"
+  },
+  "naga_siren/maelstrom": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "b610eab4d8"
+  },
+  "naga_siren/mjollnir": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "b610eab4d8"
+  },
+  "naga_siren/radiance": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "b610eab4d8"
+  },
+  "naga_siren/sphere": {
+   "kind": "spell_block",
+   "abilities": [
+    "Ensnare"
+   ],
+   "text_key": "a4e4c43169"
+  },
+  "necrolyte/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Reaper's Scythe"
+   ],
+   "text_key": "68a5a13ffd"
+  },
+  "necrolyte/bloodthorn": {
+   "kind": "silence",
+   "abilities": [
+    "Death Pulse",
+    "Ghost Shroud"
+   ],
+   "text_key": "19f1e04417"
+  },
+  "necrolyte/cyclone": {
+   "kind": "dispel_enemy",
+   "abilities": [
+    "Ghost Shroud"
+   ],
+   "text_key": "b5393307d1"
+  },
+  "necrolyte/dagon": {
+   "kind": "burst",
+   "abilities": [],
+   "text_key": "412ad9b6b4"
+  },
+  "necrolyte/diffusal_blade": {
+   "kind": "mana_burn",
+   "abilities": [],
+   "text_key": "a3b3062847"
+  },
+  "necrolyte/glimmer_cape": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Reaper's Scythe"
+   ],
+   "text_key": "1dee31c511"
+  },
+  "necrolyte/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Reaper's Scythe"
+   ],
+   "text_key": "0cb87e87f4"
+  },
+  "necrolyte/nullifier": {
+   "kind": "dispel_enemy",
+   "abilities": [
+    "Ghost Shroud"
+   ],
+   "text_key": "dbcff5e296"
+  },
+  "necrolyte/orchid": {
+   "kind": "silence",
+   "abilities": [
+    "Death Pulse",
+    "Ghost Shroud"
+   ],
+   "text_key": "19f1e04417"
+  },
+  "necrolyte/revenants_brooch": {
+   "kind": "pierce_evasion",
+   "abilities": [
+    "Ghost Shroud"
+   ],
+   "text_key": "8540836b53"
+  },
+  "necrolyte/sheepstick": {
+   "kind": "hex",
+   "abilities": [],
+   "text_key": "dc8fca07fd"
+  },
+  "necrolyte/shivas_guard": {
+   "kind": "heal_reduction",
+   "abilities": [],
+   "text_key": "0029f88825"
+  },
+  "necrolyte/silver_edge": {
+   "kind": "break",
+   "abilities": [
+    "Heartstopper Aura"
+   ],
+   "text_key": "27207e758f"
+  },
+  "necrolyte/skadi": {
+   "kind": "slow",
+   "abilities": [],
+   "text_key": "be0aa8cddd"
+  },
+  "necrolyte/sphere": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Reaper's Scythe"
+   ],
+   "text_key": "bdbb784450"
+  },
+  "necrolyte/spirit_vessel": {
+   "kind": "heal_reduction",
+   "abilities": [],
+   "text_key": "626fceccf6"
+  },
+  "nevermore/abyssal_blade": {
+   "kind": "disable",
+   "abilities": [
+    "Requiem of Souls"
+   ],
+   "text_key": "d2aaa89bd4"
+  },
+  "nevermore/assault": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "0387ac80db"
+  },
+  "nevermore/bloodthorn": {
+   "kind": "silence",
+   "abilities": [
+    "Requiem of Souls"
+   ],
+   "text_key": "788b93cede"
+  },
+  "nevermore/cyclone": {
+   "kind": "disable",
+   "abilities": [
+    "Requiem of Souls"
+   ],
+   "text_key": "8eead79ccf"
+  },
+  "nevermore/orchid": {
+   "kind": "silence",
+   "abilities": [
+    "Requiem of Souls"
+   ],
+   "text_key": "788b93cede"
+  },
+  "nevermore/sheepstick": {
+   "kind": "disable",
+   "abilities": [
+    "Requiem of Souls"
+   ],
+   "text_key": "d2aaa89bd4"
+  },
+  "night_stalker/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Crippling Fear",
+    "Void"
+   ],
+   "text_key": "596dc5d8fe"
+  },
+  "night_stalker/cyclone": {
+   "kind": "dodge",
+   "abilities": [
+    "Crippling Fear"
+   ],
+   "text_key": "b41a022ee6"
+  },
+  "night_stalker/ethereal_blade": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "6a5c132de4"
+  },
+  "night_stalker/force_staff": {
+   "kind": "dodge",
+   "abilities": [
+    "Crippling Fear"
+   ],
+   "text_key": "8fa895b08c"
+  },
+  "night_stalker/ghost": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "6a5c132de4"
+  },
+  "night_stalker/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Void"
+   ],
+   "text_key": "ff8d2a4987"
+  },
+  "night_stalker/manta": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Void"
+   ],
+   "text_key": "799010e0d6"
+  },
+  "night_stalker/silver_edge": {
+   "kind": "break",
+   "abilities": [
+    "Hunter of the Night"
+   ],
+   "text_key": "ef49500740"
+  },
+  "night_stalker/sphere": {
+   "kind": "spell_block",
+   "abilities": [],
+   "text_key": "ac485a16df"
+  },
+  "night_stalker/tpscroll": {
+   "kind": "dodge",
+   "abilities": [],
+   "text_key": "36cd8c8012"
+  },
+  "nyx_assassin/aeon_disk": {
+   "kind": "save",
+   "abilities": [],
+   "text_key": "78ce31b418"
+  },
+  "nyx_assassin/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "7aff192b1e"
+  },
+  "nyx_assassin/bloodthorn": {
+   "kind": "silence",
+   "abilities": [
+    "Vendetta",
+    "Spiked Carapace"
+   ],
+   "text_key": "bac7cf1003"
+  },
+  "nyx_assassin/cyclone": {
+   "kind": "dispel_enemy",
+   "abilities": [
+    "Spiked Carapace"
+   ],
+   "text_key": "4e6b9fa403"
+  },
+  "nyx_assassin/eternal_shroud": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Vendetta"
+   ],
+   "text_key": "0f302d762e"
+  },
+  "nyx_assassin/gem": {
+   "kind": "detect",
+   "abilities": [
+    "Vendetta"
+   ],
+   "text_key": "7c5c51d718"
+  },
+  "nyx_assassin/gungir": {
+   "kind": "detect",
+   "abilities": [
+    "Vendetta"
+   ],
+   "text_key": "d55b505e74"
+  },
+  "nyx_assassin/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [],
+   "text_key": "4b0fc1da09"
+  },
+  "nyx_assassin/mage_slayer": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "7cac2bea6c"
+  },
+  "nyx_assassin/manta": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "c6d6d0f9f0"
+  },
+  "nyx_assassin/pipe": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "48d82b68ed"
+  },
+  "nyx_assassin/sheepstick": {
+   "kind": "hex",
+   "abilities": [],
+   "text_key": "bac7cf1003"
+  },
+  "nyx_assassin/skadi": {
+   "kind": "save",
+   "abilities": [],
+   "text_key": "85358d2872"
+  },
+  "obsidian_destroyer/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "8db4de1f38"
+  },
+  "obsidian_destroyer/helm_of_the_dominator": {
+   "kind": "slow",
+   "abilities": [],
+   "text_key": "9ff31205e0"
+  },
+  "obsidian_destroyer/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Astral Imprisonment"
+   ],
+   "text_key": "60103c0acb"
+  },
+  "obsidian_destroyer/mekansm": {
+   "kind": "save",
+   "abilities": [
+    "Astral Imprisonment"
+   ],
+   "text_key": "f9627dc6d9"
+  },
+  "obsidian_destroyer/pipe": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Sanity's Eclipse"
+   ],
+   "text_key": "40eb446142"
+  },
+  "ogre_magi/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "c834fe9af6"
+  },
+  "ogre_magi/hurricane_pike": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "86b35239b6"
+  },
+  "ogre_magi/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Fireblast",
+    "Ignite"
+   ],
+   "text_key": "af046da7ab"
+  },
+  "ogre_magi/manta": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Ignite"
+   ],
+   "text_key": "d9fa7d69c5"
+  },
+  "ogre_magi/orchid": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "86b35239b6"
+  },
+  "ogre_magi/silver_edge": {
+   "kind": "break",
+   "abilities": [
+    "Multicast"
+   ],
+   "text_key": "c27f0580f7"
+  },
+  "omniknight/cyclone": {
+   "kind": "dispel_enemy",
+   "abilities": [
+    "Guardian Angel"
+   ],
+   "text_key": "39807276b4"
+  },
+  "omniknight/dagon": {
+   "kind": "burst",
+   "abilities": [],
+   "text_key": "20209fc205"
+  },
+  "omniknight/nullifier": {
+   "kind": "dispel_enemy",
+   "abilities": [
+    "Guardian Angel"
+   ],
+   "text_key": "39807276b4"
+  },
+  "omniknight/orchid": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "8c93d4da05"
+  },
+  "omniknight/radiance": {
+   "kind": "bkb_pierce",
+   "abilities": [],
+   "text_key": "764c7144bd"
+  },
+  "omniknight/revenants_brooch": {
+   "kind": "bkb_pierce",
+   "abilities": [],
+   "text_key": "d4a7ebb8dd"
+  },
+  "omniknight/shivas_guard": {
+   "kind": "heal_reduction",
+   "abilities": [],
+   "text_key": "c8b86a5019"
+  },
+  "omniknight/spirit_vessel": {
+   "kind": "heal_reduction",
+   "abilities": [],
+   "text_key": "c8b86a5019"
+  },
+  "oracle/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "14bd09436c"
+  },
+  "oracle/cyclone": {
+   "kind": "dodge",
+   "abilities": [],
+   "text_key": "a481ab2027"
+  },
+  "oracle/hood_of_defiance": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "30d88079b7"
+  },
+  "oracle/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Fortune's End",
+    "Fate's Edict"
+   ],
+   "text_key": "3ccdff5bc1"
+  },
+  "oracle/manta": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Fortune's End",
+    "Fate's Edict"
+   ],
+   "text_key": "521b9961fb"
+  },
+  "oracle/orchid": {
+   "kind": "silence",
+   "abilities": [
+    "Fortune's End"
+   ],
+   "text_key": "6e996cdacc"
+  },
+  "oracle/sheepstick": {
+   "kind": "hex",
+   "abilities": [],
+   "text_key": "3e4e2c837c"
+  },
+  "pangolier/abyssal_blade": {
+   "kind": "bkb_pierce",
+   "abilities": [],
+   "text_key": "0fb6a953a9"
+  },
+  "pangolier/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Shield Crash",
+    "Rolling Thunder"
+   ],
+   "text_key": "b377fa4377"
+  },
+  "pangolier/cyclone": {
+   "kind": "dodge",
+   "abilities": [
+    "Rolling Thunder"
+   ],
+   "text_key": "dc12e80acb"
+  },
+  "pangolier/force_staff": {
+   "kind": "dodge",
+   "abilities": [
+    "Rolling Thunder"
+   ],
+   "text_key": "e62419cde1"
+  },
+  "pangolier/rod_of_atos": {
+   "kind": "no_escape",
+   "abilities": [],
+   "text_key": "f5719d7157"
+  },
+  "phantom_assassin/abyssal_blade": {
+   "kind": "disable",
+   "abilities": [],
+   "text_key": "48ad6649bf"
+  },
+  "phantom_assassin/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "8af61c88cc"
+  },
+  "phantom_assassin/bloodthorn": {
+   "kind": "silence",
+   "abilities": [
+    "Stifling Dagger",
+    "Phantom Strike"
+   ],
+   "text_key": "c9f7ceed08"
+  },
+  "phantom_assassin/butterfly": {
+   "kind": "evasion",
+   "abilities": [],
+   "text_key": "db60cf1557"
+  },
+  "phantom_assassin/ghost": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "d32a7fdcfd"
+  },
+  "phantom_assassin/glimmer_cape": {
+   "kind": "save",
+   "abilities": [],
+   "text_key": "810758697b"
+  },
+  "phantom_assassin/gungir": {
+   "kind": "pierce_evasion",
+   "abilities": [
+    "Blur"
+   ],
+   "text_key": "8715d3dcf1"
+  },
+  "phantom_assassin/heavens_halberd": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "82bd96b99b"
+  },
+  "phantom_assassin/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Stifling Dagger"
+   ],
+   "text_key": "77050f7ef7"
+  },
+  "phantom_assassin/maelstrom": {
+   "kind": "pierce_evasion",
+   "abilities": [
+    "Blur"
+   ],
+   "text_key": "8715d3dcf1"
+  },
+  "phantom_assassin/mjollnir": {
+   "kind": "pierce_evasion",
+   "abilities": [
+    "Blur"
+   ],
+   "text_key": "8715d3dcf1"
+  },
+  "phantom_assassin/monkey_king_bar": {
+   "kind": "pierce_evasion",
+   "abilities": [
+    "Blur"
+   ],
+   "text_key": "5811027851"
+  },
+  "phantom_assassin/nullifier": {
+   "kind": "dispel_enemy",
+   "abilities": [
+    "Phantom Strike"
+   ],
+   "text_key": "1d748ac40b"
+  },
+  "phantom_assassin/revenants_brooch": {
+   "kind": "bkb_pierce",
+   "abilities": [],
+   "text_key": "07a4e02943"
+  },
+  "phantom_assassin/sheepstick": {
+   "kind": "hex",
+   "abilities": [],
+   "text_key": "59fe639463"
+  },
+  "phantom_assassin/silver_edge": {
+   "kind": "break",
+   "abilities": [
+    "Blur",
+    "Coup De Grace"
+   ],
+   "text_key": "58ad332167"
+  },
+  "phantom_assassin/solar_crest": {
+   "kind": "armor_reduction",
+   "abilities": [],
+   "text_key": "a53d7e32a6"
+  },
+  "phantom_assassin/witch_blade": {
+   "kind": "pierce_evasion",
+   "abilities": [],
+   "text_key": "f78ec8ead9"
+  },
+  "phantom_lancer/aeon_disk": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "7fcd5ac415"
+  },
+  "phantom_lancer/bfury": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "6fde5e9c73"
+  },
+  "phantom_lancer/bloodthorn": {
+   "kind": "silence",
+   "abilities": [
+    "Doppelganger"
+   ],
+   "text_key": "7e04903418"
+  },
+  "phantom_lancer/gungir": {
+   "kind": "no_escape",
+   "abilities": [
+    "Doppelganger"
+   ],
+   "text_key": "89516e8e5a"
+  },
+  "phantom_lancer/heavens_halberd": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "5b46f1c264"
+  },
+  "phantom_lancer/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Spirit Lance"
+   ],
+   "text_key": "7944065602"
+  },
+  "phantom_lancer/maelstrom": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "8f7226f87b"
+  },
+  "phantom_lancer/magic_wand": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "6f09e85f78"
+  },
+  "phantom_lancer/mjollnir": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "8f7226f87b"
+  },
+  "phantom_lancer/nullifier": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "d1b7a051c4"
+  },
+  "phantom_lancer/orchid": {
+   "kind": "silence",
+   "abilities": [
+    "Doppelganger"
+   ],
+   "text_key": "7e04903418"
+  },
+  "phantom_lancer/radiance": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "19af26f2a8"
+  },
+  "phantom_lancer/shivas_guard": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "52cadc588d"
+  },
+  "phantom_lancer/silver_edge": {
+   "kind": "break",
+   "abilities": [
+    "Juxtapose",
+    "Phantom Rush"
+   ],
+   "text_key": "d049e255cc"
+  },
+  "phoenix/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "3360b9ceb1"
+  },
+  "phoenix/bloodthorn": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "36a8866fb6"
+  },
+  "phoenix/echo_sabre": {
+   "kind": "burst",
+   "abilities": [],
+   "text_key": "c0517e84e5"
+  },
+  "phoenix/moon_shard": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "ed2a3c5eb7"
+  },
+  "phoenix/orchid": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "36a8866fb6"
+  },
+  "phoenix/pipe": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "1cda3af403"
+  },
+  "phoenix/sheepstick": {
+   "kind": "hex",
+   "abilities": [],
+   "text_key": "40a8523882"
+  },
+  "primal_beast/basher": {
+   "kind": "disable",
+   "abilities": [
+    "Trample"
+   ],
+   "text_key": "784d4d2e18"
+  },
+  "primal_beast/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "820679111f"
+  },
+  "primal_beast/force_staff": {
+   "kind": "dodge",
+   "abilities": [],
+   "text_key": "6856955986"
+  },
+  "primal_beast/glimmer_cape": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "c936a3d5e1"
+  },
+  "primal_beast/pipe": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "ce6ea611c2"
+  },
+  "primal_beast/rod_of_atos": {
+   "kind": "disable",
+   "abilities": [
+    "Trample"
+   ],
+   "text_key": "4839c7976e"
+  },
+  "primal_beast/ward_observer": {
+   "kind": "detect",
+   "abilities": [],
+   "text_key": "6d0caa2e4b"
+  },
+  "puck/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "6b6ef84106"
+  },
+  "puck/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "61d003f4aa"
+  },
+  "puck/dagon": {
+   "kind": "burst",
+   "abilities": [],
+   "text_key": "ee91d64767"
+  },
+  "puck/eternal_shroud": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "741b100d61"
+  },
+  "puck/force_staff": {
+   "kind": "dodge",
+   "abilities": [
+    "Dream Coil"
+   ],
+   "text_key": "23bbcc38e1"
+  },
+  "puck/glimmer_cape": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "741b100d61"
+  },
+  "puck/hurricane_pike": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Dream Coil"
+   ],
+   "text_key": "23bbcc38e1"
+  },
+  "puck/nullifier": {
+   "kind": "dispel_enemy",
+   "abilities": [],
+   "text_key": "437574003b"
+  },
+  "puck/orchid": {
+   "kind": "silence",
+   "abilities": [
+    "Illusory Orb",
+    "Waning Rift"
+   ],
+   "text_key": "ea2cbc1a84"
+  },
+  "puck/pipe": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "741b100d61"
+  },
+  "puck/radiance": {
+   "kind": "no_escape",
+   "abilities": [
+    "Illusory Orb",
+    "Phase Shift"
+   ],
+   "text_key": "8bd9f6dfc3"
+  },
+  "puck/rod_of_atos": {
+   "kind": "no_escape",
+   "abilities": [
+    "Illusory Orb",
+    "Waning Rift"
+   ],
+   "text_key": "da927d44a7"
+  },
+  "puck/sheepstick": {
+   "kind": "hex",
+   "abilities": [],
+   "text_key": "af65d1fa61"
+  },
+  "puck/spirit_vessel": {
+   "kind": "no_escape",
+   "abilities": [
+    "Illusory Orb",
+    "Phase Shift"
+   ],
+   "text_key": "8bd9f6dfc3"
+  },
+  "pudge/blink": {
+   "kind": "dodge",
+   "abilities": [],
+   "text_key": "8a19170198"
+  },
+  "pudge/cyclone": {
+   "kind": "save",
+   "abilities": [
+    "Dismember"
+   ],
+   "text_key": "b6eb6ac144"
+  },
+  "pudge/diffusal_blade": {
+   "kind": "mana_burn",
+   "abilities": [],
+   "text_key": "df62938644"
+  },
+  "pudge/force_staff": {
+   "kind": "dodge",
+   "abilities": [
+    "Meat Hook",
+    "Rot"
+   ],
+   "text_key": "e4f6b76e99"
+  },
+  "pudge/glimmer_cape": {
+   "kind": "dodge",
+   "abilities": [
+    "Meat Hook"
+   ],
+   "text_key": "4a761a1241"
+  },
+  "pudge/invis_sword": {
+   "kind": "dodge",
+   "abilities": [
+    "Meat Hook"
+   ],
+   "text_key": "4a761a1241"
+  },
+  "pudge/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Dismember"
+   ],
+   "text_key": "4587c0869c"
+  },
+  "pudge/manta": {
+   "kind": "dodge",
+   "abilities": [
+    "Meat Hook"
+   ],
+   "text_key": "895a7a3ef3"
+  },
+  "pudge/silver_edge": {
+   "kind": "dodge",
+   "abilities": [
+    "Meat Hook"
+   ],
+   "text_key": "4a761a1241"
+  },
+  "pudge/sphere": {
+   "kind": "spell_block",
+   "abilities": [
+    "Dismember"
+   ],
+   "text_key": "4587c0869c"
+  },
+  "pugna/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "28829fb562"
+  },
+  "pugna/blink": {
+   "kind": "burst",
+   "abilities": [],
+   "text_key": "9fe6f5d940"
+  },
+  "pugna/bloodthorn": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "b4544dedbf"
+  },
+  "pugna/cyclone": {
+   "kind": "dispel_enemy",
+   "abilities": [
+    "Decrepify"
+   ],
+   "text_key": "77f433de60"
+  },
+  "pugna/force_staff": {
+   "kind": "dodge",
+   "abilities": [
+    "Life Drain",
+    "Nether Blast"
+   ],
+   "text_key": "97a0804f63"
+  },
+  "pugna/glimmer_cape": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "d1c4ae5ac4"
+  },
+  "pugna/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Life Drain",
+    "Decrepify"
+   ],
+   "text_key": "f1b591edb8"
+  },
+  "pugna/nullifier": {
+   "kind": "dispel_enemy",
+   "abilities": [
+    "Decrepify"
+   ],
+   "text_key": "eb945100f3"
+  },
+  "pugna/pipe": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "d1c4ae5ac4"
+  },
+  "pugna/revenants_brooch": {
+   "kind": "pierce_evasion",
+   "abilities": [
+    "Decrepify"
+   ],
+   "text_key": "dde40fc602"
+  },
+  "pugna/sphere": {
+   "kind": "spell_block",
+   "abilities": [
+    "Life Drain",
+    "Decrepify"
+   ],
+   "text_key": "5e80f1ed6a"
+  },
+  "queenofpain/abyssal_blade": {
+   "kind": "disable",
+   "abilities": [],
+   "text_key": "62953520c6"
+  },
+  "queenofpain/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "cb7f9c567c"
+  },
+  "queenofpain/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Shadow Strike"
+   ],
+   "text_key": "60d4335adf"
+  },
+  "queenofpain/orchid": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "0969e2f7c8"
+  },
+  "queenofpain/rod_of_atos": {
+   "kind": "no_escape",
+   "abilities": [],
+   "text_key": "18a117f326"
+  },
+  "queenofpain/sheepstick": {
+   "kind": "disable",
+   "abilities": [],
+   "text_key": "62953520c6"
+  },
+  "rattletrap/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "3df6beb53b"
+  },
+  "rattletrap/cyclone": {
+   "kind": "dodge",
+   "abilities": [
+    "Power Cogs"
+   ],
+   "text_key": "881c88db9b"
+  },
+  "rattletrap/force_staff": {
+   "kind": "dodge",
+   "abilities": [
+    "Power Cogs"
+   ],
+   "text_key": "f9037814a7"
+  },
+  "rattletrap/medallion_of_courage": {
+   "kind": "armor_reduction",
+   "abilities": [],
+   "text_key": "a8594e1a5b"
+  },
+  "razor/force_staff": {
+   "kind": "dodge",
+   "abilities": [
+    "Static Link"
+   ],
+   "text_key": "47728a1d53"
+  },
+  "razor/hurricane_pike": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Static Link"
+   ],
+   "text_key": "47728a1d53"
+  },
+  "razor/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Static Link"
+   ],
+   "text_key": "f036ba6e56"
+  },
+  "razor/sphere": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Static Link"
+   ],
+   "text_key": "9f6de13aab"
+  },
+  "razor/tpscroll": {
+   "kind": "dodge",
+   "abilities": [],
+   "text_key": "5c3f1ce143"
+  },
+  "riki/force_staff": {
+   "kind": "save",
+   "abilities": [
+    "Smoke Screen",
+    "Tricks of the Trade"
+   ],
+   "text_key": "531160ebc7"
+  },
+  "riki/ghost": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "554af75f6a"
+  },
+  "riki/invis_sword": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "309f1ef0bc"
+  },
+  "riki/silver_edge": {
+   "kind": "break",
+   "abilities": [
+    "Cloak and Dagger"
+   ],
+   "text_key": "32bffa352a"
+  },
+  "rubick/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "545f966f81"
+  },
+  "rubick/sphere": {
+   "kind": "spell_block",
+   "abilities": [
+    "Spell Steal"
+   ],
+   "text_key": "4b5cf711c7"
+  },
+  "sand_king/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "1d1328d4ba"
+  },
+  "sand_king/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "b16403be3c"
+  },
+  "sand_king/dust": {
+   "kind": "detect",
+   "abilities": [
+    "Sand Storm"
+   ],
+   "text_key": "8d99d71dfb"
+  },
+  "sand_king/gem": {
+   "kind": "detect",
+   "abilities": [
+    "Sand Storm"
+   ],
+   "text_key": "8d99d71dfb"
+  },
+  "sand_king/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Burrowstrike"
+   ],
+   "text_key": "34bd2b8353"
+  },
+  "sand_king/orchid": {
+   "kind": "silence",
+   "abilities": [
+    "Epicenter"
+   ],
+   "text_key": "b4cc762d3d"
+  },
+  "sand_king/silver_edge": {
+   "kind": "break",
+   "abilities": [
+    "Caustic Finale"
+   ],
+   "text_key": "0e21915e00"
+  },
+  "sand_king/sphere": {
+   "kind": "spell_block",
+   "abilities": [
+    "Burrowstrike"
+   ],
+   "text_key": "d8aed24760"
+  },
+  "sand_king/ward_sentry": {
+   "kind": "detect",
+   "abilities": [
+    "Sand Storm"
+   ],
+   "text_key": "8d99d71dfb"
+  },
+  "shadow_demon/force_staff": {
+   "kind": "save",
+   "abilities": [],
+   "text_key": "4182be6f37"
+  },
+  "shadow_demon/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Disruption",
+    "Demonic Purge"
+   ],
+   "text_key": "2b4a30d172"
+  },
+  "shadow_demon/sphere": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Disruption",
+    "Demonic Purge"
+   ],
+   "text_key": "3bead3f05b"
+  },
+  "shadow_demon/tpscroll": {
+   "kind": "save",
+   "abilities": [
+    "Disruption"
+   ],
+   "text_key": "c7049acc84"
+  },
+  "shadow_shaman/abyssal_blade": {
+   "kind": "disable",
+   "abilities": [
+    "Shackles"
+   ],
+   "text_key": "6b573d0042"
+  },
+  "shadow_shaman/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "a19893c5d3"
+  },
+  "shadow_shaman/dragon_lance": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "7de170e1d7"
+  },
+  "shadow_shaman/force_staff": {
+   "kind": "dodge",
+   "abilities": [
+    "Mass Serpent Ward"
+   ],
+   "text_key": "3a8e8974d3"
+  },
+  "shadow_shaman/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Hex",
+    "Shackles"
+   ],
+   "text_key": "e10d7c81ec"
+  },
+  "shadow_shaman/orchid": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "c5cf9d4320"
+  },
+  "shadow_shaman/phase_boots": {
+   "kind": "save",
+   "abilities": [
+    "Mass Serpent Ward"
+   ],
+   "text_key": "30dcdd1658"
+  },
+  "shadow_shaman/sphere": {
+   "kind": "spell_block",
+   "abilities": [
+    "Hex",
+    "Shackles"
+   ],
+   "text_key": "68e08de9f9"
+  },
+  "shredder/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "8d0dedaebe"
+  },
+  "shredder/diffusal_blade": {
+   "kind": "mana_burn",
+   "abilities": [],
+   "text_key": "b0a61930fa"
+  },
+  "shredder/orchid": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "1f1b20771c"
+  },
+  "shredder/sheepstick": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "0cc35b2810"
+  },
+  "shredder/silver_edge": {
+   "kind": "break",
+   "abilities": [
+    "Reactive Armor"
+   ],
+   "text_key": "4f674057a8"
+  },
+  "shredder/spirit_vessel": {
+   "kind": "heal_reduction",
+   "abilities": [],
+   "text_key": "d743acda16"
+  },
+  "silencer/black_king_bar": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Glaives of Wisdom"
+   ],
+   "text_key": "7e4fd75f5d"
+  },
+  "silencer/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "2eedf651b6"
+  },
+  "silencer/bloodthorn": {
+   "kind": "silence",
+   "abilities": [
+    "Global Silence",
+    "Glaives of Wisdom"
+   ],
+   "text_key": "3dc3cb926f"
+  },
+  "silencer/cyclone": {
+   "kind": "dispel_self",
+   "abilities": [],
+   "text_key": "11bcb33bf3"
+  },
+  "silencer/guardian_greaves": {
+   "kind": "dispel_self",
+   "abilities": [],
+   "text_key": "7bd759ed00"
+  },
+  "silencer/lotus_orb": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Last Word"
+   ],
+   "text_key": "722566df10"
+  },
+  "silencer/manta": {
+   "kind": "dispel_self",
+   "abilities": [],
+   "text_key": "3c1e3210e5"
+  },
+  "silencer/orchid": {
+   "kind": "silence",
+   "abilities": [
+    "Global Silence"
+   ],
+   "text_key": "3dc3cb926f"
+  },
+  "skeleton_king/bfury": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "14210fcf0d"
+  },
+  "skeleton_king/demonicon": {
+   "kind": "mana_burn",
+   "abilities": [],
+   "text_key": "1df12a6c59"
+  },
+  "skeleton_king/diffusal_blade": {
+   "kind": "mana_burn",
+   "abilities": [],
+   "text_key": "b93296a2e9"
+  },
+  "skeleton_king/ghost": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "cb7f6633df"
+  },
+  "skeleton_king/heavens_halberd": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "eb9f4c1a3e"
+  },
+  "skeleton_king/illusionsts_cape": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "9566c4499d"
+  },
+  "skeleton_king/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Wraithfire Blast"
+   ],
+   "text_key": "f2b36d6a62"
+  },
+  "skeleton_king/manta": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "9566c4499d"
+  },
+  "skeleton_king/mjollnir": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "14210fcf0d"
+  },
+  "skeleton_king/sheepstick": {
+   "kind": "hex",
+   "abilities": [],
+   "text_key": "e7226ebb7f"
+  },
+  "skeleton_king/shivas_guard": {
+   "kind": "heal_reduction",
+   "abilities": [],
+   "text_key": "22cbcdc42a"
+  },
+  "skeleton_king/skadi": {
+   "kind": "heal_reduction",
+   "abilities": [],
+   "text_key": "aeef50d9e1"
+  },
+  "skeleton_king/spirit_vessel": {
+   "kind": "heal_reduction",
+   "abilities": [],
+   "text_key": "5e484d7707"
+  },
+  "skywrath_mage/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "95d8182e0a"
+  },
+  "skywrath_mage/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "eb6f22173e"
+  },
+  "skywrath_mage/cyclone": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Ancient Seal",
+    "Concussive Shot"
+   ],
+   "text_key": "78c79414f8"
+  },
+  "skywrath_mage/force_staff": {
+   "kind": "save",
+   "abilities": [
+    "Mystic Flare"
+   ],
+   "text_key": "5397772bc2"
+  },
+  "skywrath_mage/glimmer_cape": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "95d8182e0a"
+  },
+  "skywrath_mage/infused_raindrop": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "c44b5de625"
+  },
+  "skywrath_mage/lotus_orb": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Ancient Seal",
+    "Concussive Shot"
+   ],
+   "text_key": "9c030569c5"
+  },
+  "skywrath_mage/manta": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Ancient Seal",
+    "Concussive Shot"
+   ],
+   "text_key": "9c030569c5"
+  },
+  "skywrath_mage/orchid": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "2c07185ed7"
+  },
+  "skywrath_mage/pipe": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "95d8182e0a"
+  },
+  "slardar/butterfly": {
+   "kind": "evasion",
+   "abilities": [],
+   "text_key": "56f26e980d"
+  },
+  "slardar/diffusal_blade": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "62839692db"
+  },
+  "slardar/ghost": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "d22e26653c"
+  },
+  "slardar/heavens_halberd": {
+   "kind": "evasion",
+   "abilities": [],
+   "text_key": "56f26e980d"
+  },
+  "slardar/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Corrosive Haze"
+   ],
+   "text_key": "a4caf27e24"
+  },
+  "slardar/radiance": {
+   "kind": "evasion",
+   "abilities": [],
+   "text_key": "56f26e980d"
+  },
+  "slardar/shivas_guard": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "2cce4c48fc"
+  },
+  "slardar/solar_crest": {
+   "kind": "evasion",
+   "abilities": [],
+   "text_key": "56f26e980d"
+  },
+  "slark/abyssal_blade": {
+   "kind": "no_escape",
+   "abilities": [],
+   "text_key": "3569492225"
+  },
+  "slark/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Dark Pact",
+    "Pounce"
+   ],
+   "text_key": "5a77e07006"
+  },
+  "slark/force_boots": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Pounce"
+   ],
+   "text_key": "fc97191ffe"
+  },
+  "slark/force_staff": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Pounce"
+   ],
+   "text_key": "fc97191ffe"
+  },
+  "slark/ghost": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "0496c2633f"
+  },
+  "slark/heavens_halberd": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "b3f68fa679"
+  },
+  "slark/hurricane_pike": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Pounce"
+   ],
+   "text_key": "fc97191ffe"
+  },
+  "slark/sheepstick": {
+   "kind": "hex",
+   "abilities": [],
+   "text_key": "ab9a0d249d"
+  },
+  "slark/shivas_guard": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "9faf112088"
+  },
+  "slark/silver_edge": {
+   "kind": "break",
+   "abilities": [
+    "Essence Shift"
+   ],
+   "text_key": "344a20efa1"
+  },
+  "snapfire/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "ade3885ea3"
+  },
+  "snapfire/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "9a5e645833"
+  },
+  "snapfire/diffusal_blade": {
+   "kind": "mana_burn",
+   "abilities": [],
+   "text_key": "aa31e625bf"
+  },
+  "sniper/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "3bfa383e25"
+  },
+  "sniper/blink": {
+   "kind": "chase",
+   "abilities": [],
+   "text_key": "58aeff3855"
+  },
+  "sniper/cyclone": {
+   "kind": "dodge",
+   "abilities": [
+    "Assassinate"
+   ],
+   "text_key": "f3cbe3eaac"
+  },
+  "sniper/holy_locket": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "5b3717f6db"
+  },
+  "sniper/invis_sword": {
+   "kind": "chase",
+   "abilities": [],
+   "text_key": "fd8f1cac75"
+  },
+  "sniper/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Assassinate"
+   ],
+   "text_key": "4d94e402e5"
+  },
+  "sniper/magic_wand": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "5b3717f6db"
+  },
+  "sniper/smoke_of_deceit": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "b98f8545fa"
+  },
+  "sniper/sphere": {
+   "kind": "spell_block",
+   "abilities": [
+    "Assassinate"
+   ],
+   "text_key": "93eefb6445"
+  },
+  "spectre/bfury": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "de9cb5fe6e"
+  },
+  "spectre/crimson_guard": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "28f1a0f65e"
+  },
+  "spectre/mjollnir": {
+   "kind": "burst",
+   "abilities": [],
+   "text_key": "88d9ffa93b"
+  },
+  "spectre/sheepstick": {
+   "kind": "hex",
+   "abilities": [],
+   "text_key": "d781ff4ec5"
+  },
+  "spectre/silver_edge": {
+   "kind": "break",
+   "abilities": [
+    "Desolate",
+    "Dispersion"
+   ],
+   "text_key": "ff479a5c00"
+  },
+  "spirit_breaker/cyclone": {
+   "kind": "disable",
+   "abilities": [
+    "Charge of Darkness",
+    "Nether Strike"
+   ],
+   "text_key": "d412beb7d4"
+  },
+  "spirit_breaker/diffusal_blade": {
+   "kind": "mana_burn",
+   "abilities": [],
+   "text_key": "b401cee9b2"
+  },
+  "spirit_breaker/dust": {
+   "kind": "detect",
+   "abilities": [],
+   "text_key": "bc089893d7"
+  },
+  "spirit_breaker/eternal_shroud": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Charge of Darkness",
+    "Greater Bash"
+   ],
+   "text_key": "e47b8c2a7d"
+  },
+  "spirit_breaker/ghost": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "01256e525a"
+  },
+  "spirit_breaker/heavens_halberd": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "2107547e80"
+  },
+  "spirit_breaker/manta": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "e6b7bda318"
+  },
+  "spirit_breaker/nullifier": {
+   "kind": "dispel_enemy",
+   "abilities": [
+    "Bulldoze"
+   ],
+   "text_key": "89e8f4b2ea"
+  },
+  "spirit_breaker/rod_of_atos": {
+   "kind": "disable",
+   "abilities": [
+    "Charge of Darkness"
+   ],
+   "text_key": "490df0154b"
+  },
+  "spirit_breaker/silver_edge": {
+   "kind": "break",
+   "abilities": [
+    "Greater Bash"
+   ],
+   "text_key": "e99fd92310"
+  },
+  "spirit_breaker/skadi": {
+   "kind": "save",
+   "abilities": [],
+   "text_key": "cb7c64fccd"
+  },
+  "spirit_breaker/sphere": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Charge of Darkness",
+    "Nether Strike"
+   ],
+   "text_key": "98f84387b7"
+  },
+  "spirit_breaker/vanguard": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "9c8ba1d599"
+  },
+  "storm_spirit/aeon_disk": {
+   "kind": "save",
+   "abilities": [],
+   "text_key": "4406e4de5a"
+  },
+  "storm_spirit/gungir": {
+   "kind": "no_escape",
+   "abilities": [
+    "Ball Lightning"
+   ],
+   "text_key": "9d41aa33b8"
+  },
+  "storm_spirit/orchid": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "de853bbb9d"
+  },
+  "storm_spirit/rod_of_atos": {
+   "kind": "no_escape",
+   "abilities": [
+    "Ball Lightning"
+   ],
+   "text_key": "9d41aa33b8"
+  },
+  "storm_spirit/sheepstick": {
+   "kind": "hex",
+   "abilities": [],
+   "text_key": "e2cc6657b1"
+  },
+  "sven/abyssal_blade": {
+   "kind": "bkb_pierce",
+   "abilities": [],
+   "text_key": "7cc9a8d297"
+  },
+  "sven/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "1b5e2ea774"
+  },
+  "sven/blink": {
+   "kind": "dodge",
+   "abilities": [
+    "Storm Hammer"
+   ],
+   "text_key": "6bf9bfb8c8"
+  },
+  "sven/ethereal_blade": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "9113d592e0"
+  },
+  "sven/force_staff": {
+   "kind": "save",
+   "abilities": [
+    "Storm Hammer"
+   ],
+   "text_key": "64f4f341d1"
+  },
+  "sven/ghost": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "9113d592e0"
+  },
+  "sven/heavens_halberd": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "85bcfa0269"
+  },
+  "sven/hurricane_pike": {
+   "kind": "save",
+   "abilities": [
+    "Storm Hammer"
+   ],
+   "text_key": "64f4f341d1"
+  },
+  "sven/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Storm Hammer"
+   ],
+   "text_key": "ac2d280ec6"
+  },
+  "sven/radiance": {
+   "kind": "evasion",
+   "abilities": [],
+   "text_key": "f6e1a39b24"
+  },
+  "sven/rod_of_atos": {
+   "kind": "disable",
+   "abilities": [],
+   "text_key": "0b5232c790"
+  },
+  "sven/sheepstick": {
+   "kind": "hex",
+   "abilities": [],
+   "text_key": "df21ae47f2"
+  },
+  "sven/sphere": {
+   "kind": "spell_block",
+   "abilities": [
+    "Storm Hammer"
+   ],
+   "text_key": "ea7492338b"
+  },
+  "techies/aeon_disk": {
+   "kind": "save",
+   "abilities": [
+    "Blast Off"
+   ],
+   "text_key": "6f5ea8b934"
+  },
+  "techies/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Blast Off"
+   ],
+   "text_key": "bb24c38057"
+  },
+  "techies/bloodthorn": {
+   "kind": "silence",
+   "abilities": [
+    "Blast Off"
+   ],
+   "text_key": "35f1a85ece"
+  },
+  "techies/cyclone": {
+   "kind": "dodge",
+   "abilities": [
+    "Blast Off"
+   ],
+   "text_key": "57f8c187f5"
+  },
+  "techies/force_staff": {
+   "kind": "dodge",
+   "abilities": [
+    "Blast Off"
+   ],
+   "text_key": "57f8c187f5"
+  },
+  "techies/glimmer_cape": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "135fb837f3"
+  },
+  "techies/helm_of_the_dominator": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "b1c2744fdd"
+  },
+  "techies/hood_of_defiance": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "135fb837f3"
+  },
+  "techies/infused_raindrop": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "cccde7f718"
+  },
+  "techies/manta": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Blast Off"
+   ],
+   "text_key": "65d7795ee8"
+  },
+  "techies/orchid": {
+   "kind": "silence",
+   "abilities": [
+    "Blast Off"
+   ],
+   "text_key": "35f1a85ece"
+  },
+  "techies/pipe": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "135fb837f3"
+  },
+  "techies/sheepstick": {
+   "kind": "disable",
+   "abilities": [
+    "Blast Off"
+   ],
+   "text_key": "35f1a85ece"
+  },
+  "templar_assassin/dust": {
+   "kind": "detect",
+   "abilities": [],
+   "text_key": "0216e60ead"
+  },
+  "templar_assassin/ghost": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "6086d164cd"
+  },
+  "templar_assassin/radiance": {
+   "kind": "no_escape",
+   "abilities": [
+    "Refraction"
+   ],
+   "text_key": "7dd1cf9d92"
+  },
+  "templar_assassin/revenants_brooch": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "8dc71385e9"
+  },
+  "templar_assassin/urn_of_shadows": {
+   "kind": "no_escape",
+   "abilities": [
+    "Refraction",
+    "Meld"
+   ],
+   "text_key": "7dd1cf9d92"
+  },
+  "terrorblade/abyssal_blade": {
+   "kind": "bkb_pierce",
+   "abilities": [],
+   "text_key": "e3205381ff"
+  },
+  "terrorblade/aether_lens": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "d77c4d702e"
+  },
+  "terrorblade/assault": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "4f4a36f9fc"
+  },
+  "terrorblade/basher": {
+   "kind": "disable",
+   "abilities": [],
+   "text_key": "e3205381ff"
+  },
+  "terrorblade/bfury": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "940fae9885"
+  },
+  "terrorblade/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Sunder",
+    "Reflection"
+   ],
+   "text_key": "b366338d2c"
+  },
+  "terrorblade/bloodstone": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Sunder"
+   ],
+   "text_key": "753c03aee7"
+  },
+  "terrorblade/bloodthorn": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "40b4cf0bbb"
+  },
+  "terrorblade/dagon": {
+   "kind": "burst",
+   "abilities": [],
+   "text_key": "5dfc305afc"
+  },
+  "terrorblade/ethereal_blade": {
+   "kind": "burst",
+   "abilities": [],
+   "text_key": "5dfc305afc"
+  },
+  "terrorblade/ghost": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "03e3201dc4"
+  },
+  "terrorblade/guardian_greaves": {
+   "kind": "team_sustain",
+   "abilities": [],
+   "text_key": "753c03aee7"
+  },
+  "terrorblade/gungir": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "940fae9885"
+  },
+  "terrorblade/heavens_halberd": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "287d32c53a"
+  },
+  "terrorblade/hurricane_pike": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "d77c4d702e"
+  },
+  "terrorblade/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Sunder"
+   ],
+   "text_key": "565a1a0f4d"
+  },
+  "terrorblade/maelstrom": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "940fae9885"
+  },
+  "terrorblade/mjollnir": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "940fae9885"
+  },
+  "terrorblade/monkey_king_bar": {
+   "kind": "burst",
+   "abilities": [],
+   "text_key": "4a4eb8df94"
+  },
+  "terrorblade/nullifier": {
+   "kind": "dispel_enemy",
+   "abilities": [],
+   "text_key": "1943beaa8e"
+  },
+  "terrorblade/orchid": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "40b4cf0bbb"
+  },
+  "terrorblade/radiance": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "940fae9885"
+  },
+  "terrorblade/revenants_brooch": {
+   "kind": "pierce_evasion",
+   "abilities": [],
+   "text_key": "550b5eb155"
+  },
+  "terrorblade/satanic": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Sunder"
+   ],
+   "text_key": "753c03aee7"
+  },
+  "terrorblade/sheepstick": {
+   "kind": "hex",
+   "abilities": [],
+   "text_key": "7561975bf0"
+  },
+  "terrorblade/shivas_guard": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "4f4a36f9fc"
+  },
+  "terrorblade/sphere": {
+   "kind": "spell_block",
+   "abilities": [
+    "Sunder"
+   ],
+   "text_key": "c9d8bb641f"
+  },
+  "terrorblade/vanguard": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "af3e607357"
+  },
+  "terrorblade/wind_waker": {
+   "kind": "dodge",
+   "abilities": [
+    "Sunder"
+   ],
+   "text_key": "6b888c4763"
+  },
+  "tidehunter/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "855f8f259e"
+  },
+  "tidehunter/diffusal_blade": {
+   "kind": "mana_burn",
+   "abilities": [],
+   "text_key": "e162a72a10"
+  },
+  "tidehunter/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Gush"
+   ],
+   "text_key": "153981bcac"
+  },
+  "tidehunter/silver_edge": {
+   "kind": "break",
+   "abilities": [
+    "Kraken Shell"
+   ],
+   "text_key": "ec82247b88"
+  },
+  "tidehunter/sphere": {
+   "kind": "spell_block",
+   "abilities": [
+    "Gush"
+   ],
+   "text_key": "c0184de3e1"
+  },
+  "tinker/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "01280254b3"
+  },
+  "tinker/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "0bcd2f3707"
+  },
+  "tinker/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [],
+   "text_key": "02a066e977"
+  },
+  "tinker/monkey_king_bar": {
+   "kind": "pierce_evasion",
+   "abilities": [],
+   "text_key": "3567ec07a1"
+  },
+  "tinker/sphere": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Laser"
+   ],
+   "text_key": "bdebfbab63"
+  },
+  "tiny/assault": {
+   "kind": "armor_reduction",
+   "abilities": [],
+   "text_key": "d03d800391"
+  },
+  "tiny/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "7a291e037d"
+  },
+  "tiny/desolator": {
+   "kind": "armor_reduction",
+   "abilities": [],
+   "text_key": "d03d800391"
+  },
+  "tiny/shivas_guard": {
+   "kind": "slow",
+   "abilities": [],
+   "text_key": "9f5355f6f5"
+  },
+  "treant/force_staff": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "eeb2eb439b"
+  },
+  "treant/gem": {
+   "kind": "detect",
+   "abilities": [
+    "Eyes In The Forest"
+   ],
+   "text_key": "17a722dcf0"
+  },
+  "treant/manta": {
+   "kind": "dispel_enemy",
+   "abilities": [],
+   "text_key": "cb8ecee29d"
+  },
+  "treant/quelling_blade": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "8916ec3da7"
+  },
+  "treant/tango": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "1dc34fe66a"
+  },
+  "treant/ward_sentry": {
+   "kind": "detect",
+   "abilities": [],
+   "text_key": "132d43214a"
+  },
+  "troll_warlord/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "1e5fefa569"
+  },
+  "troll_warlord/bloodthorn": {
+   "kind": "pierce_evasion",
+   "abilities": [],
+   "text_key": "c1be45f103"
+  },
+  "troll_warlord/heavens_halberd": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "54e5640b24"
+  },
+  "troll_warlord/sheepstick": {
+   "kind": "hex",
+   "abilities": [],
+   "text_key": "5a485ac4ec"
+  },
+  "troll_warlord/silver_edge": {
+   "kind": "break",
+   "abilities": [
+    "Fervor"
+   ],
+   "text_key": "aff66d7150"
+  },
+  "tusk/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "79898352cb"
+  },
+  "tusk/force_staff": {
+   "kind": "dodge",
+   "abilities": [
+    "Ice Shards",
+    "Snowball"
+   ],
+   "text_key": "e0632f90d2"
+  },
+  "tusk/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Snowball"
+   ],
+   "text_key": "d49622caf0"
+  },
+  "tusk/manta": {
+   "kind": "dodge",
+   "abilities": [
+    "Snowball"
+   ],
+   "text_key": "37ffa00416"
+  },
+  "undying/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "6db4552303"
+  },
+  "undying/crimson_guard": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "8c2352807a"
+  },
+  "undying/lotus_orb": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "837be6c83c"
+  },
+  "undying/manta": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "0f5bbe8d37"
+  },
+  "undying/orchid": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "fe2d095fa1"
+  },
+  "undying/sheepstick": {
+   "kind": "hex",
+   "abilities": [],
+   "text_key": "9f21582dc6"
+  },
+  "ursa/aeon_disk": {
+   "kind": "save",
+   "abilities": [],
+   "text_key": "8ce88324a6"
+  },
+  "ursa/butterfly": {
+   "kind": "evasion",
+   "abilities": [],
+   "text_key": "ab6399c42d"
+  },
+  "ursa/ethereal_blade": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "e5c09101e2"
+  },
+  "ursa/ghost": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "e5c09101e2"
+  },
+  "ursa/heavens_halberd": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "77e28fc219"
+  },
+  "ursa/sheepstick": {
+   "kind": "hex",
+   "abilities": [],
+   "text_key": "5722f8890b"
+  },
+  "ursa/silver_edge": {
+   "kind": "break",
+   "abilities": [
+    "Fury Swipes"
+   ],
+   "text_key": "4e51db7879"
+  },
+  "vengefulspirit/assault": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "d52c5ed3a6"
+  },
+  "vengefulspirit/diffusal_blade": {
+   "kind": "mana_burn",
+   "abilities": [],
+   "text_key": "2fc61d5bfa"
+  },
+  "vengefulspirit/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Magic Missile",
+    "Nether Swap"
+   ],
+   "text_key": "9ac4a6ea27"
+  },
+  "vengefulspirit/silver_edge": {
+   "kind": "break",
+   "abilities": [
+    "Vengeance Aura"
+   ],
+   "text_key": "ca42445038"
+  },
+  "vengefulspirit/sphere": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Magic Missile",
+    "Nether Swap"
+   ],
+   "text_key": "2c736a6622"
+  },
+  "venomancer/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "c5341febbe"
+  },
+  "venomancer/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "095ee3e799"
+  },
+  "venomancer/glimmer_cape": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "36d90492c3"
+  },
+  "venomancer/pipe": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "36d90492c3"
+  },
+  "venomancer/tpscroll": {
+   "kind": "dodge",
+   "abilities": [],
+   "text_key": "062bd713b3"
+  },
+  "viper/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "4180e84d2d"
+  },
+  "viper/diffusal_blade": {
+   "kind": "mana_burn",
+   "abilities": [],
+   "text_key": "d6a6a4b9a9"
+  },
+  "viper/force_staff": {
+   "kind": "chase",
+   "abilities": [],
+   "text_key": "14a7a870ca"
+  },
+  "viper/ghost": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "9979d46c20"
+  },
+  "viper/glimmer_cape": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "bf53b43c7f"
+  },
+  "viper/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Viper Strike"
+   ],
+   "text_key": "5e5447e7dc"
+  },
+  "viper/manta": {
+   "kind": "dodge",
+   "abilities": [
+    "Viper Strike"
+   ],
+   "text_key": "171730b2da"
+  },
+  "viper/silver_edge": {
+   "kind": "break",
+   "abilities": [
+    "Corrosive Skin"
+   ],
+   "text_key": "dfeef27970"
+  },
+  "viper/sphere": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Viper Strike"
+   ],
+   "text_key": "6ed22ec074"
+  },
+  "viper/tpscroll": {
+   "kind": "save",
+   "abilities": [],
+   "text_key": "525d0bbf75"
+  },
+  "visage/assault": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "de2e8e81e5"
+  },
+  "visage/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Grave Chill",
+    "Soul Assumption"
+   ],
+   "text_key": "5a109a740d"
+  },
+  "visage/butterfly": {
+   "kind": "evasion",
+   "abilities": [],
+   "text_key": "81fe18ae08"
+  },
+  "visage/crimson_guard": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "fd7ccb5c2e"
+  },
+  "visage/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Grave Chill",
+    "Soul Assumption"
+   ],
+   "text_key": "62fd121d28"
+  },
+  "visage/radiance": {
+   "kind": "illusion_kill",
+   "abilities": [],
+   "text_key": "627874b6e8"
+  },
+  "visage/vanguard": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "fd7ccb5c2e"
+  },
+  "void_spirit/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Astral Step"
+   ],
+   "text_key": "dfb5753fc8"
+  },
+  "void_spirit/bloodthorn": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "08d1cec2d2"
+  },
+  "void_spirit/hood_of_defiance": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "23d4c33757"
+  },
+  "void_spirit/orchid": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "08d1cec2d2"
+  },
+  "void_spirit/pipe": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "23d4c33757"
+  },
+  "warlock/blink": {
+   "kind": "dodge",
+   "abilities": [
+    "Upheaval"
+   ],
+   "text_key": "a4cfffd747"
+  },
+  "warlock/boots_of_bearing": {
+   "kind": "dispel_self",
+   "abilities": [
+    "Upheaval"
+   ],
+   "text_key": "f11ba3fc19"
+  },
+  "warlock/cyclone": {
+   "kind": "disable",
+   "abilities": [
+    "Upheaval"
+   ],
+   "text_key": "f7d551d300"
+  },
+  "warlock/diffusal_blade": {
+   "kind": "mana_burn",
+   "abilities": [],
+   "text_key": "cbe7a3e7b0"
+  },
+  "warlock/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Fatal Bonds",
+    "Shadow Word"
+   ],
+   "text_key": "4e5e94ae2f"
+  },
+  "warlock/orchid": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "2c2c7e05cf"
+  },
+  "weaver/abyssal_blade": {
+   "kind": "disable",
+   "abilities": [],
+   "text_key": "4088667820"
+  },
+  "weaver/dagon": {
+   "kind": "burst",
+   "abilities": [],
+   "text_key": "e5e6445f40"
+  },
+  "weaver/ethereal_blade": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "47679f5a01"
+  },
+  "weaver/ghost": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "47679f5a01"
+  },
+  "weaver/gungir": {
+   "kind": "no_escape",
+   "abilities": [
+    "Shukuchi"
+   ],
+   "text_key": "70d60ea648"
+  },
+  "weaver/orchid": {
+   "kind": "silence",
+   "abilities": [
+    "Shukuchi",
+    "Time Lapse"
+   ],
+   "text_key": "a279810a40"
+  },
+  "weaver/shadow_amulet": {
+   "kind": "dodge",
+   "abilities": [
+    "The Swarm"
+   ],
+   "text_key": "c5745743e1"
+  },
+  "weaver/sheepstick": {
+   "kind": "disable",
+   "abilities": [],
+   "text_key": "4088667820"
+  },
+  "weaver/vanguard": {
+   "kind": "physical_defense",
+   "abilities": [],
+   "text_key": "a49273083a"
+  },
+  "weaver/ward_sentry": {
+   "kind": "detect",
+   "abilities": [
+    "Shukuchi"
+   ],
+   "text_key": "e48423a212"
+  },
+  "windrunner/abyssal_blade": {
+   "kind": "no_escape",
+   "abilities": [
+    "Windrun"
+   ],
+   "text_key": "595dd7ab37"
+  },
+  "windrunner/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "df76a79487"
+  },
+  "windrunner/cyclone": {
+   "kind": "no_escape",
+   "abilities": [
+    "Windrun"
+   ],
+   "text_key": "595dd7ab37"
+  },
+  "windrunner/heavens_halberd": {
+   "kind": "disarm",
+   "abilities": [],
+   "text_key": "3796ee66fa"
+  },
+  "windrunner/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Shackleshot",
+    "Focus Fire"
+   ],
+   "text_key": "1d80db1960"
+  },
+  "windrunner/monkey_king_bar": {
+   "kind": "pierce_evasion",
+   "abilities": [
+    "Windrun"
+   ],
+   "text_key": "65f60b0438"
+  },
+  "windrunner/nullifier": {
+   "kind": "dispel_enemy",
+   "abilities": [
+    "Windrun"
+   ],
+   "text_key": "f8036d8b58"
+  },
+  "windrunner/orchid": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "97a0a81bfa"
+  },
+  "windrunner/rod_of_atos": {
+   "kind": "no_escape",
+   "abilities": [
+    "Windrun"
+   ],
+   "text_key": "595dd7ab37"
+  },
+  "windrunner/sphere": {
+   "kind": "spell_block",
+   "abilities": [
+    "Focus Fire",
+    "Shackleshot"
+   ],
+   "text_key": "8439f3b1ca"
+  },
+  "winter_wyvern/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Winter's Curse",
+    "Arctic Burn"
+   ],
+   "text_key": "8343e6fa39"
+  },
+  "winter_wyvern/dagon": {
+   "kind": "burst",
+   "abilities": [],
+   "text_key": "1db189c66a"
+  },
+  "winter_wyvern/ethereal_blade": {
+   "kind": "save",
+   "abilities": [
+    "Winter's Curse"
+   ],
+   "text_key": "920be0abbe"
+  },
+  "winter_wyvern/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Winter's Curse"
+   ],
+   "text_key": "06dffc1152"
+  },
+  "winter_wyvern/revenants_brooch": {
+   "kind": "burst",
+   "abilities": [],
+   "text_key": "fd40a068d5"
+  },
+  "winter_wyvern/sphere": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Winter's Curse"
+   ],
+   "text_key": "18d15d762b"
+  },
+  "wisp/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "dc243f7c05"
+  },
+  "wisp/blink": {
+   "kind": "chase",
+   "abilities": [],
+   "text_key": "a104d5bbdd"
+  },
+  "wisp/dagon": {
+   "kind": "burst",
+   "abilities": [],
+   "text_key": "e831aafbd3"
+  },
+  "wisp/orchid": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "f1ec10ef85"
+  },
+  "wisp/radiance": {
+   "kind": "burst",
+   "abilities": [],
+   "text_key": "e831aafbd3"
+  },
+  "wisp/rod_of_atos": {
+   "kind": "no_escape",
+   "abilities": [
+    "Relocate"
+   ],
+   "text_key": "b1d2de4176"
+  },
+  "wisp/shivas_guard": {
+   "kind": "heal_reduction",
+   "abilities": [],
+   "text_key": "0b2598e749"
+  },
+  "wisp/spirit_vessel": {
+   "kind": "heal_reduction",
+   "abilities": [],
+   "text_key": "0b2598e749"
+  },
+  "witch_doctor/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [
+    "Paralyzing Cask",
+    "Maledict"
+   ],
+   "text_key": "4617ea75ff"
+  },
+  "witch_doctor/cyclone": {
+   "kind": "disable",
+   "abilities": [
+    "Death Ward",
+    "Paralyzing Cask"
+   ],
+   "text_key": "48c02f3ea5"
+  },
+  "witch_doctor/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Paralyzing Cask"
+   ],
+   "text_key": "c08ebb6fe7"
+  },
+  "witch_doctor/sphere": {
+   "kind": "spell_block",
+   "abilities": [
+    "Paralyzing Cask"
+   ],
+   "text_key": "5fa1ce2942"
+  },
+  "witch_doctor/vanguard": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "be5dd6c359"
+  },
+  "zuus/black_king_bar": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "aed70733bf"
+  },
+  "zuus/blade_mail": {
+   "kind": "return_damage",
+   "abilities": [],
+   "text_key": "2220f8e906"
+  },
+  "zuus/cloak": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "58648e7dba"
+  },
+  "zuus/diffusal_blade": {
+   "kind": "mana_burn",
+   "abilities": [],
+   "text_key": "35f138c850"
+  },
+  "zuus/heart": {
+   "kind": "magic_defense",
+   "abilities": [],
+   "text_key": "5e78d6ef3c"
+  },
+  "zuus/lotus_orb": {
+   "kind": "reflect",
+   "abilities": [
+    "Lightning Bolt"
+   ],
+   "text_key": "00f4f755e5"
+  },
+  "zuus/magic_stick": {
+   "kind": "none",
+   "abilities": [],
+   "text_key": "38fa822e9c"
+  },
+  "zuus/orchid": {
+   "kind": "silence",
+   "abilities": [],
+   "text_key": "43409e5306"
+  }
+ }
+}

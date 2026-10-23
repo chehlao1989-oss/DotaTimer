@@ -56,7 +56,16 @@ SAMPLE_MESSAGES = [(ru.MSG_POWER_RUNE.format(sec=30), False, {}),
                    (ru.MSG_FIRST_POWER_RUNE_EARLY.format(time="6:00"), True, {}),
                    (ru.HINT_ITEM.format(hero="Phantom Assassin", item="Butterfly",
                                         counters="Monkey King Bar, Bloodthorn, Silver Edge"), True,
-                    {"icons": [("heroes", "phantom_assassin"), ("items", "butterfly")], "highlights": ["Butterfly"]})]
+                    {"icons": [("heroes", "phantom_assassin"), ("items", "butterfly")], "highlights": ["Butterfly"]}),
+                   # карточка угроз с причинами со страниц Counters (BUGLOG №61): самые длинные строки из разметки
+                   ("\n".join([ru.CARD_TITLE,
+                               ru.CARD_LINE.format(hero="Phantom Assassin", reason=ru.CARD_REASON["core"]),
+                               ru.CARD_COUNTERS.format(items=ru.CARD_ITEMS_JOIN.join([
+                                   "Lotus Orb (отражает Stifling Dagger)", "Silver Edge (ломает Blur и Coup De Grace)"])),
+                               ru.CARD_LINE.format(hero="Puck", reason=ru.CARD_REASON["matchup"]),
+                               ru.CARD_COUNTERS.format(items=ru.CARD_ITEMS_JOIN.join([
+                                   "Orchid Malevolence (немота: без Illusory Orb и Waning Rift)",
+                                   "Force Staff (уворот от Dream Coil)"]))]), True, {})]
 SAMPLE_THREATS = [ThreatRecommendation("axe", (RecItem("blade_mail", 1, "hero", 6.0, 900),
                                                RecItem("black_king_bar", 1, "hero", 4.0, 900))),
                   ThreatRecommendation("phantom_assassin", (RecItem("monkey_king_bar", 1, "hero", 9.0, 800),)),

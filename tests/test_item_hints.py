@@ -110,3 +110,44 @@ def test_controller_hint_text(qapp):
     text = controller.hint_text(ItemHint(KIND_ITEM, "phantom_assassin", "butterfly", None, ()))
     assert "Bloodthorn (пробивает уклонение), Monkey King Bar (пробивает уклонение)" in text
     assert controller.tracker.update("phantom_assassin", {"magic_wand"}, 100, {"phantom_assassin"}) == []
+
+
+def test_wiki_reasons_are_valid():
+    """Разметка причин «предмет против героя» (BUGLOG №61): каждая пара со страниц Counters размечена, тип есть
+    в ru.WIKI_REASONS, способности — дословно из текста пункта, отпечаток текста совпадает."""
+    import sys
+    from app.i18n import ru
+    from app.threats.item_hints import text_key
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
+    from fetch_wiki_counters import plain_text, text_key as tool_key
+    data = Path(__file__).resolve().parents[1] / "data"
+    wiki = json.loads((data / "benchmark_counters.json").read_text(encoding="utf-8"))["heroes"]
+    pairs = json.loads((data / "wiki_reasons.json").read_text(encoding="utf-8"))["pairs"]
+    for hero, entry in wiki.items():
+        for item in entry["counter_items"]:
+            row = pairs[f"{hero}/{item}"]
+            line = entry["counter_texts"][item]
+            assert row["text_key"] == text_key(line) == tool_key(line)
+            assert row["kind"] == "none" or row["kind"] in ru.WIKI_REASONS
+            assert all(a in plain_text(line) for a in row["abilities"])
+            assert not row["abilities"] or ru.WIKI_REASONS[row["kind"]][0]
+
+
+def test_hero_counter_has_reason():
+    """23.10: против Phantom Assassin советовался Lotus Orb без причины — выглядело как «отражение магии», хотя она
+    бьёт физикой. Вики объясняет: отражает Stifling Dagger — это и показываем."""
+    from app.threats.controller import wiki_reason
+    lotus = next(c for c in table().vs_hero("phantom_assassin") if c.item == "lotus_orb")
+    assert lotus.why == ("reflect", ("Stifling Dagger",))
+    assert wiki_reason(lotus.why) == "отражает Stifling Dagger"
+    assert wiki_reason(("heal_reduction", ())) == "режет лечение"
+    assert wiki_reason(None) is None
+
+
+def test_reason_dropped_when_wiki_text_changed():
+    from app.threats.item_hints import hero_reasons, text_key
+    wiki = {"heroes": {"pa": {"counter_texts": {"lotus_orb": "new text"}}}}
+    old = {"pa/lotus_orb": {"kind": "reflect", "abilities": ["Stifling Dagger"], "text_key": text_key("old text")}}
+    assert hero_reasons(wiki, old) == {}
+    new = {"pa/lotus_orb": {"kind": "reflect", "abilities": [], "text_key": text_key("new text")}}
+    assert hero_reasons(wiki, new) == {("pa", "lotus_orb"): ("reflect", ())}
