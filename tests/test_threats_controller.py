@@ -181,15 +181,24 @@ def test_repeat_hints_shows_last_ones_again():
     ctrl, shown = make()
     ctrl.on_game_state(0, True, "npc_dota_hero_sven", "radiant", True)
     ctrl.set_enemies(["alchemist", "medusa"], show_card=False)
-    ctrl.repeat_hints()
-    assert "ещё не было" in shown[-1][0]
+    card = ctrl.card_text()
+    assert card
+    ctrl.repeat_hints(now=100)
+    assert shown[-1] == (card, None)  # первое нажатие — карточка про героев, без голоса (автор 26.10)
+    ctrl.repeat_hints(now=105)
+    assert "ещё не было" in shown[-1][0]  # второе подряд — подсказки по предметам
     ctrl.manual_item("medusa", "heart", 900)
     ctrl.manual_item("alchemist", "heart", 950)
     hints = [t for t, _ in shown if "появился" in t]
     shown.clear()
-    ctrl.repeat_hints()
-    assert [t for t, _ in shown] == hints[-ctrl.hint_repeat:] and all(v is None for _, v in shown)  # без голоса
-    ctrl.new_match()
+    ctrl.repeat_hints(now=200)
+    ctrl.repeat_hints(now=201)
+    assert [t for t, _ in shown] == [card] + hints[-ctrl.hint_repeat:] and all(v is None for _, v in shown)
     shown.clear()
-    ctrl.repeat_hints()
+    ctrl.repeat_hints(now=300)  # нажатие позже — снова карточка
+    assert [t for t, _ in shown] == [card]
+    ctrl.new_match()
+    ctrl.threats = []
+    shown.clear()
+    ctrl.repeat_hints(now=400)
     assert "ещё не было" in shown[-1][0]

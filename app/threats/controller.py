@@ -4,6 +4,7 @@
 Работает в потоке интерфейса. Показывает сообщения через функцию show(text, important, voice_key).
 """
 import logging
+import time
 from dataclasses import dataclass
 from typing import Callable
 
@@ -90,6 +91,8 @@ class ThreatsController:
         self.hint_limit = 2
         self.hint_repeat = 3  # сколько последних подсказок показать по клавише повтора
         self.recent_hints: list[tuple[str, dict]] = []  # подсказки этой катки: текст и оформление, последняя — в конце
+        self.repeat_pair_sec = 20.0  # второе нажатие повтора в эти секунды после карточки — подсказки по предметам
+        self._card_repeated_at: float | None = None
 
     def use_counter_table(self, table: CounterTable, own_shares: Callable[[], dict[str, float]], min_share: float,
                           limit: int, likely_parent=None) -> None:
@@ -123,6 +126,7 @@ class ThreatsController:
     def new_match(self) -> None:
         self.tracker.reset()
         self.recent_hints = []
+        self._card_repeated_at = None
         self._dropped.clear()
         # герой прошлой катки не тянется в новую: 21.10 в катке на Spirit Breaker своим считался Lone Druid
         # (GSI не прислал героя), и имя Spirit Breaker не сверялось на нижней панели (BUGLOG №59)
@@ -331,9 +335,19 @@ class ThreatsController:
         self.recent_hints = ([h for h in self.recent_hints if h[0] != text] + [(text, extras)])[-self.hint_repeat:]
         self.show(text, True, None, self.hint_duration, **extras)
 
-    def repeat_hints(self) -> None:
-        """Клавиша повтора: последние подсказки ещё раз — прочитать спокойно, когда ждёшь возрождения
-        (в драке они уходят раньше, чем успеваешь прочитать; просьба автора 23.10). Без голоса."""
+    def repeat_hints(self, now: float | None = None) -> None:
+        """Клавиша повтора — прочитать спокойно, когда ждёшь возрождения (в драке подсказки уходят раньше, чем
+        успеваешь прочитать; просьба автора 23.10). Без голоса. Сначала карточка про героев-угроз, второе нажатие
+        подряд — последние подсказки по предметам (автор 26.10). Вместе не влезают: карточка на 2 угрозы — 217 px
+        из 232 px места для сообщений при 1080 (замер 26.10)."""
+        now = time.monotonic() if now is None else now
+        card = self.card_text()
+        again = self._card_repeated_at is not None and now - self._card_repeated_at < self.repeat_pair_sec
+        if card and not again:
+            self._card_repeated_at = now
+            self.show(card, True, None, self.card_duration)
+            return
+        self._card_repeated_at = None
         if not self.recent_hints:
             self.show(ru.HINT_REPEAT_NONE, False, None)
             return
