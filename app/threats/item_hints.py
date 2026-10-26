@@ -24,6 +24,7 @@ DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 WIKI_HERO = "wiki_hero"  # тип ответа «со страницы Counters героя»
 
 
+NO_REASON = "none"  # тип в data/wiki_reasons.json: в тексте вики нет причины против героя (BUGLOG №63)
 Why = tuple[str, tuple[str, ...]]  # причина со страницы Counters: (тип из data/wiki_reasons.json, способности героя)
 
 
@@ -107,21 +108,25 @@ class CounterTable:
         return out
 
     def vs_hero(self, hero: str) -> list[Counter]:
-        """Контр-предметы на героя-угрозу: страница Counters вики, в порядке страницы."""
-        return [Counter(k, WIKI_HERO, None, self.hero_reasons.get((hero, k))) for k in self.hero_counters.get(hero, ())]
+        """Контр-предметы на героя-угрозу: страница Counters вики, в порядке страницы.
+
+        Пункт без причины («none» в разметке: Magic Stick «копит заряды на линии», Tango…) не советуем:
+        это совет для линии, а не контр-предмет, и по доле покупки Magic Wand вставал первым (BUGLOG №63)."""
+        return [Counter(k, WIKI_HERO, None, why) for k in self.hero_counters.get(hero, ())
+                if (why := self.hero_reasons.get((hero, k))) is None or why[0] != NO_REASON]
 
     def source(self, counter: Counter) -> str | None:
         return self._sources.get((counter.answer, counter.item))
 
 
 def hero_reasons(wiki: dict, pairs: dict) -> dict[tuple[str, str], Why]:
-    """Причины «предмет против героя», размеченные по тексту вики. Текст пункта на вики поменялся (другой отпечаток)
-    или причины нет («none») — пара без причины: лучше промолчать, чем показать устаревшую."""
+    """Причины «предмет против героя», размеченные по тексту вики. Текст пункта на вики поменялся (другой отпечаток) —
+    пара без причины: лучше промолчать, чем показать устаревшую. Размечено «none» — тип NO_REASON (такой пункт не советуем)."""
     out = {}
     for hero, entry in wiki.get("heroes", {}).items():
         for item, line in entry.get("counter_texts", {}).items():
             row = pairs.get(f"{hero}/{item}")
-            if row and row["kind"] != "none" and row.get("text_key") == text_key(line):
+            if row and row.get("text_key") == text_key(line):
                 out[(hero, item)] = (row["kind"], tuple(row.get("abilities", ())))
     return out
 

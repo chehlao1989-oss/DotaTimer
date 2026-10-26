@@ -151,3 +151,11 @@ def test_reason_dropped_when_wiki_text_changed():
     assert hero_reasons(wiki, old) == {}
     new = {"pa/lotus_orb": {"kind": "reflect", "abilities": [], "text_key": text_key("new text")}}
     assert hero_reasons(wiki, new) == {("pa", "lotus_orb"): ("reflect", ())}
+
+
+def test_hero_counter_without_reason_is_not_advised():
+    # BUGLOG №63: Magic Stick против Zeus («копит заряды на линии») — совет для линии, не контр-предмет
+    zeus = [c.item for c in table().vs_hero("zuus")]
+    assert zeus and "magic_stick" not in zeus and "magic_wand" not in zeus
+    for hero in ("batrider", "bloodseeker", "bristleback", "clinkz", "phantom_lancer", "sniper"):
+        assert not {"magic_stick", "magic_wand"} & {c.item for c in table().vs_hero(hero)}
