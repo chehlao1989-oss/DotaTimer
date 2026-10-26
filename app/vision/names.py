@@ -21,7 +21,9 @@ MIN_MARGIN = 0.1
 # Золотые надписи (BUGLOG №55): красный ярче 160, R ≥ G ≥ B, синий от 90, разница R − B от 25 до 110 (замер по
 # видео 16.10: буквы ≈ B 137, G 163, R 194). Пороги строже белых: на 230 кадрах двух видео ошибки (WINDRANGER →
 # Bloodseeker) — оценка ≤ 0.32 и отрыв ≤ 0.17, верные — оценка ≥ 0.38 и отрыв ≥ 0.35; пороги — посередине разрыва
-GOLD_R_MIN, GOLD_B_MIN, GOLD_RB_MIN, GOLD_RB_MAX = 160, 90, 25, 110
+# 26.10: синий от 60, R − B до 150 — бывает золото насыщеннее: B 111, G 185, R 237 (R − B 126; logs/vision_debug 23–24.10:
+# Leshrac, Phantom Lancer, Rubick, враг Invoker — «не узнан» всю катку, вместо имени бралась стрелка уровня, BUGLOG №64)
+GOLD_R_MIN, GOLD_B_MIN, GOLD_RB_MIN, GOLD_RB_MAX = 160, 60, 25, 150
 GOLD_MIN_SCORE = 0.35
 GOLD_MIN_MARGIN = 0.25
 # сдвиг широкой панели меньше этого (при высоте 1080) — то же место, что обычная рамка
@@ -146,6 +148,10 @@ class NameMatcher:
             if shift > box_x:
                 continue  # за краем полосы
             hero = self._match(strip[:, box_x - shift:box_x - shift + box_w], scale, mask_fn, min_score, min_margin)
+            if hero is None and span[1] - span[0] + 1 > box_w - 2 * TEXT_HEIGHT_REF * scale:
+                # длинное имя (PHANTOM ASSASSIN, 143 px) шире рамки без краёв — рамка его обрезает: берём надпись
+                # целиком по её краям (24.10 свой Phantom Assassin «не узнан» всю катку, BUGLOG №64)
+                hero = self._match(strip[:, span[0]:span[1] + 1], scale, mask_fn, min_score, min_margin)
             if hero:
                 return hero, shift
         return self.match(strip[:, box_x:box_x + box_w], scale), 0

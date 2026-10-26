@@ -164,6 +164,35 @@ def test_gold_hero_name_is_read(qapp):
     assert matcher.match(cv2.imread(str(folder / "gold_windranger_trap.png")), scale) in ("windrunner", None)
 
 
+@pytest.mark.parametrize("shot, hero, wide", [("strip_gold_leshrac", "leshrac", False),
+                                              ("strip_gold_phantom_lancer", "phantom_lancer", False),
+                                              ("strip_gold_invoker_wide", "invoker", True),
+                                              ("strip_white_phantom_assassin", "phantom_assassin", True)])
+def test_name_strip_from_debug_images(qapp, shot, hero, wide):
+    """Полосы имени (2560×1080) из logs/vision_debug 23–24.10: «не узнан» всю катку (BUGLOG №64). Золото насыщеннее
+    прежнего порога (R − B ≈ 126, был предел 110) — бралась золотая стрелка уровня; PHANTOM ASSASSIN шире рамки."""
+    import cv2
+    from app.vision.names import NameMatcher
+    # кандидаты — герои тех каток (из лога «Имена для нижней панели»)
+    names = {"strip_gold_leshrac": {"leshrac": "Leshrac", "disruptor": "Disruptor", "enchantress": "Enchantress",
+                                    "lion": "Lion", "razor": "Razor", "shadow_shaman": "Shadow Shaman",
+                                    "spectre": "Spectre", "tiny": "Tiny", "zuus": "Zeus"},
+             "strip_gold_phantom_lancer": {"phantom_lancer": "Phantom Lancer", "huskar": "Huskar", "lina": "Lina",
+                                           "shadow_shaman": "Shadow Shaman", "skeleton_king": "Wraith King",
+                                           "ursa": "Ursa", "viper": "Viper", "weaver": "Weaver"},
+             "strip_gold_invoker_wide": {"rubick": "Rubick", "ancient_apparition": "Ancient Apparition",
+                                         "earthshaker": "Earthshaker", "hoodwink": "Hoodwink", "invoker": "Invoker",
+                                         "pugna": "Pugna", "necrolyte": "Necrophos"},
+             "strip_white_phantom_assassin": {"phantom_assassin": "Phantom Assassin", "bloodseeker": "Bloodseeker",
+                                              "clinkz": "Clinkz", "drow_ranger": "Drow Ranger",
+                                              "enchantress": "Enchantress", "life_stealer": "Lifestealer",
+                                              "ogre_magi": "Ogre Magi", "zuus": "Zeus", "warlock": "Warlock"}}[shot]
+    strip_rect, box = LAYOUT.name_strip(), LAYOUT.name_box()
+    found, shift = NameMatcher(names).find(cv2.imread(str(SCREENS.parent / "names" / f"{shot}.png")), LAYOUT.scale,
+                                           box.x - strip_rect.x, box.w, LAYOUT.name_center() - strip_rect.x)
+    assert found == hero and (shift > 0) == wide
+
+
 def test_debug_image_saved_when_names_unknown(monkeypatch, tmp_path):
     """Имя не узнаётся почти весь минутный отрезок — картинка нижней панели в logs/vision_debug, не больше 3
     (20.10: «не узнан» 99–100% в двух катках, по логу причину не понять, BUGLOG №58)."""
