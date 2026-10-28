@@ -202,3 +202,14 @@ def test_repeat_hints_shows_last_ones_again():
     shown.clear()
     ctrl.repeat_hints(now=400)
     assert "ещё не было" in shown[-1][0]
+
+
+def test_selftest_fails_while_vision_disabled():
+    """Зрение выключено для опыта по падениям (28.10, BUGLOG №57): самопроверка сборки должна это поймать,
+    чтобы выпуск без зрения не ушёл игрокам."""
+    import inspect
+    import json
+    from app import main
+    from app.threats.service import THREATS_CONFIG
+    assert "vision_enabled" in inspect.getsource(main.selftest) and "frozen" in inspect.getsource(main.selftest)
+    assert isinstance(json.loads(THREATS_CONFIG.read_text(encoding="utf-8")).get("vision_enabled", True), bool)

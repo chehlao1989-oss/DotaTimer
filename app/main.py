@@ -111,6 +111,14 @@ def selftest(report: Path) -> int:
         threats = step("угрозы", lambda: ThreatsService(settings.threats, core.say,
                                                         lambda: settings.mode == MODE_TURBO))
         step("главное окно", lambda: MainWindow(settings, core, hotkeys, threats) and None)
+
+        def vision_on():
+            # зрение выключают только на время опыта (28.10, BUGLOG №57) — в выпуск без него не выходить;
+            # проверка — у собранной программы (сборка на GitHub), из исходников опыт идёт у автора
+            if getattr(sys, "frozen", False) and threats and not threats.vision_enabled:
+                raise RuntimeError("выключено в data/threats.json (vision_enabled) — включить перед выпуском")
+            return "да" if threats and threats.vision_enabled else "нет (опыт, из исходников)"
+        step("зрение включено", vision_on)
         server.start()
 
         def send_packet():

@@ -56,7 +56,9 @@ class ThreatsService(QObject):
     def __init__(self, settings: ThreatSettings, show, turbo):
         super().__init__()
         self.settings = settings
-        self.overlays_enabled = json.loads(THREATS_CONFIG.read_text(encoding="utf-8")).get("overlays_enabled", True)
+        raw = json.loads(THREATS_CONFIG.read_text(encoding="utf-8"))
+        self.overlays_enabled = raw.get("overlays_enabled", True)
+        self.vision_enabled = raw.get("vision_enabled", True)  # опыт по падениям 28.10 (BUGLOG №57)
         self._show = show
         self.show = self._show_if_enabled
         self.turbo = turbo
@@ -125,7 +127,9 @@ class ThreatsService(QObject):
                                        recommend_config(raw_config))
         self._use_recs_file(data, raw_config)
         self._use_counter_table(raw_config)
-        if self.vision is None and (self.cache.root / "images" / "heroes").is_dir():
+        if not self.vision_enabled:
+            log.info("Зрение выключено (data/threats.json: vision_enabled, опыт по падениям BUGLOG №57)")
+        elif self.vision is None and (self.cache.root / "images" / "heroes").is_dir():
             self.vision = VisionService(data, self.cache)
             self.vision.topbar_ready.connect(self._on_topbar)
             self.vision.inventory_seen.connect(self._on_inventory)
