@@ -24,13 +24,14 @@ def test_stylesheet_uses_fonts(qapp):
     assert "Segoe UI" not in qss
 
 
-def test_dota_fonts_off_for_crash_experiment(tmp_path):
-    """Опыт 26.10 (BUGLOG №57): шрифты Доты выключены, и у старого settings.json без ключа тоже."""
+def test_dota_fonts_setting(tmp_path):
+    """Шрифты Доты включены по умолчанию и у старого settings.json без ключа; выключаются настройкой use_dota_fonts
+    (опыт 26–27.10 по падениям: с выключенными шрифтами 5 падений — не они, BUGLOG №57)."""
     import json
     from app.config import Settings, load_settings
-    assert Settings().dota_fonts is False
+    assert Settings().use_dota_fonts is True
     path = tmp_path / "settings.json"
-    path.write_text(json.dumps({"volume": 0.5}), encoding="utf-8")
-    assert load_settings(path).dota_fonts is False
-    path.write_text(json.dumps({"dota_fonts": True}), encoding="utf-8")
-    assert load_settings(path).dota_fonts is True
+    path.write_text(json.dumps({"volume": 0.5, "dota_fonts": False}), encoding="utf-8")
+    assert load_settings(path).use_dota_fonts is True
+    path.write_text(json.dumps({"use_dota_fonts": False}), encoding="utf-8")
+    assert load_settings(path).use_dota_fonts is False

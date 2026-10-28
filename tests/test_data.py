@@ -100,3 +100,13 @@ def test_images_and_matchups(tmp_path):
     updater.refresh_matchups(data)
     assert GameData.from_cache(cache).matchups[4][0]["games_played"] == 50
     assert updater.fetch_rank("1") == 54
+
+
+def test_hero_names_as_in_game_have_source():
+    """Имена героев, как в игре (BUGLOG №65): у каждого — источник; справочник OpenDota подменяется ими."""
+    import json
+    from app.threats.data import HERO_NAMES_FILE, parse_heroes
+    rows = json.loads(HERO_NAMES_FILE.read_text(encoding="utf-8"))["heroes"]
+    assert rows and all(row.get("source") for row in rows.values())
+    raw = {"76": {"id": 76, "name": "npc_dota_hero_obsidian_destroyer", "localized_name": "Outworld Devourer"}}
+    assert parse_heroes(raw)[76].localized == "Outworld Destroyer"

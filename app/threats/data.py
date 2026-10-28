@@ -15,6 +15,7 @@ log = logging.getLogger(__name__)
 
 MAX_AGE_SEC = 24 * 3600
 HERO_PREFIX = "npc_dota_hero_"
+HERO_NAMES_FILE = Path(__file__).resolve().parents[2] / "data" / "hero_names.json"
 
 
 @dataclass(frozen=True)
@@ -73,11 +74,24 @@ class DataCache:
         return folder / f"{key}.png"
 
 
+def game_hero_names(path: Path = HERO_NAMES_FILE) -> dict[str, str]:
+    """Имена, как в игре, где OpenDota отстаёт: «Outworld Devourer» в справочнике, а в игре «OUTWORLD DESTROYER» —
+    зрение не узнавало своего OD (BUGLOG №65)."""
+    try:
+        heroes = json.loads(path.read_text(encoding="utf-8"))["heroes"]
+        return {key: row["name"] for key, row in heroes.items()}
+    except (OSError, ValueError, KeyError):
+        log.warning("Не прочитан %s — имена героев как в OpenDota", path.name, exc_info=True)
+        return {}
+
+
 def parse_heroes(raw: dict) -> dict[int, Hero]:
     heroes = {}
+    in_game = game_hero_names()
     for value in raw.values():
         name = value["name"].removeprefix(HERO_PREFIX)
-        heroes[value["id"]] = Hero(value["id"], name, value["localized_name"], tuple(value.get("roles") or ()),
+        localized = in_game.get(name, value["localized_name"])
+        heroes[value["id"]] = Hero(value["id"], name, localized, tuple(value.get("roles") or ()),
                                    value.get("primary_attr", ""), value.get("img", ""))
     return heroes
 

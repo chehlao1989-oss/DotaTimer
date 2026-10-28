@@ -232,3 +232,19 @@ def test_single_frame_name_not_trusted():
     for _ in range(7):
         service._scan_inventory(None, None, Layout(), Reader())
     assert emitted == ["lycan", "slark"]
+
+
+def test_outworld_destroyer_name_as_in_game(qapp):
+    """27.10: свой OD «не узнан» 99% в двух катках — OpenDota зовёт его «Outworld Devourer», а в игре «OUTWORLD
+    DESTROYER» (BUGLOG №65). Кандидаты — герои той катки (лог «Имена для нижней панели»), имя OD — из data/hero_names.json."""
+    import cv2
+    from app.threats.data import game_hero_names
+    from app.vision.names import NameMatcher
+    names = {"obsidian_destroyer": game_hero_names()["obsidian_destroyer"], "arc_warden": "Arc Warden",
+             "chaos_knight": "Chaos Knight", "clinkz": "Clinkz", "crystal_maiden": "Crystal Maiden",
+             "faceless_void": "Faceless Void", "magnataur": "Magnus", "razor": "Razor",
+             "templar_assassin": "Templar Assassin"}
+    strip_rect, box = LAYOUT.name_strip(), LAYOUT.name_box()
+    found, _ = NameMatcher(names).find(cv2.imread(str(SCREENS.parent / "names" / "strip_gold_outworld_destroyer.png")),
+                                       LAYOUT.scale, box.x - strip_rect.x, box.w, LAYOUT.name_center() - strip_rect.x)
+    assert found == "obsidian_destroyer"

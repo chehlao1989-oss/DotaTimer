@@ -1,0 +1,9 @@
+{
+  "_comment": "Имена героев, как они написаны в игре, там, где справочник OpenDota отстаёт (BUGLOG №65). Нужны зрению (имя на нижней панели) и окнам.",
+  "heroes": {
+    "obsidian_destroyer": {
+      "name": "Outworld Destroyer",
+      "source": "скриншот игры: logs/vision_debug 27.10.2026 — на нижней панели «OUTWORLD DESTROYER»; OpenDota /constants/heroes 26.10 — «Outworld Devourer»"
+    }
+  }
+}
