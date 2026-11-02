@@ -1,0 +1,38 @@
+name: Время покупки предметов
+on:
+  push:
+    branches: [feature/item-purchase-minutes]
+    paths: [tools/collect_item_timings.py, app/threats/item_timing.py, data/item_timing_config.json, .github/workflows/item-timings.yml]
+  workflow_run:
+    workflows: ["Статистика матчей"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      max_requests:
+        description: "Максимум запросов OpenDota (обычно 200; первый сбор — 1200)"
+        type: number
+        default: 200
+permissions:
+  contents: write
+concurrency:
+  group: item-timings-${{ github.ref_name }}
+  cancel-in-progress: false
+jobs:
+  collect:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Библиотеки
+        run: pip install -r requirements-collector.txt
+      - name: Собрать историю и посчитать ориентиры
+        env:
+          TIMING_RELEASE: ${{ github.ref_name == 'main' && 'item-timings' || 'item-timings-trial' }}
+          MAX_REQUESTS: ${{ inputs.max_requests || (github.ref_name == 'main' && 200 || 1200) }}
+        run: python -u tools/collect_item_timings.py --release "$TIMING_RELEASE" --max-requests "$MAX_REQUESTS"

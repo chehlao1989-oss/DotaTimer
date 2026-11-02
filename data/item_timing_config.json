@@ -1,0 +1,18 @@
+{
+  "note": "DECISIONS №33. Статистические настройки, не игровые числа. Только первая покупка готового контр-предмета в разобранном завершённом матче OpenDota. Нормальный режим и Turbo, роли — раздельно. Время после 30 минут не отбрасывается.",
+  "max_matches": 3000,
+  "seen_limit": 6000,
+  "min_samples": 10,
+  "note_min_samples": "Минимум 10 независимых покупок для подписи примерно; точность и покрытие проверяются на первой выборке. Недостаточно данных — подписи нет, время другого героя или режима не подставляется.",
+  "max_age_days": 14,
+  "api_delay_sec": 1.1,
+  "day_reserve": 100,
+  "refresh_hours": 11,
+  "source": "https://docs.opendota.com/",
+  "purchase_source": "https://github.com/odota/core/blob/master/global.d.ts",
+  "allowed_lobbies": [
+    0,
+    7
+  ],
+  "lobby_source": "https://api.opendota.com/api/constants/lobby_type"
+}
