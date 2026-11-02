@@ -74,3 +74,63 @@ def test_no_timing_until_enough_samples():
 def test_invalid_snapshot_rejected(bad):
     with pytest.raises((ValueError, TypeError)):
         validate(bad)
+
+
+def test_nonfinite_purchase_does_not_poison_snapshot():
+    g = game()
+    g["players"][0]["purchase_log"] = [{"key": "black_king_bar", "time": float("nan")}]
+    result = sample_match(g, {"black_king_bar"})
+    assert len(result["rows"]) == 9
+
+
+def test_newer_bundled_table_beats_old_cache(tmp_path, monkeypatch):
+    import app.threats.item_timing as timing
+    raw = aggregate([sample_match(game(i), {"black_king_bar"}) for i in range(3)], CFG, now=NOW)
+    cache = tmp_path / "cache.json"
+    old = copy.deepcopy(raw)
+    old["generated_at"] -= 15 * 86400
+    cache.write_text(json.dumps(old), encoding="utf-8")
+    (tmp_path / "item_timings.json").write_text(json.dumps(raw), encoding="utf-8")
+    monkeypatch.setattr(timing, "DATA_DIR", tmp_path)
+    assert TimingTable.load(cache).raw["generated_at"] == NOW
+
+
+def test_failed_refresh_keeps_previous_cache(tmp_path, monkeypatch):
+    import io
+    import app.threats.item_timing as timing
+    cache = tmp_path / "cache.json"
+    cache.write_bytes(b"previous working copy")
+    monkeypatch.setattr(timing.urllib.request, "urlopen", lambda *a, **kw: io.BytesIO(b'{"version":0}'))
+    assert not timing.download_timings(cache, max_age=0)
+    assert cache.read_bytes() == b"previous working copy"
+
+
+def test_timing_is_annotation_for_same_choices():
+    from types import SimpleNamespace
+    from app.threats.controller import ThreatsController
+    from app.threats.item_hints import Choice
+    c = SimpleNamespace(item_title=lambda key: "Black King Bar", purchase_minute=None)
+    choices = [Choice("black_king_bar", "dispel", 10.0, prop="slow")]
+    original = ThreatsController.format_choices(c, choices)
+    c.purchase_minute = lambda key: 25
+    assert ThreatsController.format_choices(c, choices) == original + " · ≈25 мин"
+    c.purchase_minute = lambda key: None
+    assert ThreatsController.format_choices(c, choices) == original
+
+
+def test_service_uses_own_hero_mode_and_role():
+    from types import SimpleNamespace
+    from app.threats.service import ThreatsService
+    raw = aggregate([sample_match(game(i), {"black_king_bar"}) for i in range(3)], CFG, now=NOW)
+    s = SimpleNamespace(controller=SimpleNamespace(my_hero_id=lambda: 1),
+                        settings=SimpleNamespace(role_mode="support"),
+                        recs=SimpleNamespace(main_role=lambda hero: "support"),
+                        turbo=lambda: False, timings=TimingTable(raw, now=NOW))
+    assert ThreatsService._purchase_minute(s, "black_king_bar") == 25
+    s.turbo = lambda: True
+    assert ThreatsService._purchase_minute(s, "black_king_bar") is None
+    s.turbo = lambda: False
+    s.settings.role_mode = "core"
+    assert ThreatsService._purchase_minute(s, "black_king_bar") is None
+    s.settings.role_mode = "auto"
+    assert ThreatsService._purchase_minute(s, "black_king_bar") == 25

@@ -59,6 +59,7 @@ class RecItem:
     changed: bool = False  # совет сменился — подсветить и сказать
     shared: int = 1  # против скольких угроз работает
     affordable: bool = False  # хватает золота купить прямо сейчас
+    purchase_minute: int | None = None  # справочный ориентир из истории покупок, DECISIONS №33
 
 
 @dataclass(frozen=True)

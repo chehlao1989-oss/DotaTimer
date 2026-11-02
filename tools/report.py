@@ -213,6 +213,18 @@ def recs_health(now: datetime) -> str:
     return recs_line(recs, last, now)
 
 
+def timing_health(now: datetime) -> str:
+    """Отдельный сбор минут не должен незаметно остановиться (№33)."""
+    try:
+        assets = get_json(f"https://api.github.com/repos/{REPO}/releases/tags/item-timings")["assets"]
+        asset = next(a for a in assets if a["name"] == "item_timings.json")
+        age = (now - _parse_time(asset["updated_at"])).total_seconds() / 3600
+        alarm = " — ВНИМАНИЕ: обновлений больше двух суток" if age > 48 else ""
+        return f"7. Минуты покупок: таблица обновлена {age:.0f} ч назад{alarm} (замер: релиз item-timings)"
+    except Exception as error:
+        return f"7. Минуты покупок: не удалось проверить ({type(error).__name__}) — ВНИМАНИЕ"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Отчёт о запуске сбора")
     parser.add_argument("--run", help="номер запуска GitHub (без него — последний)")
@@ -242,6 +254,7 @@ def main() -> None:
                         broken_runs(assets, runs, datetime.now(UTC).replace(tzinfo=None))))
     if not args.live:
         lines.append(recs_health(datetime.now(UTC).replace(tzinfo=None)))
+        lines.append(timing_health(datetime.now(UTC).replace(tzinfo=None)))
     print("\n".join(lines))
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:

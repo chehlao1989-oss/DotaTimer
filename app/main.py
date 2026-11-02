@@ -92,6 +92,14 @@ def selftest(report: Path) -> int:
         step(f"библиотека {module}", lambda m=module: __import__(m) and None)
     app = step("окно Qt", lambda: QApplication(sys.argv))
     settings = step("настройки", load_settings)
+    def bundled_timings():
+        from app.threats.item_timing import DATA_DIR, validate
+        raw = json.loads((DATA_DIR / "item_timings.json").read_text(encoding="utf-8"))
+        validate(raw)
+        if not raw["heroes"]:
+            raise RuntimeError("поставляемая таблица минут покупки пуста")
+        return f"{len(raw['heroes'])} героев, {raw['matches']} матчей"
+    step("минуты покупки в программе", bundled_timings)
     packets = []
     server = step("сервер GSI", lambda: GsiServer(packets.append, port=0))
     if app and settings and server:

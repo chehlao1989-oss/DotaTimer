@@ -3,6 +3,7 @@ import argparse
 from collections import defaultdict
 import gzip
 import json
+import math
 import os
 from pathlib import Path
 import statistics
@@ -49,7 +50,7 @@ def sample_match(match, allowed, lobbies=(0, 7)):
         first = {}
         for event in player.get("purchase_log") or []:
             key, clock = event.get("key"), event.get("time")
-            if key not in allowed or not isinstance(clock, (int, float)):
+            if key not in allowed or not isinstance(clock, (int, float)) or not math.isfinite(clock):
                 continue
             if clock < 0 or clock > match["duration"]:
                 continue

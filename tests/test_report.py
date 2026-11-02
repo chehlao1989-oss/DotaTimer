@@ -46,3 +46,13 @@ def test_recs_line_warns_when_stale():
     stale = recs_line(datetime(2026, 10, 5, 2, 43), {"created_at": "2026-10-14T16:47:00Z", "conclusion": "failure"}, now)
     assert "ВНИМАНИЕ" not in fresh and "12 ч назад" in fresh
     assert "ВНИМАНИЕ" in stale and "failure" in stale
+
+
+def test_timing_health_warns_about_stopped_updates(monkeypatch):
+    import tools.report as module
+    monkeypatch.setattr(module, "get_json", lambda url: {"assets": [
+        {"name": "item_timings.json", "updated_at": "2026-11-01T12:00:00Z"}]})
+    assert "ВНИМАНИЕ" not in module.timing_health(datetime(2026, 11, 2, 12))
+    assert "ВНИМАНИЕ" in module.timing_health(datetime(2026, 11, 4, 12))
+    monkeypatch.setattr(module, "get_json", lambda url: {"assets": []})
+    assert "ВНИМАНИЕ" in module.timing_health(datetime(2026, 11, 2, 12))

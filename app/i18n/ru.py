@@ -340,3 +340,7 @@ AN_DONE = "Отчёт сохранён: {path}"
 RP_START = "Проигрываю {path} на {url}, скорость x{speed}"
 RP_DONE = "Готово, отправлено пакетов: {count}"
 RP_SEND_ERROR = "Не удалось отправить пакет: {error}"
+
+# DECISIONS №33: справочная медиана покупки на моём герое, не обещание оптимального времени.
+HINT_CHOICE_TIMED = "{text} · ≈{minute} мин"
+STRIP_BUY_TIME = "≈{minute}м"

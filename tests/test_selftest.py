@@ -12,3 +12,4 @@ def test_selftest_passes(tmp_path):
     text = report.read_text(encoding="utf-8")
     assert run.returncode == 0, text
     assert "ОШИБКА" not in text and "приём пакета GSI" in text
+    assert "минуты покупки в программе" in text

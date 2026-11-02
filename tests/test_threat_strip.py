@@ -213,3 +213,13 @@ def test_strip_code_has_no_piecewise_takeat():
     from pathlib import Path
     source = (Path(__file__).parent.parent / "app" / "ui" / "threat_strip.py").read_text(encoding="utf-8")
     assert ".takeAt(" not in source
+
+
+def test_purchase_time_caption_and_bought_priority():
+    from dataclasses import replace
+    from app.ui.threat_strip import ThreatStrip
+    from app.i18n import ru
+    item = RecItem("black_king_bar", 1, "mechanic", None, 0, purchase_minute=25)
+    assert ThreatStrip._caption(item) == "≈25м"
+    assert ThreatStrip._caption(replace(item, bought=True)) == ru.STRIP_BOUGHT
+    assert ThreatStrip._caption(replace(item, purchase_minute=None)) == ""

@@ -87,6 +87,7 @@ class ThreatsController:
         # подсказки v2 (BUGLOG №54): ответы — из таблицы механик и страниц Counters вики, выбор — под моего героя
         self.counter_table: CounterTable | None = None
         self.own_shares: Callable[[], dict[str, float]] | None = None  # предмет → % игр на моём герое в роли
+        self.purchase_minute = None  # (предмет) → ориентир покупки в минутах, №33
         self.hint_min_share = 0.0
         self.hint_limit = 2
         self.hint_repeat = 3  # сколько последних подсказок показать по клавише повтора
@@ -239,6 +240,9 @@ class ThreatsController:
                 parts.append((ru.HINT_CHOICE_RARE if c.rare else ru.HINT_CHOICE).format(item=item, reason=reason))
             else:
                 parts.append(ru.HINT_CHOICE_HERO_RARE.format(item=item) if c.rare else item)
+            minute = self.purchase_minute(c.item) if self.purchase_minute else None
+            if minute is not None:
+                parts[-1] = ru.HINT_CHOICE_TIMED.format(text=parts[-1], minute=minute)
         return ", ".join(parts)
 
     def suggestions_vs_hero(self, hero: str) -> list[Suggestion]:

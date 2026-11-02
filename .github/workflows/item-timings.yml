@@ -1,8 +1,5 @@
 name: Время покупки предметов
 on:
-  push:
-    branches: [feature/item-purchase-minutes]
-    paths: [tools/collect_item_timings.py, app/threats/item_timing.py, data/item_timing_config.json, .github/workflows/item-timings.yml]
   workflow_run:
     workflows: ["Статистика матчей"]
     types: [completed]
@@ -12,10 +9,14 @@ on:
         description: "Максимум запросов OpenDota (обычно 200; первый сбор — 1200)"
         type: number
         default: 200
+      force:
+        description: "Продолжить сбор, даже если таблица обновлялась менее 11 часов назад"
+        type: boolean
+        default: false
 permissions:
   contents: write
 concurrency:
-  group: item-timings-${{ github.ref_name }}
+  group: item-timings-${{ github.ref_name == 'main' && 'production' || 'trial' }}
   cancel-in-progress: false
 jobs:
   collect:
@@ -35,4 +36,8 @@ jobs:
         env:
           TIMING_RELEASE: ${{ github.ref_name == 'main' && 'item-timings' || 'item-timings-trial' }}
           MAX_REQUESTS: ${{ inputs.max_requests || (github.ref_name == 'main' && 200 || 1200) }}
-        run: python -u tools/collect_item_timings.py --release "$TIMING_RELEASE" --max-requests "$MAX_REQUESTS"
+          FORCE: ${{ inputs.force }}
+        run: |
+          flags=()
+          if [ "$FORCE" = "true" ]; then flags+=(--force); fi
+          python -u tools/collect_item_timings.py --release "$TIMING_RELEASE" --max-requests "$MAX_REQUESTS" "${flags[@]}"

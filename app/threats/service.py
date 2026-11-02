@@ -16,6 +16,7 @@ from app.threats.advisor import Advisor
 from app.threats.controller import ThreatSettings, ThreatsController
 from app.threats.data import DataCache, DataUpdater, GameData
 from app.threats.item_hints import CounterTable, pick_parent
+from app.threats.item_timing import TimingTable, download_timings
 from app.threats.mechanics import MechanicsTagger, load_mechanics_config
 from app.paths import app_data_dir
 from app.threats.recommend import (TIER_HERO, TIER_MECHANIC, RecItem, Recommender, ThreatInput, ThreatRecommendation,
@@ -63,6 +64,7 @@ class ThreatsService(QObject):
         self.show = self._show_if_enabled
         self.turbo = turbo
         self.cache = DataCache()
+        self.timings = TimingTable.load(self.cache.root / "item_timings.json")
         self.config = load_threat_config()
         self.mechanics_config = load_mechanics_config()
         self.controller: ThreatsController | None = None
@@ -118,6 +120,8 @@ class ThreatsService(QObject):
         self.data = data
         self.tagger = tagger
         self.controller = ThreatsController(data, tagger, advisor, self.config, self.settings, self.show, self.turbo)
+        self.timings = TimingTable.load(self.cache.root / "item_timings.json")
+        self.controller.purchase_minute = self._purchase_minute
         self.controller.card_duration = self.card_duration
         self.controller.card_items = self._card_items
         self.controller.on_enemies_changed = lambda: self.refresh_recommendations(force=True)
@@ -215,9 +219,22 @@ class ThreatsService(QObject):
                     self._v2_first[hero] = choice.item
                 cost = self.data.items[choice.item].cost if choice.item in self.data.items else 0
                 items.append(RecItem(choice.item, choice.share or 0.0, TIER_MECHANIC, None, 0, choice.answer,
-                                     changed=changed, affordable=self._gold is not None and self._gold >= cost))
+                                     changed=changed, affordable=self._gold is not None and self._gold >= cost,
+                                     purchase_minute=self._purchase_minute(choice.item)))
             result.append(ThreatRecommendation(hero, tuple(items)))
         return result
+
+    def _purchase_minute(self, item: str) -> int | None:
+        """Только справочная подпись: результат выбора контр-предмета не меняется."""
+        if self.controller is None:
+            return None
+        hero = self.controller.my_hero_id()
+        role = self.settings.role_mode
+        if role not in ("core", "offlane", "support"):
+            role = self.recs.main_role(hero) if self.recs and hero is not None else None
+        bucket = BUCKET_TURBO if self.turbo() else BUCKET_NORMAL
+        timing = self.timings.get(hero, bucket, role, item)
+        return timing.minute if timing else None
 
     def _update_data(self) -> None:
         """Фон: обновить справочники, иконки, статистику и матчапы (только вне катки)."""
@@ -228,6 +245,7 @@ class ThreatsService(QObject):
             updater.refresh_images(data)
         download_stats(self.cache)
         download_recs(recs_path())
+        download_timings(self.cache.root / "item_timings.json")
         self.data_ready.emit()
         updater.refresh_matchups(data, stop=lambda: self._in_match)
 

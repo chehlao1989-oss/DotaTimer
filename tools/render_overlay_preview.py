@@ -13,6 +13,7 @@
 Запуск: python tools/render_overlay_preview.py [--screens папка] [--out папка]
 """
 import argparse
+from dataclasses import replace
 import glob
 import os
 import sys
@@ -61,11 +62,12 @@ SAMPLE_MESSAGES = [(ru.MSG_POWER_RUNE.format(sec=30), False, {}),
                    ("\n".join([ru.CARD_TITLE,
                                ru.CARD_LINE.format(hero="Phantom Assassin", reason=ru.CARD_REASON["core"]),
                                ru.CARD_COUNTERS.format(items=ru.CARD_ITEMS_JOIN.join([
-                                   "Lotus Orb (отражает Stifling Dagger)", "Silver Edge (ломает Blur и Coup De Grace)"])),
+                                   ru.HINT_CHOICE_TIMED.format(text="Lotus Orb (отражает Stifling Dagger)", minute=25),
+                                   ru.HINT_CHOICE_TIMED.format(text="Silver Edge (ломает Blur и Coup De Grace)", minute=35)])),
                                ru.CARD_LINE.format(hero="Puck", reason=ru.CARD_REASON["matchup"]),
                                ru.CARD_COUNTERS.format(items=ru.CARD_ITEMS_JOIN.join([
-                                   "Orchid Malevolence (немота: без Illusory Orb и Waning Rift)",
-                                   "Force Staff (уворот от Dream Coil)"]))]), True, {})]
+                                   ru.HINT_CHOICE_TIMED.format(text="Orchid Malevolence (немота: без Illusory Orb и Waning Rift)", minute=20),
+                                   ru.HINT_CHOICE_TIMED.format(text="Force Staff (уворот от Dream Coil)", minute=22)]))]), True, {})]
 SAMPLE_THREATS = [ThreatRecommendation("axe", (RecItem("blade_mail", 1, "hero", 6.0, 900),
                                                RecItem("black_king_bar", 1, "hero", 4.0, 900))),
                   ThreatRecommendation("phantom_assassin", (RecItem("monkey_king_bar", 1, "hero", 9.0, 800),)),
@@ -183,6 +185,8 @@ def build_windows(w: int, h: int, images_dir: Path, overlay_settings: OverlaySet
                                                           "sniper": "Sniper", "blade_mail": "Blade Mail",
                                                           "black_king_bar": "Black King Bar",
                                                           "monkey_king_bar": "Monkey King Bar", "blink": "Blink Dagger"})
+    # Контрольная подпись, не игровая статистика: проверяем геометрию даже без сетевого кеша.
+    threats = [replace(t, items=tuple(replace(i, purchase_minute=25) for i in t.items)) for t in threats]
     strip.update_recommendations(threats, titles)
     for widget in (messages, strip):
         widget.show()

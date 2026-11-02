@@ -35,14 +35,15 @@ class TimingTable:
     def load(cls, cache: Path | None = None):
         """Повреждённая или отсутствующая статистика не мешает обычным советам."""
         paths = ([cache] if cache else []) + [DATA_DIR / "item_timings.json"]
+        candidates = []
         for path in paths:
             try:
                 raw = json.loads(path.read_text(encoding="utf-8"))
                 validate(raw)
-                return cls(raw)
+                candidates.append(raw)
             except (OSError, ValueError, KeyError, TypeError):
                 continue
-        return cls({})
+        return cls(max(candidates, key=lambda raw: raw["generated_at"]) if candidates else {})
 
     def get(self, hero_id, bucket, role, item) -> PurchaseTiming | None:
         """Не переносим тайминг с другого героя, режима или явно выбранной роли."""
