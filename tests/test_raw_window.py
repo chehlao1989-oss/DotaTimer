@@ -115,3 +115,39 @@ def test_failed_upload_never_publishes_ready_marker(tmp_path, monkeypatch):
         window.publish("repo", "data-stage-12", raw, work)
     assert all("delete" not in args for args in calls)
     assert all(not any("window.json" in a for a in args) for args in calls)
+
+
+@pytest.mark.parametrize("corrupt", [False, True])
+def test_publish_checks_remote_bytes_before_marker_and_switches_report(tmp_path, monkeypatch, corrupt):
+    raw, work = tmp_path / "raw", tmp_path / "work"
+    write(raw, [4])
+    (raw / "run-2026-11-02-1200.json").write_text(json.dumps(
+        {"tag": "2026-11-02-1200", "all_saved": True}), encoding="utf-8")
+    (raw / "next_seq.txt").write_text("100", encoding="utf-8")
+    env = tmp_path / "github-env"
+    monkeypatch.setenv("GITHUB_ENV", str(env))
+    monkeypatch.setattr(window, "resolve", lambda *_: "data-raw")
+    def download(*args):
+        args[2].mkdir(parents=True)
+        write(args[2], [1, 2, 3])
+    monkeypatch.setattr(window, "download", download)
+    monkeypatch.setattr(window, "create_release", lambda *_: None)
+    uploaded = {}
+    def upload(*args, **kwargs):
+        from pathlib import Path
+        path = Path(args[3])
+        uploaded[path.name] = path.read_bytes()
+    monkeypatch.setattr(window, "gh", upload)
+    monkeypatch.setattr(window, "flat_assets", lambda *_: [
+        {"name": n, "id": n, "size": len(data)} for n, data in uploaded.items()])
+    monkeypatch.setattr(window, "asset_bytes", lambda repo, asset:
+                        b"x" * asset["size"] if corrupt else uploaded[asset["name"]])
+    if corrupt:
+        with pytest.raises(ValueError, match="Контрольная сумма"):
+            window.publish("repo", "data-stage-12", raw, work)
+        assert "window.json" not in uploaded
+        assert not env.exists()
+    else:
+        window.publish("repo", "data-stage-12", raw, work)
+        assert list(uploaded)[-1] == "window.json"
+        assert env.read_text(encoding="utf-8") == "RAW_SNAPSHOT=data-window-12\n"

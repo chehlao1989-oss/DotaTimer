@@ -212,6 +212,10 @@ def publish(repo, stage, raw, work):
     marker = out / "window.json"
     marker.write_text(json.dumps(record, ensure_ascii=False), encoding="utf-8")
     gh("release", "upload", tag, str(marker), "--repo", repo)
+    # Отчёт следующего шага должен читать уже новое окно, а не закреплённое перед сбором.
+    if os.environ.get("GITHUB_ENV"):
+        with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as stream:
+            stream.write(f"RAW_SNAPSHOT={tag}\n")
     print(f"окно: {record['matches']} матчей; новых {record['added']}, удалено из окна {record['removed']}; {tag}")
 
 

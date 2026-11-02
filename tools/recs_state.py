@@ -279,6 +279,9 @@ def main() -> None:
     parser.add_argument("--out", default="recs.zip")
     parser.add_argument("--cache", default=str(Path(os.environ.get("APPDATA", ".")) / "DotaTimer" / "cache"))
     args = parser.parse_args()
+    if args.release:
+        from tools.raw_window import resolve
+        args.release = resolve(os.environ.get("GITHUB_REPOSITORY", "chehlao1989-oss/DotaTimer"), args.release)
     cfg = load_config()
     refs = load_refs(Path(args.cache))
     t0 = time.time()
