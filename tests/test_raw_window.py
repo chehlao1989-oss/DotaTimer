@@ -72,6 +72,39 @@ def test_ranks_expire_with_removed_matches(tmp_path):
     assert set(pq.read_table(out / "ranks-a.parquet")["match_id"].to_pylist()) == {2, 3, 4}
 
 
+def test_old_match_versions_are_never_mixed(tmp_path):
+    old, new, out = [tmp_path / n for n in ("old", "new", "out")]
+    write(old, [1, 2, 3], name="matches-a.parquet")
+    write(old, [2], name="matches-b.parquet")
+    later = old / "matches-b.parquet"
+    rows = pq.read_table(later).to_pylist()
+    rows[0]["net_worth"] += 123
+    pq.write_table(pa.Table.from_pylist(rows, schema=MATCH_SCHEMA), later)
+    write(new, [4])
+    result = window.rotate(old, new, out, "a")
+    assert result["capacity"] == 3 and ids(out) == {2, 3, 4}
+    retained = [r for p in out.glob("matches-*.parquet") for r in pq.read_table(p).to_pylist()
+                if r["match_id"] == 2]
+    assert len(retained) == 10
+    assert sorted(r["net_worth"] for r in retained) == sorted(r["net_worth"] for r in rows)
+
+
+def test_original_ten_player_rows_are_preserved_even_for_repeated_heroes(tmp_path):
+    old, new, out = [tmp_path / n for n in ("old", "new", "out")]
+    write(old, [1, 2, 3])
+    path = old / "matches-part.parquet"
+    rows = pq.read_table(path).to_pylist()
+    for row in rows:
+        if row["match_id"] == 2:
+            row["hero_id"] = 1  # схема сборщика не требует десяти различных героев
+    pq.write_table(pa.Table.from_pylist(rows, schema=MATCH_SCHEMA), path)
+    write(new, [4])
+    window.rotate(old, new, out, "a")
+    retained = [r for p in out.glob("matches-*.parquet") for r in pq.read_table(p).to_pylist()
+                if r["match_id"] == 2]
+    assert len(retained) == 10 and {r["hero_id"] for r in retained} == {1}
+
+
 def test_resolver_ignores_unfinished_release(tmp_path, monkeypatch):
     monkeypatch.delenv("RAW_SNAPSHOT", raising=False)
     monkeypatch.setattr(window, "releases", lambda _: [

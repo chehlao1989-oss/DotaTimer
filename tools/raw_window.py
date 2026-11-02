@@ -130,14 +130,38 @@ def rotate(old, incoming, out, tag, capacity=None):
             paths = [str(p) for p in sorted(directory.glob("matches-*.parquet"))]
             if not paths:
                 raise ValueError(f"Нет матчей: {directory}")
-            con.from_parquet(paths).create_view(name + "_rows")
-            # Повторная выгрузка одной партии не должна удваивать игроков.
-            con.execute(f"CREATE TABLE {name}_data AS SELECT DISTINCT * FROM {name}_rows")
-            invalid = con.execute(f"SELECT count(*) FROM (SELECT match_id FROM {name}_data "
-                                  "GROUP BY match_id HAVING count(*) != 10 OR count(DISTINCT hero_id) != 10 "
-                                  "OR count(DISTINCT start_time) != 1)").fetchone()[0]
-            if invalid:
-                raise ValueError(f"Неполные или противоречивые матчи в {name}: {invalid}")
+            con.from_parquet(paths, filename=True).create_view(name + "_rows")
+            # Целый матч берётся из одной версии файла. Нельзя смешивать строки
+            # разных выгрузок: даже один изменённый показатель даёт 11+ строк.
+            con.execute(f"CREATE TABLE {name}_sources AS SELECT match_id, filename, count(*) AS n, "
+                        f"count(DISTINCT start_time) AS times FROM {name}_rows GROUP BY ALL")
+            con.execute(f"CREATE TABLE {name}_chosen AS SELECT match_id, max(filename) AS filename "
+                        f"FROM {name}_sources WHERE n = 10 AND times = 1 GROUP BY match_id")
+            # Повтор целой партии внутри одного файла: восстанавливаем ровно десять
+            # различных строк. Этот путь нужен лишь матчам без полной исходной копии.
+            con.execute(f"CREATE TABLE {name}_fallback AS SELECT DISTINCT r.* FROM {name}_rows r "
+                        f"ANTI JOIN {name}_chosen USING(match_id)")
+            con.execute(f"CREATE TABLE {name}_fallback_chosen AS SELECT match_id, max(filename) AS filename "
+                        f"FROM (SELECT match_id, filename FROM {name}_fallback GROUP BY ALL "
+                        "HAVING count(*) = 10 AND count(DISTINCT start_time) = 1) GROUP BY match_id")
+            con.execute(f"CREATE TABLE {name}_data AS SELECT r.* EXCLUDE(filename) FROM {name}_rows r "
+                        f"JOIN {name}_chosen USING(match_id, filename) UNION ALL "
+                        f"SELECT r.* EXCLUDE(filename) FROM {name}_fallback r "
+                        f"JOIN {name}_fallback_chosen USING(match_id, filename)")
+            source_count = con.execute(f"SELECT count(DISTINCT match_id) FROM {name}_sources").fetchone()[0]
+            canonical_count = con.execute(f"SELECT count(DISTINCT match_id) FROM {name}_data").fetchone()[0]
+            if source_count != canonical_count:
+                missing = con.execute(f"SELECT DISTINCT match_id FROM {name}_sources ANTI JOIN "
+                                      f"(SELECT DISTINCT match_id FROM {name}_data) USING(match_id) LIMIT 10").fetchall()
+                raise ValueError(f"Неполные матчи в {name}: {source_count - canonical_count}; примеры {missing}")
+            repeated = con.execute(f"SELECT count(*) FROM (SELECT match_id FROM {name}_sources "
+                                   "GROUP BY match_id HAVING count(*) > 1 OR max(n) > 10)").fetchone()[0]
+            print(f"нормализация {name}: уникальных матчей {canonical_count}, "
+                  f"с повторными копиями {repeated}", flush=True)
+            same_heroes = con.execute(f"SELECT count(*) FROM (SELECT match_id FROM {name}_data "
+                                      "GROUP BY match_id HAVING count(DISTINCT hero_id) < 10)").fetchone()[0]
+            print(f"целостность {name}: полных матчей {canonical_count}; "
+                  f"с повторяющимися героями {same_heroes}", flush=True)
         old_count = con.execute("SELECT count(DISTINCT match_id) FROM old_data").fetchone()[0]
         capacity = old_count if capacity is None else capacity
         if capacity != old_count or capacity <= 0:
