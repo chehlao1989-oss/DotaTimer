@@ -1,0 +1,41 @@
+# Продолжение прерванного перехода по уже сохранённой партии без повторных запросов Steam/OpenDota.
+name: Восстановление окна матчей
+
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: "Сохранённая партия data-stage-<номер запуска>"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: stats
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    if: github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      GH_TOKEN: ${{ github.token }}
+      STAGE: ${{ inputs.stage }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Проверить имя партии
+        run: '[[ "$STAGE" =~ ^data-stage-[0-9]+$ ]]'
+      - name: Библиотеки
+        run: pip install -r requirements-collector.txt
+      - name: Скачать сохранённую партию
+        run: python tools/raw_window.py download --release "$STAGE" --raw raw
+      - name: Заменить старые матчи новыми 1 к 1
+        run: python -u tools/raw_window.py publish --release "$STAGE" --raw raw
+      - name: Отчёт
+        run: python tools/report.py

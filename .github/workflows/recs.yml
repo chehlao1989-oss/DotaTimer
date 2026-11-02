@@ -8,7 +8,7 @@ name: Расчёт советов
 
 on:
   workflow_run:
-    workflows: ["Статистика матчей"]
+    workflows: ["Статистика матчей", "Восстановление окна матчей"]
     types: [completed]
   workflow_dispatch: {}   # кнопка «Run workflow» для ручного запуска
 

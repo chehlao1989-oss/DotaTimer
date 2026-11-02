@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import urllib.request
 
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
@@ -46,8 +47,11 @@ def flat_assets(repo, tag):
 
 
 def asset_bytes(repo, asset):
-    return gh("api", "-H", "Accept: application/octet-stream",
-              f"repos/{repo}/releases/assets/{asset['id']}", binary=True)
+    # Репозиторий публичный: загрузка вложений не должна расходовать REST-лимит
+    # GITHUB_TOKEN (1000 запросов/ч на репозиторий). Токен в этот запрос не передаём.
+    request = urllib.request.Request(asset["browser_download_url"], headers={"User-Agent": "DotaTimer-storage"})
+    with urllib.request.urlopen(request, timeout=120) as response:
+        return response.read()
 
 
 def resolve(repo, tag="data-raw"):
@@ -82,6 +86,7 @@ def download(repo, tag, destination, include_control=False):
     listing = flat_assets(repo, tag)
     record = manifest(repo, tag, listing)
     expected = record["files"] if record else None
+    downloaded = 0
     for asset in listing:
         name = asset["name"]
         if Path(name).name != name:
@@ -95,6 +100,9 @@ def download(repo, tag, destination, include_control=False):
         path = destination / name
         if not path.exists() or path.stat().st_size != asset["size"]:
             path.write_bytes(asset_bytes(repo, asset))
+        downloaded += 1
+        if downloaded % 50 == 0:
+            print(f"сырьё {tag}: проверено файлов {downloaded}", flush=True)
         if path.stat().st_size != asset["size"] or (expected and digest(path) != expected[name]["sha256"]):
             raise ValueError(f"Повреждён файл {name}")
     if expected is not None:

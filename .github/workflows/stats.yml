@@ -95,4 +95,4 @@ jobs:
       - name: Отчёт о запуске
         if: ${{ !cancelled() && steps.guard.outputs.run != 'false' && github.ref_name == 'main' }}
         continue-on-error: true
-        run: python tools/report.py --run "$GITHUB_RUN_NUMBER"
+        run: python tools/report.py

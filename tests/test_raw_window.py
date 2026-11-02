@@ -82,6 +82,25 @@ def test_resolver_ignores_unfinished_release(tmp_path, monkeypatch):
     assert window.resolve("repo", "data-raw-trial") == "data-raw-trial"
 
 
+def test_public_download_uses_asset_url_without_authorization(monkeypatch):
+    """Загрузка тысячи вложений не тратит REST-лимит служебного токена."""
+    monkeypatch.setenv("GH_TOKEN", "not-a-real-token")
+    class Response:
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            pass
+        def read(self):
+            return b"payload"
+    def open_url(request, **kwargs):
+        assert request.full_url == "https://github.com/a/b/releases/download/data/file.parquet"
+        assert request.get_header("Authorization") is None
+        return Response()
+    monkeypatch.setattr(window.urllib.request, "urlopen", open_url)
+    assert window.asset_bytes("a/b", {"browser_download_url":
+        "https://github.com/a/b/releases/download/data/file.parquet"}) == b"payload"
+
+
 def test_cleanup_never_deletes_current_newer_or_unrelated_release(monkeypatch):
     monkeypatch.setattr(window, "manifest", lambda *_: {
         "matches": 10, "capacity": 10, "added": 2, "removed": 2, "generation": 12, "stage": "data-stage-12"})
