@@ -40,6 +40,10 @@ jobs:
         if: github.event_name == 'workflow_run'
         run: python tools/recs_guard.py
 
+      - name: Закрепить проверенное окно матчей
+        if: steps.guard.outputs.run != 'false'
+        run: echo "RAW_SNAPSHOT=$(python tools/raw_window.py resolve)" >> "$GITHUB_ENV"
+
       - name: Библиотеки
         if: steps.guard.outputs.run != 'false'
         run: pip install -r requirements-collector.txt
@@ -61,7 +65,7 @@ jobs:
         if: steps.guard.outputs.run != 'false'
         run: |
           set -o pipefail  # иначе ошибка расчёта теряется за tee
-          python -u tools/recs_state.py --release data-raw --raw raw --state state --out recs.zip --cache cache | tee recs.log
+          python -u tools/recs_state.py --release "$RAW_SNAPSHOT" --raw raw --state state --out recs.zip --cache cache | tee recs.log
           grep -E "замер|день |хранилище|пересборка|скачано" recs.log >> "$GITHUB_STEP_SUMMARY" || true
 
       - name: Выложить recs.zip в релиз
@@ -82,3 +86,7 @@ jobs:
             --notes "Суммы по дням для инкрементального расчёта советов (tools/recs_state.py, DECISIONS №23). Можно удалить — соберётся с нуля из data-raw." \
             --prerelease
           gh release upload "$STATE_RELEASE" state.tar.gz refs.tar.gz recs.log --clobber  # журнал — замеры времени (DECISIONS №23)
+
+      - name: Удалить прошлые окна после успешного пересчёта
+        if: steps.guard.outputs.run != 'false' && github.ref_name == 'main' && startsWith(env.RAW_SNAPSHOT, 'data-window-')
+        run: python tools/raw_window.py cleanup --release "$RAW_SNAPSHOT"

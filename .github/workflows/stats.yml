@@ -17,6 +17,10 @@ on:
         description: "Сторож: собирать, только если с прошлого сбора прошло ≥ 11 ч (для будильника)"
         type: boolean
         default: false
+      minutes:
+        description: "Длительность сбора матчей в минутах (обычно 290)"
+        type: number
+        default: 290
 
 permissions:
   contents: write  # чтобы добавлять файлы в релиз
@@ -28,12 +32,12 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 350
+    timeout-minutes: 360
     env:
       GH_TOKEN: ${{ github.token }}
       MAIN: ${{ github.ref_name == 'main' }}
-      RELEASE: ${{ github.ref_name == 'main' && 'data-raw' || 'data-raw-trial' }}
-      MINUTES: ${{ github.ref_name == 'main' && '290' || '18' }}
+      RELEASE: ${{ github.ref_name == 'main' && format('data-stage-{0}', github.run_id) || 'data-raw-trial' }}
+      MINUTES: ${{ github.ref_name == 'main' && (inputs.minutes || 290) || 18 }}
       WINDOWS: ${{ github.ref_name == 'main' && '12' || '3' }}
     steps:
       - uses: actions/checkout@v4
@@ -54,12 +58,14 @@ jobs:
       - name: Подготовка (релиз, тег, откуда продолжить)
         if: steps.guard.outputs.run != 'false'
         run: |
+          echo "RAW_SNAPSHOT=$(python tools/raw_window.py resolve)" >> "$GITHUB_ENV"
           echo "TAG=$(date -u +%Y-%m-%d-%H%M)" >> "$GITHUB_ENV"
           gh release view "$RELEASE" >/dev/null 2>&1 || gh release create "$RELEASE" --title "Сырые матчи ($RELEASE)" \
             --notes "Сырые сыгранные публичные матчи (Steam Web API) и их ранги (OpenDota). Части по 15 минут, по строке на игрока, без аккаунтов. Формат: docs/RECOMMENDER_SPEC.md, раздел 2." \
             --prerelease
           mkdir -p state
-          gh release download data-raw -p next_seq.txt -D state || true
+          SNAPSHOT=$(python tools/raw_window.py resolve)
+          gh release download "$SNAPSHOT" -p next_seq.txt -D state
           ls -la state
 
       - name: Собрать матчи (Steam)
@@ -81,6 +87,10 @@ jobs:
           # только то, что есть: если сбор упал, файла итогов run-*.json нет (запуск №9, BUGLOG №33)
           for f in raw/*.parquet raw/run-*.json; do if [ -e "$f" ]; then gh release upload "$RELEASE" "$f" --clobber; fi; done
           if [ "${{ steps.matches.outcome }}" = "success" ] && [ "$MAIN" = "true" ]; then gh release upload "$RELEASE" raw/next_seq.txt --clobber; fi
+
+      - name: Заменить старые матчи новыми 1 к 1
+        if: steps.guard.outputs.run != 'false' && github.ref_name == 'main'
+        run: python -u tools/raw_window.py publish --release "$RELEASE" --raw raw
 
       - name: Отчёт о запуске
         if: ${{ !cancelled() && steps.guard.outputs.run != 'false' && github.ref_name == 'main' }}

@@ -8,11 +8,16 @@
 Запуск: python tools/collect_guard.py [--min-hours 11]
 """
 import argparse
-import json
 import os
 import sys
-import urllib.request
+from pathlib import Path
 from datetime import datetime, timezone
+
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from tools.raw_window import resolve as resolve_raw, flat_assets
+
 
 MIN_HOURS = 11  # DECISIONS №6: реальных сборов 2 в сутки (решение автора 01.10)
 
@@ -31,13 +36,7 @@ def should_collect(age_hours: float | None, min_hours: float = MIN_HOURS) -> boo
 
 
 def release_assets(repo: str, release: str = "data-raw") -> list[dict]:
-    request = urllib.request.Request(f"https://api.github.com/repos/{repo}/releases/tags/{release}",
-                                     headers={"User-Agent": "DotaTimer-guard", "Accept": "application/vnd.github+json"})
-    token = os.environ.get("GH_TOKEN")
-    if token:
-        request.add_header("Authorization", f"Bearer {token}")
-    with urllib.request.urlopen(request, timeout=30) as response:
-        return json.loads(response.read())["assets"]
+    return flat_assets(repo, resolve_raw(repo, release))
 
 
 def main() -> None:

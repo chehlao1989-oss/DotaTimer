@@ -20,6 +20,12 @@ import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
 
+
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from tools.raw_window import resolve as resolve_raw, flat_assets, manifest as window_manifest
+
 REPO = "chehlao1989-oss/DotaTimer"
 RELEASE = "data-raw"
 MB = 1024 * 1024
@@ -35,7 +41,7 @@ def get_json(url: str):
 
 
 def release_assets() -> list[dict]:
-    return get_json(f"https://api.github.com/repos/{REPO}/releases/tags/{RELEASE}")["assets"]
+    return flat_assets(REPO, resolve_raw(REPO, RELEASE))
 
 
 def load_runs(assets: list[dict]) -> list[dict]:
@@ -220,8 +226,20 @@ def main() -> None:
         return
     assets = release_assets()
     runs = load_runs(assets)
-    lines = (live(assets, runs) if args.live else
-             report(runs, assets, args.run, legacy_matches(assets, runs), broken_runs(assets, runs, datetime.now(UTC).replace(tzinfo=None))))
+    snapshot = resolve_raw(REPO, RELEASE)
+    window = window_manifest(REPO, snapshot, assets)
+    if window and not args.live:
+        run = window["run"]
+        lines = report([run], assets, args.run)
+        lines[0] = (f"1. Матчей в окне: {window['matches']:,}; новых уникальных {window['added']:,}, "
+                    f"удалено старых {window['removed']:,} (замер: window.json)")
+    elif window:
+        lines = [f"Последнее законченное окно: {window['matches']:,} матчей; "
+                 "незавершённый сбор хранится отдельно в data-stage-* (замер: window.json)"]
+    else:
+        lines = (live(assets, runs) if args.live else
+                 report(runs, assets, args.run, legacy_matches(assets, runs),
+                        broken_runs(assets, runs, datetime.now(UTC).replace(tzinfo=None))))
     if not args.live:
         lines.append(recs_health(datetime.now(UTC).replace(tzinfo=None)))
     print("\n".join(lines))

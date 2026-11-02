@@ -64,3 +64,36 @@ def test_incremental_equals_from_scratch(tmp_path):
     bad = [k for k in fa if k[-1] not in skip and not close(fa[k], fb[k])]
     assert not bad, [(k, fa[k], fb[k]) for k in bad[:3]]
     assert incremental["meta"]["matches"] == scratch["meta"]["matches"] == 3000
+
+
+def test_rotated_window_drops_expired_matches_from_counts_and_seen(tmp_path):
+    """После замены сырья старые матчи исчезают и из сумм, и из списка уже учтённых."""
+    base = tmp_path / "base.parquet"
+    make_matches(base, n=150, ally=True)
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    before = raw / "matches-before.parquet"
+    spread(base, before, 0, 100, 0)
+    refs, cfg = (ITEMS, {}, {}, HEROES), load_config()
+    state = tmp_path / "state"
+    update(raw, state, refs, cfg, log=lambda *_: None)
+    before.unlink()
+    spread(base, raw / "matches-after.parquet", 50, 150, 0)
+    logs = []
+    manifest = update(raw, state, refs, cfg, log=logs.append, batch_size=2)
+    assert any("пересборка" in line for line in logs)
+    assert manifest["info"]["matches"] == 100
+    assert set(pq.read_table(state / "seen.parquet")["match_id"].to_pylist()) == set(range(50, 150))
+    reference = tmp_path / "reference"
+    update(raw, reference, refs, cfg, log=lambda *_: None, batch_size=2)
+    for file in (state / "total").glob("*.parquet"):
+        from tools.recs_state import KEYS, VALUES, kind_of
+        import pytest
+        kind = kind_of(file.stem)
+        def indexed(path):
+            return {tuple(row[k] for k in KEYS[kind]): tuple(row[v] for v in VALUES[kind])
+                    for row in pq.read_table(path).to_pylist()}
+        actual, expected = indexed(file), indexed(reference / "total" / file.name)
+        assert actual.keys() == expected.keys()
+        for key in actual:
+            assert actual[key] == pytest.approx(expected[key], rel=1e-12)

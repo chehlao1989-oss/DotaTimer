@@ -37,7 +37,7 @@ jobs:
       - name: Сырые матчи из релиза data-raw
         run: |
           mkdir -p raw
-          gh release download data-raw -p "matches-*.parquet" -p "ranks-*.parquet" -D raw
+          python tools/raw_window.py download --raw raw
           ls raw | wc -l && du -sh raw
 
       - name: Справочники и иконки OpenDota (для отчёта 8.4)

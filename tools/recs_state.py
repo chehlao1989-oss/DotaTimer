@@ -1,11 +1,11 @@
 """Инкрементальный расчёт советов (решение автора 02.10, DECISIONS №23): суммы по играм хранятся, после сбора
 к ним прибавляются суммы только по новым матчам — из новых файлов сырья, без повторов (уже посчитанные номера матчей
-хранятся). Файлы сырья после выкладки не меняются, поэтому вычитать ничего не нужно.
+хранятся). При замене окна по DECISIONS №32 файлы меняются: суммы и seen пересобираются по новому набору.
 
 Почему это даёт ровно то же, что расчёт с нуля (tools/compute_recs.py: compute): формулы A и B зависят только от
 сумм весов игр и побед по стратам (count_tables), а вес по давности показательный — в суммах хранится вес
 2^((start_time − epoch)/T½), и одно умножение на 2^((epoch − newest)/T½) в конце даёт вес 0,5^((newest − start_time)/T½).
-Сырые матчи остаются (DECISIONS №1): хранилище можно пересобрать с нуля в любой момент.
+Сырые матчи действующего окна остаются (DECISIONS №32): хранилище можно пересобрать по ним.
 
 Хранилище (папка; на GitHub — state.tar.gz в релизе «recs-state»):
   manifest.json            — эпоха, отпечаток справочников и настроек, посчитанные файлы сырья, сведения о матчах;
@@ -138,7 +138,7 @@ def add_batch(con: duckdb.DuckDBPyConnection, batch: Path, state: Path, manifest
 
 
 def update(raw: Path, state: Path, refs: tuple, cfg: RecsConfig, log=print, listing: dict | None = None,
-           fetch=None) -> dict:
+           fetch=None, batch_size=FILES_PER_BATCH) -> dict:
     """Довести хранилище до текущего сырья: прибавить суммы по новым файлам. Возвращает manifest.
 
     listing — {файл: размер} всего сырья (по умолчанию — файлы в папке raw); fetch(имена) — докачать в raw только
@@ -165,8 +165,8 @@ def update(raw: Path, state: Path, refs: tuple, cfg: RecsConfig, log=print, list
     t0 = time.time()
     state.mkdir(parents=True, exist_ok=True)
     added = 0
-    for i in range(0, len(new), FILES_PER_BATCH):
-        names = new[i:i + FILES_PER_BATCH]
+    for i in range(0, len(new), batch_size):
+        names = new[i:i + batch_size]
         fetch(names)
         batch = state.parent / f"{state.name}.batch"
         shutil.rmtree(batch, ignore_errors=True)
@@ -248,19 +248,23 @@ def compute_from_state(state: Path, refs: tuple, cfg: RecsConfig, log=print) -> 
 def release_fetcher(raw: Path, repo: str, release: str, log=print) -> tuple[dict, callable]:
     """Список файлов матчей в релизе и функция, которая докачивает выбранные (только отсутствующие или другого размера)."""
     import urllib.request
-    request = urllib.request.Request(f"https://api.github.com/repos/{repo}/releases/tags/{release}",
-                                     headers={"User-Agent": "DotaTimer-recs", "Accept": "application/vnd.github+json"})
-    if os.environ.get("GH_TOKEN"):
-        request.add_header("Authorization", f"Bearer {os.environ['GH_TOKEN']}")
-    with urllib.request.urlopen(request, timeout=60) as response:
-        assets = {a["name"]: a for a in json.loads(response.read())["assets"]
-                  if a["name"].startswith("matches-") and a["name"].endswith(".parquet")}
+    from tools.raw_window import resolve, flat_assets, manifest, asset_bytes, digest
+    release = resolve(repo, release)
+    listing = flat_assets(repo, release)
+    record = manifest(repo, release, listing)
+    assets = {a["name"]: a for a in listing
+              if a["name"].startswith("matches-") and a["name"].endswith(".parquet")}
+    if record and set(assets) != {n for n in record["files"] if n.startswith("matches-")}:
+        raise ValueError("Список матчей окна не совпадает с описью")
     raw.mkdir(parents=True, exist_ok=True)
 
     def fetch(names) -> None:
         todo = [n for n in names if not (raw / n).exists() or (raw / n).stat().st_size != assets[n]["size"]]
         for n in todo:
-            urllib.request.urlretrieve(assets[n]["browser_download_url"], raw / n)
+            (raw / n).write_bytes(asset_bytes(repo, assets[n]))
+        for n in names:
+            if record and digest(raw / n) != record["files"][n]["sha256"]:
+                raise ValueError(f"Повреждён файл окна: {n}")
         if todo:
             log(f"скачано файлов сырья: {len(todo)}, {sum(assets[n]['size'] for n in todo) / 2**20:.0f} МБ")
 
@@ -280,7 +284,11 @@ def main() -> None:
     t0 = time.time()
     listing, fetch = (release_fetcher(Path(args.raw), os.environ.get("GITHUB_REPOSITORY", "chehlao1989-oss/DotaTimer"),
                                       args.release) if args.release else (None, None))
-    manifest = update(Path(args.raw), Path(args.state), refs, cfg, listing=listing, fetch=fetch)
+    # Упакованные части окна содержат до 100 тыс. матчей; обрабатываем по две,
+    # чтобы сохранить прежний порядок величины партии (~200 тыс. матчей).
+    batch_size = 2 if args.release and args.release.startswith("data-window-") else FILES_PER_BATCH
+    manifest = update(Path(args.raw), Path(args.state), refs, cfg, listing=listing, fetch=fetch,
+                      batch_size=batch_size)
     t1 = time.time()
     result = compute_from_state(Path(args.state), refs, cfg)
     size = sum(f.stat().st_size for f in Path(args.state).rglob("*") if f.is_file())

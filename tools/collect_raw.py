@@ -54,7 +54,7 @@ OPENDOTA_PAUSE_SEC = 1.1  # DECISIONS №5; OpenDota: 60 запросов в м�
 OPENDOTA_MINUTE_WAIT_SEC = 60  # DECISIONS №5; 429 при живом суточном лимите — ждём минутное окно
 OPENDOTA_DAY_RESERVE = 100  # DECISIONS №5; остановка, когда в заголовке X-Rate-Limit-Remaining-Day осталось столько (лимит по IP)
 
-# Сырая строка на игрока — храним всегда, расчёт отдельно. DECISIONS №1
+# Сырая строка на игрока — в действующем окне, расчёт отдельно. DECISIONS №32
 MATCH_SCHEMA = pa.schema([
     ("match_id", pa.int64()), ("start_time", pa.int32()), ("duration", pa.int16()), ("game_mode", pa.int8()),
     ("lobby_type", pa.int8()), ("radiant_win", pa.bool_()), ("patch", pa.string()), ("is_radiant", pa.bool_()),
@@ -234,7 +234,8 @@ def next_window_parity(release: str | None, run_start: float) -> int:
         return fallback
     try:
         from tools.collect_guard import release_assets
-        runs = sorted((a for a in release_assets(os.environ.get("GITHUB_REPOSITORY", "chehlao1989-oss/DotaTimer"), release)
+        runs = sorted((a for a in release_assets(os.environ.get("GITHUB_REPOSITORY", "chehlao1989-oss/DotaTimer"),
+                                                    os.environ.get("RAW_SNAPSHOT", release))
                        if a["name"].startswith("run-") and a["name"].endswith(".json")), key=lambda a: a["name"])
         if not runs:
             return fallback

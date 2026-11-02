@@ -11,9 +11,16 @@ recs.zip в релизе recs. Ответ — в $GITHUB_OUTPUT: run=true (сч�
 import json
 import os
 import sys
+from pathlib import Path
 import urllib.error
 import urllib.request
 from datetime import datetime
+
+
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from tools.raw_window import resolve as resolve_raw, flat_assets
 
 
 def _time(value: str) -> datetime:
@@ -36,6 +43,8 @@ def should_compute(data: datetime | None, recs: datetime | None) -> bool:
 
 
 def release_assets(repo: str, release: str) -> list[dict]:
+    if release == "data-raw":
+        return flat_assets(repo, resolve_raw(repo, release))
     request = urllib.request.Request(f"https://api.github.com/repos/{repo}/releases/tags/{release}",
                                      headers={"User-Agent": "DotaTimer-recs-guard", "Accept": "application/vnd.github+json"})
     token = os.environ.get("GH_TOKEN")

@@ -81,8 +81,8 @@ def test_collection_schedule():
     workflow = (ROOT / ".github" / "workflows" / "stats.yml").read_text(encoding="utf-8")
     assert 'cron: "17 * * * *"' in workflow and "collect_guard.py --min-hours 11" in workflow
     assert guard.MIN_HOURS == 11
-    assert "github.ref_name == 'main' && '290'" in workflow and "github.ref_name == 'main' && '12'" in workflow
-    assert "--max-minutes 20" in workflow and "timeout-minutes: 350" in workflow
+    assert "inputs.minutes || 290" in workflow and "github.ref_name == 'main' && '12'" in workflow
+    assert "--max-minutes 20" in workflow and "timeout-minutes: 360" in workflow
 
 
 def test_alarm_dispatch_uses_guard():
@@ -162,7 +162,7 @@ def test_checks_run_on_github():
 def test_recs_incremental_on_github():
     """№23: пересчёт советов на GitHub — по хранилищу дневных сумм (tools/recs_state.py), хранилище — в релизе."""
     workflow = (ROOT / ".github" / "workflows" / "recs.yml").read_text(encoding="utf-8")
-    assert "tools/recs_state.py --release data-raw" in workflow and "gh release upload \"$STATE_RELEASE\" state.tar.gz" in workflow
+    assert 'tools/recs_state.py --release "$RAW_SNAPSHOT"' in workflow and "gh release upload \"$STATE_RELEASE\" state.tar.gz" in workflow
     assert "compute_recs.py --raw raw" not in workflow  # расчёт с нуля по всему сырью — только в проверках (checks.yml)
     # OpenDota не ответила — расчёт идёт по справочникам прошлого удачного расчёта (BUGLOG №48)
     assert workflow.index('-p refs.tar.gz') < workflow.index("refresh_core()")
