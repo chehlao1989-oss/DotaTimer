@@ -179,7 +179,7 @@ def build_windows(w: int, h: int, images_dir: Path, overlay_settings: OverlaySet
     for text, important, extra in SAMPLE_MESSAGES:
         messages.show_message(text, important=important, duration_sec=3600, **extra)
     for frame in messages._frames():
-        frame.setGraphicsEffect(None)  # эффект плавного угасания не рисуется через render() — снимаем для снимка
+        frame.graphicsEffect().setEnabled(False)  # сохраняем постоянный эффект, отключая только для снимка
     strip = ThreatStrip(strip_settings, images_dir)
     threats, titles = real_threats() or (SAMPLE_THREATS, {"axe": "Axe", "phantom_assassin": "Phantom Assassin",
                                                           "sniper": "Sniper", "blade_mail": "Blade Mail",

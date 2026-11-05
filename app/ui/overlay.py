@@ -197,6 +197,10 @@ class Overlay(DraggableOverlay):
         self._box.setContentsMargins(6, 6, 6, 6)
         self._box.setSpacing(6)
         self._box.addStretch(1)  # растяжка внизу: сообщения копятся сверху вниз, верх окна — под оповещениями Доты
+        self._active_frames: list[QFrame] = []
+        # BUGLOG №67: Qt-объекты создаются один раз, уведомления меняют только содержимое.
+        self._message_frames = [self._create_frame() for _ in range(MAX_MESSAGES)]
+        self._layout_hint_frame = self._create_frame()
         self.relayout()
 
     def apply_opacity(self) -> None:
@@ -236,27 +240,71 @@ class Overlay(DraggableOverlay):
         pixmaps = [QPixmap(str(Path(self.images_dir) / kind / f"{key}.png")) for kind, key in icons]
         return [p for p in pixmaps if not p.isNull()]
 
-    def _make_frame(self, text: str, accent: str, font_delta: int = 0, icons=(), highlights=()) -> QFrame:
+    def _create_frame(self) -> QFrame:
+        """Постоянный блок: владеет надписью, иконками, таймером и анимацией (№67)."""
         frame = QFrame(self, objectName="msg")
-        layout = QHBoxLayout(frame)
-        layout.setSpacing(6)
+        frame.hide()
+        frame.message_layout = QHBoxLayout(frame)
+        frame.message_layout.setSpacing(6)
+        frame.label = OutlinedLabel("", overlay_font(self._font_px()), parent=frame)
+        frame.message_layout.addWidget(frame.label, 0, Qt.AlignVCenter)
+        # Сейчас подсказки содержат портрет и предмет; резерв не требует создания QLabel в катке.
+        frame.icon_labels = [QLabel(frame) for _ in range(2)]
+        for icon in frame.icon_labels:
+            frame.message_layout.addWidget(icon, 0, Qt.AlignVCenter)
+            icon.hide()
+        frame.icons = []
+        frame.effect = QGraphicsOpacityEffect(frame)
+        frame.setGraphicsEffect(frame.effect)
+        frame.effect.setOpacity(1.0)
+        frame.animation = QPropertyAnimation(frame.effect, b"opacity", frame)
+        frame.animation.setDuration(FADE_MS)
+        frame.animation.setStartValue(1.0)
+        frame.animation.setEndValue(0.0)
+        frame.animation.finished.connect(lambda: self._retire_frame(frame))
+        frame.expiry = QTimer(frame)
+        frame.expiry.setSingleShot(True)
+        frame.expiry.timeout.connect(lambda: self._fade_out(frame, frame.effect))
+        return frame
+
+    def _make_frame(self, text: str, accent: str, font_delta: int = 0, icons=(), highlights=(),
+                    frame: QFrame | None = None) -> QFrame:
+        """Настроить готовый блок без удаления его Qt-объектов."""
+        if frame is None:
+            frame = self._layout_hint_frame
+        frame.expiry.stop()
+        frame.animation.stop()
+        frame.effect.setOpacity(1.0)
         frame.setProperty("accent", accent)
         frame.setProperty("font_delta", font_delta)
         is_hint = accent == ACCENT_LAYOUT
         left = FRAME_PAD_X if is_hint else FRAME_PAD_LEFT
-        layout.setContentsMargins(left, FRAME_PAD_Y, FRAME_PAD_X, FRAME_PAD_Y)
+        frame.message_layout.setContentsMargins(left, FRAME_PAD_Y, FRAME_PAD_X, FRAME_PAD_Y)
+        pixmaps = self._load_icons(icons)
+        # Дополнительные иконки поддерживаются; текущий интерфейс использует только две.
+        while len(frame.icon_labels) < len(pixmaps):
+            icon = QLabel(frame)
+            frame.message_layout.addWidget(icon, 0, Qt.AlignVCenter)
+            frame.icon_labels.append(icon)
+        frame.icons = list(zip(frame.icon_labels, pixmaps))
+        for index, icon in enumerate(frame.icon_labels):
+            icon.setVisible(index < len(pixmaps))
+            if index >= len(pixmaps):
+                icon.clear()
         words = [re.escape(w) for w in highlights if w]
         pattern = None if is_hint else re.compile("|".join([ru.HIGHLIGHT_PATTERN] + words))
-        frame.icons = [(QLabel(frame), pixmap) for pixmap in self._load_icons(icons)]
-        font = overlay_font(max(12, self._font_px() + font_delta))
-        # короткие сообщения прижаты вправо, как в Доте; длинная карточка угроз — влево, иначе «лесенка»
-        label = OutlinedLabel(text, font, self._text_width(frame), parent=frame, highlight=pattern,
-                              align_right=not is_hint and text.count("\n") <= 1)
-        layout.addWidget(label, 0, Qt.AlignVCenter)
-        for icon, _ in frame.icons:
-            layout.addWidget(icon, 0, Qt.AlignVCenter)
+        frame.label.set_content(text, highlight=pattern, align_right=not is_hint and text.count("\n") <= 1)
         self._style(frame)
         return frame
+
+    def _retire_frame(self, frame: QFrame) -> None:
+        """Убрать сообщение и отменить его callbacks до повторного использования."""
+        frame.expiry.stop()
+        frame.animation.stop()
+        self._box.removeWidget(frame)
+        frame.hide()
+        if frame in self._active_frames:
+            self._active_frames.remove(frame)
 
     def _style(self, frame: QFrame) -> None:
         accent = frame.property("accent")
@@ -273,48 +321,42 @@ class Overlay(DraggableOverlay):
     def show_message(self, text: str, important: bool = False, duration_sec: float | None = None,
                      icons=(), highlights=()) -> None:
         """icons — [(папка, ключ)] из cache/images, например ("heroes", "axe"); highlights — слова золотом."""
-        frame = self._make_frame(text, ACCENT_IMPORTANT if important else ACCENT_NORMAL,
-                                 icons=icons, highlights=highlights)
-        effect = QGraphicsOpacityEffect(frame)
-        effect.setOpacity(1.0)
-        frame.setGraphicsEffect(effect)
-        # новые сообщения внизу, лишние старые убираем
-        self._box.insertWidget(self._box.count() - 1, frame, 0, Qt.AlignRight)  # перед растяжкой внизу
-        # лишние старые убираем: больше MAX_MESSAGES или не влезают по высоте (окно не заходит на миникарту справа)
-        frames = self._frames()
+        if len(self._active_frames) >= MAX_MESSAGES:
+            self._retire_frame(self._active_frames[0])
+        frame = next(f for f in self._message_frames if f not in self._active_frames)
+        self._make_frame(text, ACCENT_IMPORTANT if important else ACCENT_NORMAL,
+                         icons=icons, highlights=highlights, frame=frame)
+        self._box.insertWidget(self._box.count() - 1, frame, 0, Qt.AlignRight)
+        self._active_frames.append(frame)
         room = self.height() - 12 - (self._hint.sizeHint().height() + 6 if self._hint else 0)
-        while len(frames) > 1 and (len(frames) > MAX_MESSAGES
-                                   or sum(f.sizeHint().height() + 6 for f in frames) > room):
-            old = frames.pop(0)
-            old.hide()
-            old.deleteLater()
+        while len(self._active_frames) > 1 and sum(f.sizeHint().height() + 6 for f in self._active_frames) > room:
+            self._retire_frame(self._active_frames[0])
+        frame.show()
         seconds = duration_sec if duration_sec is not None else self.settings.display_sec
-        QTimer.singleShot(round(seconds * 1000), lambda: self._fade_out(frame, effect))
+        frame.expiry.start(max(0, round(seconds * 1000)))
         if not self.isVisible():
             self.show()
 
     def _frames(self) -> list[QFrame]:
-        return [self._box.itemAt(i).widget() for i in range(self._box.count())
-                if self._box.itemAt(i).widget() is not None and self._box.itemAt(i).widget() is not self._hint]
+        return list(self._active_frames)
 
     def _fade_out(self, frame: QFrame, effect: QGraphicsOpacityEffect) -> None:
-        try:
-            animation = QPropertyAnimation(effect, b"opacity", frame)
-        except RuntimeError:
-            return  # сообщение уже удалено
-        animation.setDuration(FADE_MS)
-        animation.setStartValue(1.0)
-        animation.setEndValue(0.0)
-        animation.finished.connect(frame.deleteLater)
-        animation.start()
+        if frame in self._active_frames:
+            frame.animation.start()
+
+    def closeEvent(self, event) -> None:
+        for frame in self._frames():
+            self._retire_frame(frame)
+        super().closeEvent(event)
 
     # --- режим «Настроить расположение» ---
     def set_layout_mode(self, on: bool) -> None:
         if on and self._hint is None:
             self._hint = self._make_frame(ru.OVERLAY_LAYOUT_HINT, ACCENT_LAYOUT, font_delta=-4)
             self._box.insertWidget(0, self._hint, 0, Qt.AlignRight)
+            self._hint.show()
         elif not on and self._hint is not None:
-            self._hint.deleteLater()
+            self._retire_frame(self._hint)
             self._hint = None
         super().set_layout_mode(on)
 

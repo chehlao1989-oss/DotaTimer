@@ -29,6 +29,13 @@ class OutlinedLabel(QWidget):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self._relayout()
 
+    def set_content(self, text: str, highlight: re.Pattern | None = None, align_right: bool = False) -> None:
+        """Обновить текст в существующем виджете уведомления (BUGLOG №67)."""
+        self._text = text
+        self._highlight = highlight
+        self._align_right = align_right
+        self._relayout()
+
     def text(self) -> str:
         return self._text
 

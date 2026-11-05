@@ -155,7 +155,8 @@ def main() -> None:
 
     setup_logging()
     crash.install(paths.logs_dir())  # падения и необработанные ошибки — в лог и crash.log (BUGLOG №57)
-    log.info("Запуск")
+    from app import __version__
+    log.info("Запуск DotaTimer %s; проект %s; Python %s", __version__, Path(__file__).resolve().parents[1], sys.executable)
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)  # закрытое окно прячется в трей
     app.setWindowIcon(app_icon())
